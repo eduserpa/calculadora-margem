@@ -4,9 +4,11 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Calculadora de Margem</title>
-  <script>
-    try { if (localStorage.getItem('calculadora-margem.tema') === 'escuro') document.documentElement.dataset.tema = 'escuro'; } catch {}
-  </script>
+  <link rel="icon" href="assets/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="assets/icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap">
   <link rel="stylesheet" href="css/estilo.css">
   <script type="module" src="src/app.js"></script>
 </head>
@@ -22,10 +24,10 @@
         <a href="#configuracoes" class="aba" data-aba="configuracoes"><span class="icone" aria-hidden="true">⚙</span>Taxas dos Canais</a>
       </nav>
       <div class="lateral-base">
-        <button type="button" class="lateral-botao" id="exportar">Exportar dados</button>
+        <button type="button" class="lateral-botao" id="exportar" title="Os dados ficam só neste navegador. Exporte para guardar uma cópia ou levar para outro computador.">Exportar dados</button>
         <label class="lateral-botao" for="importar">Importar dados</label>
         <input type="file" id="importar" accept=".json,application/json" hidden>
-        <button type="button" class="lateral-botao" id="tema">Tema escuro</button>
+        <a class="credito" href="https://lucerpy.com.br" target="_blank" rel="noopener">Feito por <img src="assets/lucerpy-wordmark-white-lime-dot-transparent-preloader.avif" alt="Lucerpy" width="87" height="21"></a>
       </div>
     </aside>
 
@@ -156,7 +158,6 @@
         <div id="lista-canais" class="lista-canais"></div>
       </section>
 
-      <footer class="rodape">Os dados ficam só neste navegador. Use “Exportar dados” para guardar uma cópia ou levar para outro computador.</footer>
     </main>
   </div>
 
