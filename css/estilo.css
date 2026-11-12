@@ -490,7 +490,7 @@ table.faixas input { width: 96px; min-height: 34px; padding: 0 8px; border: 1px 
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
 
-/* logo do Léomargens (leão com focinho de %) ao lado do nome */
+/* logo do Calculéo (leão com focinho de %) ao lado do nome */
 .marca { display: flex; align-items: center; gap: 10px; }
 .marca-logo { flex: none; display: block; }
 .marca .marca-txt { font-size: 17px; font-weight: 700; line-height: 1.1; }
