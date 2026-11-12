@@ -35,3 +35,7 @@ Depois abra http://127.0.0.1:8787
 ```
 npm test
 ```
+
+## Créditos
+
+Ícones: [Lucide](https://lucide.dev) v0.460.0, licença ISC (texto em `assets/icones-LICENSE.txt`). Só os ícones usados estão em `assets/icones.svg`, sem carregar nada de fora.

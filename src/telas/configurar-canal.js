@@ -1,4 +1,5 @@
 // Janela "Configurar <canal>": primeiro a regra do canal (editável), depois impostos, custos por unidade e promoção.
+import { icone } from '../icones.js';
 import { dados, salvar, canais, canaisDePadrao } from '../dados.js';
 import { quadroDaRegra, notaDoMercadoLivre, tipoDeVenda, faixasEmTexto, data } from '../canais-texto.js';
 import { lerNumero, campo, campoReais, esc } from '../formato.js';
@@ -82,11 +83,11 @@ function faixasEditaveis() {
             <td>${i === ultima ? '—' : `<input type="text" inputmode="decimal" data-c="faixas.${i}.ate" data-num value="${campoReais(f.ate)}" aria-label="Até quanto vai a faixa ${i + 1}">`}</td>
             <td><input type="text" inputmode="decimal" data-c="faixas.${i}.comissao" data-num value="${campo(f.comissao)}" aria-label="Comissão da faixa ${i + 1}"></td>
             <td><input type="text" inputmode="decimal" data-c="faixas.${i}.taxa_fixa" data-num value="${campoReais(f.taxa_fixa)}" aria-label="Taxa fixa da faixa ${i + 1}"></td>
-            <td>${i === ultima ? '' : `<button type="button" class="botao pequeno discreto" data-acao="tirar-faixa" data-i="${i}" aria-label="Tirar faixa">×</button>`}</td>
+            <td>${i === ultima ? '' : `<button type="button" class="botao pequeno discreto" data-acao="tirar-faixa" data-i="${i}" aria-label="Tirar faixa">${icone('x')}</button>`}</td>
           </tr>`).join('')}
         </tbody>
       </table>
-      <div><button type="button" class="botao pequeno discreto" data-acao="nova-faixa">+ Adicionar faixa</button></div>
+      <div><button type="button" class="botao pequeno discreto" data-acao="nova-faixa">${icone('plus')} Adicionar faixa</button></div>
       <p class="pe">Calculada automaticamente pelo preço de venda.${id === 'shopee' ? ' Inclui taxa de transação.' : ''}${rasc.faixas_vigente_desde ? ` Tabela vigente desde ${data(rasc.faixas_vigente_desde)}.` : ''}</p>
     </div>
     ${fonte(rasc.faixas_fonte, rasc.faixas_conferido_em)}`;
@@ -179,7 +180,7 @@ function desenhar() {
     <form method="dialog" novalidate>
       <div class="janela-topo">
         <h3 id="titulo-canal">Configurar ${esc(rasc.nome)}</h3>
-        <button type="button" class="fechar" data-acao="cancelar" aria-label="Fechar">×</button>
+        <button type="button" class="fechar" data-acao="cancelar" aria-label="Fechar">${icone('x')}</button>
       </div>
       <div class="janela-corpo">
         ${camposDoCanal()}

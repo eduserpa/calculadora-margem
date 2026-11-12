@@ -17,31 +17,31 @@
     <aside class="lateral" id="menu-lateral">
       <div class="lateral-topo">
         <div class="marca">Calculadora<br><span>de Margem</span></div>
-        <button type="button" class="lateral-alternar" id="lateral-fechar" aria-controls="menu-lateral" aria-expanded="true" aria-label="Ocultar menu lateral" title="Ocultar menu">«</button>
+        <button type="button" class="lateral-alternar" id="lateral-fechar" aria-controls="menu-lateral" aria-expanded="true" aria-label="Ocultar menu lateral" title="Ocultar menu"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#chevrons-left"></use></svg></button>
       </div>
       <nav class="menu" aria-label="Telas">
         <p class="menu-titulo">Principal</p>
-        <a href="#calculadora" class="aba" data-aba="calculadora"><span class="icone" aria-hidden="true">%</span>Calculadora de Margem</a>
-        <a href="#produtos" class="aba" data-aba="produtos"><span class="icone" aria-hidden="true">▢</span>Meus Produtos</a>
+        <a href="#calculadora" class="aba" data-aba="calculadora"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#percent"></use></svg>Calculadora de Margem</a>
+        <a href="#produtos" class="aba" data-aba="produtos"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#package"></use></svg>Meus Produtos</a>
         <p class="menu-titulo">Ajustes</p>
-        <a href="#configuracoes" class="aba" data-aba="configuracoes"><span class="icone" aria-hidden="true">⚙</span>Taxas dos Canais</a>
+        <a href="#configuracoes" class="aba" data-aba="configuracoes"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#sliders-horizontal"></use></svg>Taxas dos Canais</a>
       </nav>
       <div class="lateral-base">
-        <button type="button" class="lateral-botao" id="exportar" title="Os dados ficam só neste navegador. Exporte para guardar uma cópia ou levar para outro computador.">Exportar dados</button>
-        <label class="lateral-botao" for="importar">Importar dados</label>
+        <button type="button" class="lateral-botao" id="exportar" title="Os dados ficam só neste navegador. Exporte para guardar uma cópia ou levar para outro computador."><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#download"></use></svg> Exportar dados</button>
+        <label class="lateral-botao" for="importar"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#upload"></use></svg> Importar dados</label>
         <input type="file" id="importar" accept=".json,application/json" hidden>
         <a class="credito" href="https://lucerpy.com.br" target="_blank" rel="noopener"><span>Feito por</span><img src="assets/lucerpy-wordmark-white-lime-dot-transparent-preloader.avif" alt="Lucerpy" width="110" height="32"></a>
       </div>
     </aside>
 
     <main class="conteudo">
-      <button type="button" class="abrir-menu" id="lateral-abrir" aria-controls="menu-lateral" aria-expanded="true" aria-label="Mostrar menu lateral" title="Mostrar menu" hidden>☰</button>
+      <button type="button" class="abrir-menu" id="lateral-abrir" aria-controls="menu-lateral" aria-expanded="true" aria-label="Mostrar menu lateral" title="Mostrar menu" hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#menu"></use></svg></button>
       <p class="aviso" id="aviso-geral" role="status" hidden></p>
 
       <!-- Calculadora -->
       <section id="tela-calculadora" class="tela" aria-labelledby="titulo-calculadora">
         <header class="titulo-tela centro">
-          <h1 id="titulo-calculadora"><span class="icone-titulo" aria-hidden="true">%</span>Calculadora de Margem</h1>
+          <h1 id="titulo-calculadora"><span class="icone-titulo"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#percent"></use></svg></span>Calculadora de Margem</h1>
           <p>Selecione um produto e descubra sua margem real por canal</p>
         </header>
         <p class="aviso ok" id="c-exemplo" hidden>Números de exemplo. Troque pelos seus ou selecione um produto.</p>
@@ -95,7 +95,7 @@
           </div>
 
           <div class="cartao minimo">
-            <h2><span aria-hidden="true">◎</span> Preço Mínimo Sugerido</h2>
+            <h2><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#target"></use></svg> Preço Mínimo Sugerido</h2>
             <strong class="minimo-valor" id="c-minimo-valor">—</strong>
             <p class="minimo-sub" id="c-minimo-sub"></p>
             <p class="alerta" id="c-minimo-aviso" hidden></p>
@@ -123,7 +123,7 @@
             <h1 id="titulo-produtos">Meus Produtos</h1>
             <p>Cadastre e gerencie os custos dos seus produtos</p>
           </div>
-          <button type="button" class="botao principal" id="novo-produto">+ Novo Produto</button>
+          <button type="button" class="botao principal" id="novo-produto"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#plus"></use></svg> Novo Produto</button>
         </header>
         <div class="filtros">
           <input type="search" id="busca" class="campo-texto" placeholder="Buscar por nome ou referência..." aria-label="Buscar produto">
@@ -164,6 +164,7 @@
     </main>
   </div>
 
+  <p class="versao" role="note" aria-label="Versão Alpha 1">Versão Alpha 1</p>
   <dialog id="janela-produto" class="janela" aria-labelledby="titulo-janela"></dialog>
   <dialog id="janela-canal" class="janela media" aria-labelledby="titulo-canal"></dialog>
   <dialog id="janela-importar" class="janela pequena" aria-labelledby="titulo-importar"></dialog>

@@ -1,13 +1,14 @@
 // Tela Meus Produtos: cartões, busca, filtro, ordem, cadastro, edição e exclusão.
+import { icone } from '../icones.js';
 import { dados, salvar, novoId } from '../dados.js';
 import { porId, custoDoProduto, kitIncompleto, pesoDoProduto, kitsQueUsam, produtoVazio, exemplos } from '../produtos.js';
 import { lerNumero, reais, campo, campoReais, gramas, esc } from '../formato.js';
+import { capa, prepararFoto, MAX_FOTOS } from '../fotos.js';
 
 const $ = (s, raiz = document) => raiz.querySelector(s);
 const janela = () => $('#janela-produto');
 const semAcento = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const ETIQUETA = { revenda: 'Revenda', fabricacao: 'Fabricante', kit: 'Kit' };
-const CAIXA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>';
 
 let rasc = null; // produto sendo editado
 let unidadePeso = 'g';
@@ -99,7 +100,7 @@ export function desenharLista() {
   }
   alvo.innerHTML = `<div class="lista-cartoes">${lista.map((p) => `
     <article class="cartao produto">
-      <div class="produto-imagem">${CAIXA}</div>
+      <div class="produto-imagem">${capa(p)}</div>
       <div class="produto-corpo">
         <h3 title="${esc(p.nome)}">${esc(p.nome)}</h3>
         ${p.sku ? `<p class="ref">Ref: ${esc(p.sku)}</p>` : ''}
@@ -108,7 +109,7 @@ export function desenharLista() {
         <div class="linha-dado"><span>Precificações:</span>${precificacoes(p.id) ? `<strong class="bom">${precificacoes(p.id)} canal(is)</strong>` : '<span>Nenhuma</span>'}</div>
       </div>
       <div class="produto-base"><span>Atualizado em ${dataCurta(p.atualizadoEm)}</span>
-        <span class="acoes-cartao"><button type="button" class="botao pequeno" data-editar="${p.id}">Editar</button><button type="button" class="botao pequeno perigo" data-excluir="${p.id}" aria-label="Excluir ${esc(p.nome)}" title="Excluir">🗑</button></span></div>
+        <span class="acoes-cartao"><button type="button" class="botao pequeno" data-editar="${p.id}">Editar</button><button type="button" class="botao pequeno perigo" data-excluir="${p.id}" aria-label="Excluir ${esc(p.nome)}" title="Excluir">${icone('trash-2')}</button></span></div>
     </article>`).join('')}</div>`;
 }
 
@@ -140,7 +141,7 @@ function desenharJanela() {
     <form method="dialog" novalidate>
       <div class="janela-topo">
         <h3 id="titulo-janela">${rasc.id ? 'Editar Produto' : 'Novo Produto'}</h3>
-        <button type="button" class="fechar" data-acao="cancelar" aria-label="Fechar">×</button>
+        <button type="button" class="fechar" data-acao="cancelar" aria-label="Fechar">${icone('x')}</button>
       </div>
       <div class="janela-corpo">
         <div class="secao">
@@ -153,6 +154,10 @@ function desenharJanela() {
           <label class="campo"><span>${kit ? 'Nome do Kit' : 'Nome do produto'}</span><input type="text" data-c="nome" value="${esc(rasc.nome)}" placeholder="${kit ? 'Ex: Kit 2 garrafas' : 'Ex: Garrafa térmica 500 ml'}" autocomplete="off"></label>
           <label class="campo"><span>Referência / SKU</span><input type="text" data-c="sku" value="${esc(rasc.sku)}" placeholder="Ex: GT-500" autocomplete="off"></label>
           <label class="campo"><span>Grade</span><input type="text" data-c="grade" value="${esc(rasc.grade ?? '')}" placeholder="Ex: P-GG" autocomplete="off"></label>
+        </div>
+        <div class="secao">
+          <p class="secao-titulo">Fotos (até ${MAX_FOTOS})</p>
+          <div id="bloco-fotos">${blocoFotos()}</div>
         </div>
         <div class="secao">
           <p class="secao-titulo">Peso e Dimensões</p>
@@ -191,6 +196,32 @@ function desenharJanela() {
   atualizarTotais();
 }
 
+function blocoFotos() {
+  const fotos = rasc.fotos ?? [];
+  const cheio = fotos.length >= MAX_FOTOS;
+  return `<div class="fotos">
+    ${fotos.map((f, i) => `<div class="foto"><img src="${esc(f)}" alt="Foto ${i + 1}"><button type="button" class="fechar" data-acao="tirar-foto" data-i="${i}" aria-label="Tirar foto ${i + 1}">${icone('x')}</button></div>`).join('')}
+  </div>
+  ${cheio ? '' : `<div class="linha-foto">
+    <label class="botao pequeno">${icone('upload')} Escolher arquivo<input type="file" id="foto-arquivo" accept="image/*" multiple hidden></label>
+    <input type="url" id="foto-url" class="campo-texto" placeholder="ou cole o endereço da imagem (https://...)" aria-label="Endereço da imagem">
+    <button type="button" class="botao pequeno" data-acao="foto-url">${icone('plus')} Adicionar</button>
+  </div>`}`;
+}
+
+async function adicionarFotos(origens) {
+  mostrarErro('');
+  rasc.fotos = rasc.fotos ?? [];
+  for (const origem of origens.slice(0, MAX_FOTOS - rasc.fotos.length)) {
+    try {
+      rasc.fotos.push(await prepararFoto(origem));
+    } catch (erro) {
+      mostrarErro(erro.message);
+    }
+  }
+  $('#bloco-fotos', janela()).innerHTML = blocoFotos();
+}
+
 function blocoCusto() {
   if (rasc.tipoCusto === 'revenda') {
     const r = rasc.revenda;
@@ -206,24 +237,24 @@ function blocoCusto() {
     return `
       <div class="secao">
         <div class="linhas">
-          <div class="linhas-cabeca"><strong>Matérias-primas</strong><button type="button" class="botao pequeno discreto" data-acao="adicionar" data-lista="fabricacao.materiais">+ Adicionar</button></div>
+          <div class="linhas-cabeca"><strong>Matérias-primas</strong><button type="button" class="botao pequeno discreto" data-acao="adicionar" data-lista="fabricacao.materiais">${icone('plus')} Adicionar</button></div>
           ${f.materiais.map((m, i) => `
             <div class="linha-item">
               <label class="campo"><span>Material</span><input type="text" data-c="fabricacao.materiais.${i}.descricao" value="${esc(m.descricao)}" placeholder="Ex: Chapa, Parafuso, Tinta..."></label>
               ${dinheiro('Preço unit. (R$)', `fabricacao.materiais.${i}.precoUnitario`, m.precoUnitario)}
               <label class="campo"><span>Qtd</span><input type="text" inputmode="decimal" data-c="fabricacao.materiais.${i}.quantidade" data-num value="${campo(m.quantidade)}" placeholder="0"></label>
               <div class="subtotal" id="sub-m-${i}"></div>
-              <button type="button" class="botao pequeno discreto" data-acao="remover" data-lista="fabricacao.materiais" data-i="${i}" aria-label="Remover material">×</button>
+              <button type="button" class="botao pequeno discreto" data-acao="remover" data-lista="fabricacao.materiais" data-i="${i}" aria-label="Remover material">${icone('x')}</button>
             </div>`).join('')}
           <p class="subtotal-linha" id="sub-mp"></p>
         </div>
         <div class="linhas">
-          <div class="linhas-cabeca"><strong>Mão de obra</strong><button type="button" class="botao pequeno discreto" data-acao="adicionar" data-lista="fabricacao.maoDeObra">+ Adicionar</button></div>
+          <div class="linhas-cabeca"><strong>Mão de obra</strong><button type="button" class="botao pequeno discreto" data-acao="adicionar" data-lista="fabricacao.maoDeObra">${icone('plus')} Adicionar</button></div>
           ${f.maoDeObra.map((m, i) => `
             <div class="linha-item duas">
               <label class="campo"><span>Etapa</span><input type="text" data-c="fabricacao.maoDeObra.${i}.descricao" value="${esc(m.descricao)}" placeholder="Ex: Corte, Solda, Acabamento..."></label>
               ${dinheiro('Valor (R$)', `fabricacao.maoDeObra.${i}.valor`, m.valor)}
-              <button type="button" class="botao pequeno discreto" data-acao="remover" data-lista="fabricacao.maoDeObra" data-i="${i}" aria-label="Remover etapa">×</button>
+              <button type="button" class="botao pequeno discreto" data-acao="remover" data-lista="fabricacao.maoDeObra" data-i="${i}" aria-label="Remover etapa">${icone('x')}</button>
             </div>`).join('')}
           <p class="subtotal-linha" id="sub-mdo"></p>
         </div>
@@ -251,9 +282,9 @@ function blocoCusto() {
           </label>
           <label class="campo"><span>Qtd</span><input type="text" inputmode="decimal" data-c="kit.${i}.quantidade" data-num value="${campo(item.quantidade)}"></label>
           <div class="subtotal" id="sub-kit-${i}"></div>
-          <button type="button" class="botao pequeno discreto" data-acao="remover" data-lista="kit" data-i="${i}" aria-label="Tirar do kit">×</button>
+          <button type="button" class="botao pequeno discreto" data-acao="remover" data-lista="kit" data-i="${i}" aria-label="Tirar do kit">${icone('x')}</button>
         </div>`).join('')}
-      <div><button type="button" class="botao pequeno contorno" data-acao="adicionar" data-lista="kit">+ Adicionar Produto ao Kit</button></div>
+      <div><button type="button" class="botao pequeno contorno" data-acao="adicionar" data-lista="kit">${icone('plus')} Adicionar Produto ao Kit</button></div>
     </div>`;
 }
 
@@ -300,6 +331,7 @@ function aoDigitar(e) {
 }
 
 function aoTrocar(e) {
+  if (e.target.id === 'foto-arquivo') return adicionarFotos([...e.target.files]);
   if (e.target.name === 'unidadePeso') {
     unidadePeso = e.target.value;
     return desenharJanela();
@@ -329,6 +361,14 @@ function aoClicar(e) {
   const acao = botao.dataset.acao;
   if (acao === 'cancelar') return janela().close();
   if (acao === 'excluir') return excluir(botao);
+  if (acao === 'foto-url') {
+    const url = $('#foto-url', janela()).value.trim();
+    return url && adicionarFotos([url]);
+  }
+  if (acao === 'tirar-foto') {
+    rasc.fotos.splice(Number(botao.dataset.i), 1);
+    return ($('#bloco-fotos', janela()).innerHTML = blocoFotos());
+  }
   if (acao === 'adicionar') lista(botao.dataset.lista).push(LINHA_NOVA[botao.dataset.lista]());
   if (acao === 'remover') lista(botao.dataset.lista).splice(Number(botao.dataset.i), 1);
   $('#bloco-custo', janela()).innerHTML = blocoCusto();
@@ -372,8 +412,13 @@ function aoSalvar(e) {
   }
   const { ultimoIndividual, ...limpo } = rasc;
   const produto = { ...structuredClone(limpo), atualizadoEm: new Date().toISOString() };
+  const antes = dados.produtos;
   if (produto.id) dados.produtos = dados.produtos.map((p) => (p.id === produto.id ? produto : p));
-  else dados.produtos.push({ ...produto, id: novoId() });
-  salvar();
+  else dados.produtos = [...dados.produtos, { ...produto, id: novoId() }];
+  if (!salvar()) {
+    dados.produtos = antes;
+    salvar();
+    return mostrarErro('O espaço do navegador acabou (as fotos ocupam mais). Tire uma foto ou exporte os dados e apague produtos antigos.');
+  }
   janela().close();
 }

@@ -1,5 +1,6 @@
 // Tela Calculadora: produto, canal, preço (DE/desconto/POR) de cada canal, resultado, preço mínimo,
 // liquidação, análise e salvar a precificação do produto naquele canal.
+import { icone } from '../icones.js';
 import { dados, canais, salvar } from '../dados.js';
 import { porId, custoDoProduto, pesoDoProduto } from '../produtos.js';
 import { calcularMargem, precoMinimo } from '../calculos/margem.js';
@@ -7,6 +8,7 @@ import { precoPor, descontoPeloPor, descontoMaximo } from '../calculos/preco-de-
 import { lerNumero, reais, numero, campo, campoReais, gramas, esc } from '../formato.js';
 import { linhasDoCanal, sigla, tipoDeVenda, TITULO_DO_GRUPO, pct } from '../canais-texto.js';
 import { abrirConfigurarCanal } from './configurar-canal.js';
+import { capa } from '../fotos.js';
 
 const $ = (s) => document.querySelector(s);
 const CHAVE = 'calculadora-margem.tela';
@@ -39,6 +41,31 @@ export function faixaDaMargem(m) {
 }
 
 const salvas = (produtoId) => dados.precificacoes?.[produtoId] ?? {};
+
+// Animação dos números: conta do valor anterior até o novo em ~250 ms. A conta não espera a animação,
+// e o último quadro mostra sempre o valor exato. Desligada para quem pediu menos movimento.
+const semMovimento = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+const ultimos = new Map(); // valor mostrado da última vez, por campo
+let posicaoMarcador = null;
+
+function contar(id, chave, valor, formatar) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const de = ultimos.get(chave);
+  ultimos.set(chave, valor);
+  el.textContent = formatar(valor);
+  if (semMovimento() || de == null || de === valor || !Number.isFinite(de)) return;
+  const inicio = performance.now();
+  const passo = (agora) => {
+    if (ultimos.get(chave) !== valor) return; // chegou um valor mais novo: este para
+    const t = Math.min(1, (agora - inicio) / 250);
+    const suave = 1 - (1 - t) ** 3;
+    const atual = document.getElementById(id); // o resultado pode ter sido redesenhado no meio
+    if (atual) atual.textContent = formatar(t < 1 ? de + (valor - de) * suave : valor);
+    if (t < 1) requestAnimationFrame(passo);
+  };
+  requestAnimationFrame(passo);
+}
 const precoDoCanal = () => (estado.precos[estado.canal] ??= { de: 0, desconto: 0 });
 
 export function iniciarCalculadora() {
@@ -230,7 +257,7 @@ function desenharCanais() {
             <span class="canal-linhas">${linhasDoCanal(c)}</span>
             ${resumo ? `<span class="canal-salvo">Preço: ${reais(preco)} · Margem: ${numero(resumo.margem, 1)}%</span>` : ''}
           </button>
-          <button type="button" class="engrenagem" data-config="${id}" title="Configurar ${esc(c.nome)}" aria-label="Configurar ${esc(c.nome)}">⚙</button>
+          <button type="button" class="engrenagem" data-config="${id}" title="Configurar ${esc(c.nome)}" aria-label="Configurar ${esc(c.nome)}">${icone('settings')}</button>
         </div>`;
     })
     .join('');
@@ -308,7 +335,7 @@ function htmlResultado(r, canal, pesoG) {
     </div>
     <div class="res-total">
       <span class="rotulo">Margem de contribuição</span>
-      <div class="numeros"><span class="${f.classe}">${numero(r.margem, 1)}%</span><i></i><span class="${f.classe}">${reais(r.lucro)}</span></div>
+      <div class="numeros"><span class="${f.classe}" id="c-num-margem">${numero(r.margem, 1)}%</span><i></i><span class="${f.classe}" id="c-num-lucro">${reais(r.lucro)}</span></div>
       <small>lucro por unidade</small>
     </div>`;
 }
@@ -319,7 +346,7 @@ function htmlAnalise(margem) {
   return `
     <div class="analise-topo"><h2>Análise da margem</h2><span>${f.faixa}</span></div>
     <h3 class="${f.classe}">${f.frase}</h3>
-    <div class="marcador" style="margin-top:28px"><b style="left:${posicao}%">${numero(margem, 1)}%</b><i style="left:${posicao}%"></i></div>
+    <div class="marcador" style="margin-top:28px" data-alvo="${posicao}"><b style="left:${posicaoMarcador ?? posicao}%">${numero(margem, 1)}%</b><i style="left:${posicaoMarcador ?? posicao}%"></i></div>
     <div class="barra-faixas" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
     <div class="escala">${[-10, 0, 10, 20, 25, 40, 50].map((v) => `<span style="left:${((v + 10) / 60) * 100}%">${v}%${v === 50 ? '+' : ''}</span>`).join('')}</div>`;
 }
@@ -330,7 +357,7 @@ function atualizar() {
   const { cmv, pesoG, produto } = custoEPeso();
   $('#c-depois-produto').hidden = !temProduto;
   $('#c-produto-cartao').classList.toggle('ativo', Boolean(produto));
-  $('#c-produto-titulo').innerHTML = produto ? `${esc(produto.nome)}${produto.sku ? ` <span class="sub">(${esc(produto.sku)})</span>` : ''}` : 'Selecione o Produto';
+  $('#c-produto-titulo').innerHTML = produto ? `<span class="miniatura">${capa(produto)}</span>${esc(produto.nome)}${produto.sku ? ` <span class="sub">(${esc(produto.sku)})</span>` : ''}` : 'Selecione o Produto';
   $('#c-avulso').hidden = estado.produtoId !== AVULSO;
   const pelaCaixa = produto && pesoG > (Number(produto.pesoG) || 0);
   $('#c-info-produto').innerHTML = produto
@@ -352,10 +379,22 @@ function atualizar() {
   const preco = precoPor(p.de, p.desconto);
   const alvo = $('#c-resultado');
   const r = preco > 0 && cmv > 0 ? calcularMargem({ preco, cmv, canal, pesoG }) : null;
-  alvo.innerHTML = r ? htmlResultado(r, canal, pesoG) : '<div class="vazio-resultado"><b aria-hidden="true">▦</b>Preencha os campos para ver o resultado</div>';
+  alvo.innerHTML = r ? htmlResultado(r, canal, pesoG) : `<div class="vazio-resultado"><b>${icone('percent')}</b>Preencha os campos para ver o resultado</div>`;
   $('#c-resultado-titulo').textContent = r ? `Resultado — ${canal.nome}` : 'Resultado';
   $('#c-data').hidden = !r;
   $('#c-analise').innerHTML = r ? htmlAnalise(r.margem) : '';
+  if (r) {
+    contar('c-num-margem', 'margem', r.margem, (v) => `${numero(v, 1)}%`);
+    contar('c-num-lucro', 'lucro', r.lucro, reais);
+    const marcador = $('#c-analise .marcador');
+    const alvo = Number(marcador.dataset.alvo);
+    requestAnimationFrame(() => marcador.querySelectorAll('b, i').forEach((el) => (el.style.left = `${alvo}%`)));
+    posicaoMarcador = alvo;
+  } else {
+    ultimos.delete('margem');
+    ultimos.delete('lucro');
+    posicaoMarcador = null;
+  }
 
   const minimo = cmv > 0 ? precoMinimo({ cmv, canal, pesoG, margemDesejada: estado.margemDesejada }) : 0;
   const botao = $('#c-usar-minimo');
@@ -366,7 +405,11 @@ function atualizar() {
   else if (!minimo) aviso = `Com essas taxas não dá para chegar a ${estado.margemDesejada}% de margem.`;
   else if (r && preco < minimo) aviso = 'Seu preço atual está abaixo do mínimo!';
   else if (r && r.margem < estado.margemDesejada) aviso = `Seu preço atual cai numa faixa de taxa ou frete mais cara e não chega a ${estado.margemDesejada}% de margem.`;
-  $('#c-minimo-valor').textContent = minimo ? reais(minimo) : '—';
+  if (minimo) contar('c-minimo-valor', 'minimo', minimo, reais);
+  else {
+    ultimos.delete('minimo');
+    $('#c-minimo-valor').textContent = '—';
+  }
   $('#c-minimo-sub').textContent = `para margem de ${estado.margemDesejada}%`;
   $('#c-minimo-aviso').textContent = aviso;
   $('#c-minimo-aviso').hidden = !aviso;
