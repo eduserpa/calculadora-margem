@@ -51,23 +51,33 @@ export function iniciarCalculadora() {
     // ignora
   }
 
-  $('#c-busca').addEventListener('input', desenharProdutos);
-  $('#c-seletor').addEventListener('click', () => abrirLista($('#c-seletor-lista').hidden));
-  $('#c-opcoes').addEventListener('click', (e) => {
-    const o = e.target.closest('[data-produto]');
-    if (!o) return;
-    abrirLista(false);
-    escolherProduto(o.dataset.produto);
+  // Seletor de produto: um campo só (combobox). Clicou, já digita; a lista filtra logo abaixo.
+  const campoProduto = $('#c-seletor');
+  campoProduto.addEventListener('focus', () => {
+    campoProduto.select();
+    desenharProdutos('');
+    abrirLista(true);
   });
-  document.addEventListener('click', (e) => {
-    if (!e.target.closest('.seletor')) abrirLista(false);
-  });
-  $('#c-seletor-lista').addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      abrirLista(false);
-      $('#c-seletor').focus();
+  campoProduto.addEventListener('click', () => {
+    if ($('#c-seletor-lista').hidden) {
+      desenharProdutos('');
+      abrirLista(true);
     }
   });
+  campoProduto.addEventListener('input', () => {
+    abrirLista(true);
+    desenharProdutos(campoProduto.value);
+  });
+  campoProduto.addEventListener('keydown', aoTeclarNoProduto);
+  $('#c-opcoes').addEventListener('mousedown', (e) => e.preventDefault()); // não tira o foco do campo
+  $('#c-opcoes').addEventListener('click', (e) => {
+    const o = e.target.closest('[data-produto]');
+    if (o) escolherDaLista(o.dataset.produto);
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.seletor')) fecharLista();
+  });
+  campoProduto.addEventListener('blur', fecharLista);
   $('#c-canais').addEventListener('click', (e) => {
     const config = e.target.closest('[data-config]');
     if (config) return abrirConfigurarCanal(config.dataset.config);
@@ -120,35 +130,87 @@ function escolherProduto(id) {
   atualizar();
 }
 
+let ativa = -1; // opção destacada na lista (setas)
+const opcoes = () => [...document.querySelectorAll('#c-opcoes [data-produto]')];
+
+function nomeEscolhido() {
+  if (estado.produtoId === AVULSO) return 'Sem cadastro: digitar o custo';
+  const p = porId().get(estado.produtoId);
+  return p ? `${p.nome}${p.sku ? ` (${p.sku})` : ''}` : '';
+}
+
 function abrirLista(abrir) {
   $('#c-seletor-lista').hidden = !abrir;
   $('#c-seletor').setAttribute('aria-expanded', String(abrir));
-  if (abrir) {
-    $('#c-busca').value = '';
-    desenharProdutos();
-    $('#c-busca').focus();
+  if (!abrir) $('#c-seletor').removeAttribute('aria-activedescendant');
+}
+
+// Fecha e volta o campo para o produto escolhido.
+function fecharLista() {
+  if ($('#c-seletor-lista').hidden) return;
+  abrirLista(false);
+  $('#c-seletor').value = nomeEscolhido();
+}
+
+function marcar(i) {
+  const lista = opcoes();
+  if (!lista.length) return;
+  ativa = Math.max(0, Math.min(lista.length - 1, i));
+  lista.forEach((o, k) => o.setAttribute('aria-selected', String(k === ativa)));
+  $('#c-seletor').setAttribute('aria-activedescendant', lista[ativa].id);
+  lista[ativa].scrollIntoView({ block: 'nearest' });
+}
+
+function escolherDaLista(id) {
+  abrirLista(false);
+  escolherProduto(id);
+  $('#c-seletor').value = nomeEscolhido();
+}
+
+function aoTeclarNoProduto(e) {
+  const aberta = !$('#c-seletor-lista').hidden;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    if (!aberta) {
+      abrirLista(true);
+      desenharProdutos('');
+    }
+    marcar(ativa + (e.key === 'ArrowDown' ? 1 : -1));
+  } else if (e.key === 'Enter' && aberta && ativa >= 0) {
+    e.preventDefault();
+    escolherDaLista(opcoes()[ativa].dataset.produto);
+  } else if (e.key === 'Escape' && aberta) {
+    e.preventDefault();
+    fecharLista();
   }
 }
 
-function desenharProdutos() {
-  const termo = semAcento($('#c-busca').value.trim());
+function desenharProdutos(busca) {
+  const campoProduto = $('#c-seletor');
   if (estado.produtoId && estado.produtoId !== AVULSO && !dados.produtos.some((p) => p.id === estado.produtoId)) estado.produtoId = '';
+  if (busca === undefined) {
+    // Redesenho vindo de fora: só troca o texto se a pessoa não estiver digitando.
+    if (document.activeElement !== campoProduto) campoProduto.value = nomeEscolhido();
+    busca = $('#c-seletor-lista').hidden ? '' : campoProduto.value;
+  }
+  const termo = semAcento(busca.trim());
   const mapa = porId();
   const lista = dados.produtos
     .filter((p) => !termo || semAcento(p.nome).includes(termo) || semAcento(p.sku).includes(termo))
     .sort((a, b) => String(b.atualizadoEm).localeCompare(String(a.atualizadoEm)));
   const quantos = (p) => Object.keys(salvas(p.id)).length;
   $('#c-opcoes').innerHTML = `
-    ${lista.map((p) => `
-      <button type="button" class="opcao" role="option" aria-selected="${p.id === estado.produtoId}" data-produto="${p.id}">
+    ${lista.map((p, i) => `
+      <div class="opcao" id="c-opcao-${i}" role="option" aria-selected="false" data-produto="${p.id}">
         <b>${esc(p.nome)}</b>
         <small>${p.sku ? `${esc(p.sku)} · ` : ''}CMV: ${reais(custoDoProduto(p, mapa))}</small>
         ${quantos(p) ? `<span class="etiqueta com">${quantos(p)} preço${quantos(p) > 1 ? 's' : ''}</span>` : '<span class="etiqueta sem">sem preço</span>'}
-      </button>`).join('')}
-    ${lista.length || !termo ? '' : '<p class="dica">Nenhum produto com esse nome ou SKU.</p>'}
-    <button type="button" class="opcao" role="option" aria-selected="${estado.produtoId === AVULSO}" data-produto="${AVULSO}"><b>Sem cadastro: digitar o custo</b><small>para uma conta rápida</small></button>`;
-  const escolhido = estado.produtoId === AVULSO ? null : mapa.get(estado.produtoId);
-  $('#c-seletor').textContent = escolhido ? `${escolhido.nome}${escolhido.sku ? ` (${escolhido.sku})` : ''}` : estado.produtoId === AVULSO ? 'Sem cadastro: digitar o custo' : 'Selecionar produto...';
+      </div>`).join('')}
+    ${lista.length || !termo ? '' : '<p class="dica" role="presentation">Nenhum produto com esse nome ou SKU.</p>'}
+    <div class="opcao" id="c-opcao-avulso" role="option" aria-selected="false" data-produto="${AVULSO}"><b>Sem cadastro: digitar o custo</b><small>para uma conta rápida</small></div>`;
+  const indiceEscolhido = opcoes().findIndex((o) => o.dataset.produto === estado.produtoId);
+  ativa = -1;
+  if (!$('#c-seletor-lista').hidden) marcar(termo || indiceEscolhido < 0 ? 0 : indiceEscolhido);
 }
 
 function desenharCanais() {

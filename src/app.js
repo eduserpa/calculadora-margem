@@ -15,6 +15,48 @@ function mostrarTela() {
   );
 }
 
+// Menu lateral: ocultar e mostrar. No computador a escolha fica lembrada; no celular começa oculto e abre por cima.
+const CHAVE_LATERAL = 'calculadora-margem.lateral';
+const celular = () => matchMedia('(max-width: 760px)').matches;
+
+function mostrarLateral(aberta, { lembrar = true, foco = false } = {}) {
+  $('.app').classList.toggle('sem-lateral', !aberta);
+  $('#lateral-fechar').setAttribute('aria-expanded', String(aberta));
+  $('#lateral-abrir').setAttribute('aria-expanded', String(aberta));
+  $('#lateral-abrir').hidden = aberta;
+  if (foco) (aberta ? $('#lateral-fechar') : $('#lateral-abrir')).focus();
+  if (lembrar && !celular()) {
+    try {
+      localStorage.setItem(CHAVE_LATERAL, aberta ? 'aberta' : 'oculta');
+    } catch {
+      // sem armazenamento: vale só nesta visita
+    }
+  }
+}
+
+function iniciarLateral() {
+  let salva = null;
+  try {
+    salva = localStorage.getItem(CHAVE_LATERAL);
+  } catch {
+    // ignora
+  }
+  mostrarLateral(!celular() && salva !== 'oculta', { lembrar: false });
+  $('#lateral-fechar').addEventListener('click', () => mostrarLateral(false, { foco: true }));
+  $('#lateral-abrir').addEventListener('click', () => mostrarLateral(true, { foco: true }));
+  // No celular: escolher uma tela, tocar fora ou apertar Esc fecha o menu.
+  $('#menu-lateral').addEventListener('click', (e) => {
+    if (celular() && e.target.closest('.aba')) mostrarLateral(false, { lembrar: false });
+  });
+  document.addEventListener('click', (e) => {
+    const aberta = !$('.app').classList.contains('sem-lateral');
+    if (celular() && aberta && !e.target.closest('#menu-lateral, #lateral-abrir')) mostrarLateral(false, { lembrar: false });
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && celular() && !$('.app').classList.contains('sem-lateral')) mostrarLateral(false, { lembrar: false, foco: true });
+  });
+}
+
 function aviso(texto, ok = false) {
   const el = $('#aviso-geral');
   el.textContent = texto;
@@ -79,6 +121,7 @@ async function iniciar() {
   iniciarCalculadora();
   iniciarConfiguracoes();
   iniciarConfigurarCanal();
+  iniciarLateral();
   $('#exportar').addEventListener('click', exportar);
   $('#importar').addEventListener('change', importar);
   window.addEventListener('hashchange', mostrarTela);

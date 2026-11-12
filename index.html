@@ -14,8 +14,11 @@
 </head>
 <body>
   <div class="app">
-    <aside class="lateral">
-      <div class="marca">Calculadora<br><span>de Margem</span></div>
+    <aside class="lateral" id="menu-lateral">
+      <div class="lateral-topo">
+        <div class="marca">Calculadora<br><span>de Margem</span></div>
+        <button type="button" class="lateral-alternar" id="lateral-fechar" aria-controls="menu-lateral" aria-expanded="true" aria-label="Ocultar menu lateral" title="Ocultar menu">«</button>
+      </div>
       <nav class="menu" aria-label="Telas">
         <p class="menu-titulo">Principal</p>
         <a href="#calculadora" class="aba" data-aba="calculadora"><span class="icone" aria-hidden="true">%</span>Calculadora de Margem</a>
@@ -27,11 +30,12 @@
         <button type="button" class="lateral-botao" id="exportar" title="Os dados ficam só neste navegador. Exporte para guardar uma cópia ou levar para outro computador.">Exportar dados</button>
         <label class="lateral-botao" for="importar">Importar dados</label>
         <input type="file" id="importar" accept=".json,application/json" hidden>
-        <a class="credito" href="https://lucerpy.com.br" target="_blank" rel="noopener">Feito por <img src="assets/lucerpy-wordmark-white-lime-dot-transparent-preloader.avif" alt="Lucerpy" width="87" height="21"></a>
+        <a class="credito" href="https://lucerpy.com.br" target="_blank" rel="noopener"><span>Feito por</span><img src="assets/lucerpy-wordmark-white-lime-dot-transparent-preloader.avif" alt="Lucerpy" width="110" height="32"></a>
       </div>
     </aside>
 
     <main class="conteudo">
+      <button type="button" class="abrir-menu" id="lateral-abrir" aria-controls="menu-lateral" aria-expanded="true" aria-label="Mostrar menu lateral" title="Mostrar menu" hidden>☰</button>
       <p class="aviso" id="aviso-geral" role="status" hidden></p>
 
       <!-- Calculadora -->
@@ -48,9 +52,8 @@
             <a class="botao contorno pequeno" href="#produtos">Gerenciar Produtos</a>
           </div>
           <div class="seletor">
-            <button type="button" id="c-seletor" class="campo-texto seletor-botao" aria-haspopup="listbox" aria-expanded="false">Selecionar produto...</button>
+            <input type="text" id="c-seletor" class="campo-texto seletor-campo" role="combobox" aria-expanded="false" aria-controls="c-opcoes" aria-autocomplete="list" aria-label="Produto" placeholder="Selecionar produto..." autocomplete="off">
             <div class="seletor-lista" id="c-seletor-lista" hidden>
-              <input type="search" id="c-busca" class="campo-texto" placeholder="Buscar produto..." aria-label="Buscar produto">
               <div id="c-opcoes" role="listbox" aria-label="Produtos"></div>
             </div>
           </div>
