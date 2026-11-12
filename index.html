@@ -12,6 +12,7 @@
     <div class="topo-dentro">
       <h1 class="marca">Calculadora de Margem</h1>
       <nav class="abas" aria-label="Telas">
+        <a href="#calculadora" class="aba" data-aba="calculadora">Calculadora</a>
         <a href="#produtos" class="aba" data-aba="produtos">Produtos</a>
       </nav>
       <div class="arquivo">
@@ -24,6 +25,56 @@
 
   <main class="conteudo">
     <p class="aviso" id="aviso-geral" role="status" hidden></p>
+
+    <section id="tela-calculadora" class="tela" aria-labelledby="titulo-calculadora">
+      <div class="cabeca-tela">
+        <div>
+          <h2 id="titulo-calculadora">Calculadora de margem</h2>
+          <p class="sub">Escolha o produto e o canal e digite o preço. Você vê quanto sobra por peça e o menor preço para a margem que quer.</p>
+        </div>
+      </div>
+      <p class="aviso ok" id="c-exemplo" hidden>Números de exemplo. Troque pelos seus ou escolha um produto.</p>
+      <div class="calc">
+        <div class="painel entradas">
+          <fieldset>
+            <legend>Produto</legend>
+            <input type="search" id="c-busca" class="busca compacta" placeholder="Buscar produto" aria-label="Buscar produto">
+            <label class="campo"><span>Produto</span><select id="c-produto"></select></label>
+            <div class="grade" id="c-avulso">
+              <label class="campo"><span>Custo do produto (R$)</span><input type="text" inputmode="decimal" id="c-custo" placeholder="0,00"></label>
+              <label class="campo" id="c-peso-campo"><span>Peso para frete (g)</span><input type="text" inputmode="decimal" id="c-peso"></label>
+            </div>
+            <p class="dica" id="c-info-produto"></p>
+          </fieldset>
+          <fieldset>
+            <legend>Canal de venda</legend>
+            <div class="canais" id="c-canais" role="radiogroup" aria-label="Canal de venda"></div>
+            <p class="dica">As taxas de cada canal ficam em Configurações.</p>
+          </fieldset>
+          <fieldset>
+            <legend>Preço</legend>
+            <div class="grade">
+              <label class="campo"><span>Preço DE (R$)</span><input type="text" inputmode="decimal" id="c-de" placeholder="0,00"></label>
+              <label class="campo"><span>Desconto (%)</span><input type="text" inputmode="decimal" id="c-desconto" placeholder="0"></label>
+            </div>
+            <input type="range" id="c-desconto-barra" min="0" max="70" step="1" value="0" aria-label="Desconto em porcentagem">
+            <label class="campo"><span>Preço POR, o que o cliente paga (R$)</span><input type="text" inputmode="decimal" id="c-por" class="destaque" placeholder="0,00"></label>
+          </fieldset>
+        </div>
+        <div class="painel" id="c-resultado" aria-live="polite"></div>
+        <div class="painel minimo">
+          <h3>Preço mínimo</h3>
+          <div class="linha-margem">
+            <label for="c-margem">Margem desejada</label>
+            <span><input type="number" id="c-margem-num" min="1" max="90" step="1" aria-label="Margem desejada em porcentagem"> %</span>
+          </div>
+          <input type="range" id="c-margem" min="5" max="50" step="1" aria-label="Margem desejada">
+          <p class="dica">Uma margem entre 20% e 25% costuma dar folga para promoções e anúncios.</p>
+          <div class="minimo-valor"><strong id="c-minimo-valor">—</strong><button type="button" class="botao pequeno" id="c-usar-minimo" hidden>Usar este preço</button></div>
+          <p class="erro" id="c-minimo-aviso" hidden></p>
+        </div>
+      </div>
+    </section>
 
     <section id="tela-produtos" class="tela" aria-labelledby="titulo-produtos">
       <div class="cabeca-tela">

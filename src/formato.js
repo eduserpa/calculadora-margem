@@ -19,6 +19,7 @@ export const numero = (v, casas = 2) =>
 
 // Para preencher campos: 0 vira vazio, sem zeros sobrando no fim.
 export const campo = (v) => (v ? v.toLocaleString('pt-BR', { maximumFractionDigits: 4 }) : '');
+export const campoReais = (v) => (v ? numero(v, 2) : '');
 
 export const porcento = (v, casas = 1) => `${numero(v, casas)}%`;
 

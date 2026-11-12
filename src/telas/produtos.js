@@ -1,7 +1,7 @@
 // Tela Produtos: listar, buscar, cadastrar, editar e excluir.
 import { dados, salvar, novoId } from '../dados.js';
 import { TIPOS, porId, custoDoProduto, kitIncompleto, pesoDoProduto, kitsQueUsam, produtoVazio, exemplos } from '../produtos.js';
-import { lerNumero, reais, campo, gramas, esc } from '../formato.js';
+import { lerNumero, reais, campo, campoReais, gramas, esc } from '../formato.js';
 
 const $ = (s, raiz = document) => raiz.querySelector(s);
 const janela = () => $('#janela-produto');
@@ -93,7 +93,7 @@ function abrir(id) {
 
 const dinheiro = (rotulo, caminho, valor) => `
   <label class="campo"><span>${rotulo}</span>
-    <input type="text" inputmode="decimal" data-c="${caminho}" data-num value="${campo(valor)}" placeholder="0,00">
+    <input type="text" inputmode="decimal" data-c="${caminho}" data-num value="${campoReais(valor)}" placeholder="0,00">
   </label>`;
 
 function desenharJanela() {

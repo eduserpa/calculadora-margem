@@ -1,5 +1,6 @@
 import { carregar, aoMudar, paraArquivo, lerArquivo, substituirTudo, dados } from './dados.js';
 import { iniciarProdutos, desenharLista } from './telas/produtos.js';
+import { iniciarCalculadora, desenharTudo } from './telas/calculadora.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -68,9 +69,11 @@ async function iniciar() {
   }
   aoMudar((ok) => {
     desenharLista();
+    desenharTudo();
     if (!ok) aviso('Este navegador não deixou guardar os dados. Exporte para não perder o que fez.');
   });
   iniciarProdutos();
+  iniciarCalculadora();
   $('#exportar').addEventListener('click', exportar);
   $('#importar').addEventListener('change', importar);
   window.addEventListener('hashchange', mostrarTela);
