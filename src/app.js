@@ -105,7 +105,20 @@ async function importar(e) {
   }
 }
 
+// Liga uma parte da página; se der erro, avisa e deixa as outras funcionando.
+function ligar(nome, fn) {
+  try {
+    fn();
+  } catch (erro) {
+    console.error(nome, erro);
+    aviso(`Uma parte da página (${nome}) não carregou. Recarregue a página; se continuar, exporte os dados e avise.`);
+  }
+}
+
 async function iniciar() {
+  // As telas trocam primeiro, para nunca aparecerem todas juntas.
+  window.addEventListener('hashchange', mostrarTela);
+  mostrarTela();
   try {
     await carregar();
   } catch {
@@ -117,15 +130,15 @@ async function iniciar() {
     aoMudarDados();
     if (!ok) aviso('Este navegador não deixou guardar os dados. Exporte para não perder o que fez.');
   });
-  iniciarProdutos();
-  iniciarCalculadora();
-  iniciarConfiguracoes();
-  iniciarConfigurarCanal();
-  iniciarLateral();
-  $('#exportar').addEventListener('click', exportar);
-  $('#importar').addEventListener('change', importar);
-  window.addEventListener('hashchange', mostrarTela);
-  mostrarTela();
+  ligar('menu lateral', iniciarLateral);
+  ligar('produtos', iniciarProdutos);
+  ligar('calculadora', iniciarCalculadora);
+  ligar('taxas dos canais', iniciarConfiguracoes);
+  ligar('configurar canal', iniciarConfigurarCanal);
+  ligar('exportar e importar', () => {
+    $('#exportar').addEventListener('click', exportar);
+    $('#importar').addEventListener('change', importar);
+  });
 }
 
 iniciar();
