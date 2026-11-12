@@ -30,7 +30,8 @@ export function freteMercadoLivre(frete, preco, pesoG) {
 
 // Frete que entra na conta: tabela do ML, ou % do preço com teto (TikTok), ou nada.
 export function freteDoCanal(canal, preco, pesoG) {
-  if (canal.tipo === 'mercadolivre') return freteMercadoLivre(canal.frete, preco, pesoG);
+  // Tabela da reputação escolhida, quando existir; senão a tabela padrão (MercadoLíder/verde/sem reputação).
+  if (canal.tipo === 'mercadolivre') return freteMercadoLivre(canal.frete_por_reputacao?.[canal.reputacao] ?? canal.frete, preco, pesoG);
   if (canal.frete_percentual) return Math.min((preco * canal.frete_percentual) / 100, canal.frete_teto ?? Infinity);
   return 0;
 }

@@ -9,7 +9,8 @@
 | 1 | Preço DE | digitado | — | não |
 | 2 | Desconto | % digitado (ou calculado a partir do preço POR) | preço DE | não |
 | 3 | **Preço POR** (o que o cliente paga) | preço DE × (1 − desconto ÷ 100) | — | **sim, para centavos** (única etapa arredondada) |
-| 4 | Faixa do canal | escolhida pelo **preço POR** | preço POR | — |
+| 3b | Cupom (só se ligado no canal) | preço cobrado = preço POR × (1 − cupom ÷ 100) | preço POR | **sim, para centavos** |
+| 4 | Faixa do canal | escolhida pelo **preço POR** (com cupom: pelo preço cobrado) | preço POR | — |
 | 5a | Comissão | preço POR × comissão % | **preço POR** | não |
 | 5b | Taxa fixa | R$ da faixa ou do canal | por venda | não |
 | 5c | Frete do Mercado Livre | tabela [faixa do preço POR] × [peso para frete]; abaixo de R$ 19, no máximo metade do preço | preço POR e peso | não |
@@ -17,9 +18,13 @@
 | 6 | Impostos | preço POR × impostos % | **preço POR** (não é sobre o lucro nem sobre o preço sem as taxas) | não |
 | 7 | Taxa financeira | preço POR × taxa % | **preço POR** | não |
 | 8 | Custos por unidade | frete absorvido + pick & pack + outros | R$ por peça | não |
+| 8b | Afiliado (só se ligado) | preço × afiliado % | **preço POR** (com cupom: preço cobrado) | não |
+| 8c | Adicional de vendedor CPF na Shopee (só se ligado) | R$ por item | por venda | não |
 | 9 | Custo do produto (CMV) | do cadastro (revenda, fabricação ou kit) | R$ por peça | não |
-| 10 | **Lucro por peça** | preço POR − (5a + 5b + 5c + 5d + 6 + 7 + 8 + 9) | — | não |
+| 10 | **Lucro por peça** | preço POR − (5a + 5b + 5c + 5d + 6 + 7 + 8 + 9 + 8b + 8c) | — | não |
 | 11 | **Margem %** | lucro ÷ preço POR × 100 | preço POR | não |
+
+Com cupom ligado, em todas as linhas acima "preço POR" passa a ser o **preço cobrado** (com cupom). A margem também é sobre o preço cobrado.
 
 **Peso para frete (passo 5c):** é o maior valor entre o peso real e o peso pela caixa. Peso pela caixa = comprimento × largura × altura (cm) ÷ 6000, em kg. Se faltar uma das medidas, vale o peso real.
 
@@ -28,7 +33,7 @@
 ## Pontos importantes
 
 - **Nenhuma taxa incide sobre o valor já descontado de outra.** Comissão, impostos, taxa financeira e a taxa de frete do TikTok são todas calculadas sobre o preço POR cheio.
-- **Só o preço POR é arredondado.** Cada parcela é calculada com todas as casas, e o lucro usa essas parcelas sem arredondar. A tela arredonda só para mostrar: R$ com 2 casas e % com 1 casa. Por isso, a soma das parcelas que aparecem na tela pode ficar 1 centavo diferente do lucro mostrado.
+- **Só o preço POR (e o preço com cupom, se houver) é arredondado.** Cada parcela é calculada com todas as casas, e o lucro usa essas parcelas sem arredondar. A tela arredonda só para mostrar: R$ com 2 casas e % com 1 casa. Por isso, a soma das parcelas que aparecem na tela pode ficar 1 centavo diferente do lucro mostrado.
 - **A faixa (comissão, taxa fixa, frete) é escolhida pelo preço POR**, depois do desconto. Exemplo: preço DE R$ 89,90 com 15% → POR R$ 76,42. Na Shopee, vale a faixa "até R$ 79,99".
 - **Preço mínimo:** a calculadora procura, centavo por centavo, o menor preço POR em que a margem do passo 11 fica igual ou acima da desejada. Ela testa faixa por faixa porque as taxas mudam de uma faixa para outra.
 

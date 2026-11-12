@@ -157,21 +157,25 @@ function htmlResultado(r, canal, pesoG) {
   const venda = tipoDeVenda(canal);
   const ml = canal.tipo === 'mercadolivre';
   const rotuloComissao = venda === 'vendedor' ? 'Comissão vendedora' : canal.tipo === 'fixo' ? 'Comissão' : 'Comissão variável';
-  const custosCanal = r.comissao + r.taxaFixa + r.freteCanal + r.taxaFinanceira + r.freteAbsorvido + r.embalagem + r.outros;
+  const custosCanal = r.comissao + r.taxaFixa + r.freteCanal + r.taxaFinanceira + r.freteAbsorvido + r.embalagem + r.outros + r.afiliado + r.adicionalCpf;
   const f = faixaDaMargem(r.margem);
   return `
-    <div class="res-linha receita"><span>Receita:</span><span class="valor">${reais(r.preco)}</span></div>
+    ${r.cupom ? `<div class="res-linha res-sub"><span>Preço do anúncio:</span><span class="valor">${reais(r.precoAnuncio)}</span></div>
+      <div class="res-linha res-sub"><span>Cupom (${pct(r.cupomPercentual)}):</span><span class="valor">-${reais(r.cupom)}</span></div>` : ''}
+    <div class="res-linha receita"><span>Receita${r.cupom ? ' (com cupom)' : ''}:</span><span class="valor">${reais(r.preco)}</span></div>
     <div class="res-grupo vermelho"><div class="res-linha"><span>Custo do Produto (CMV):</span><span>${parte(r.cmv, r.preco)}</span></div></div>
     ${custosCanal ? `
       <div class="res-grupo vermelho">
         <div class="res-linha"><span>${TITULO_DO_GRUPO[venda]}:</span><span>${parte(custosCanal, r.preco)}</span></div>
         ${sub(`${rotuloComissao} (${pct(r.comissaoPercentual)})`, r.comissao)}
         ${sub('Taxa fixa', r.taxaFixa)}
+        ${sub('Adicional CPF por item', r.adicionalCpf)}
         ${ml ? `${sub('Custo do frete grátis (você paga)', r.freteCanal)}<div class="res-detalhe">${reais(r.preco)} + ${gramas(pesoG)} = ${reais(r.freteCanal)}</div>` : sub(`Taxa de frete (${pct(canal.frete_percentual)})`, r.freteCanal)}
         ${sub(`${venda === 'loja' ? 'Taxa fin./plataforma' : 'Taxa financeira'} (${pct(r.taxaFinanceiraPercentual)})`, r.taxaFinanceira)}
         ${sub('Frete absorvido', r.freteAbsorvido)}
         ${sub('Pick & pack', r.embalagem)}
         ${sub('Outros custos', r.outros)}
+        ${sub(`Comissão de afiliado (${pct(r.afiliadoPercentual)})`, r.afiliado)}
       </div>` : ''}
     <div class="res-grupo laranja">
       <div class="res-linha"><span>Impostos (${pct(r.impostosPercentual)}):</span><span>${parte(r.impostos, r.preco)}</span></div>

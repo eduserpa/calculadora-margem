@@ -38,7 +38,16 @@
       "taxa_financeira": 0,
       "frete_absorvido": 0,
       "embalagem": 0,
-      "outros": 0
+      "outros": 0,
+      "cupom_ativo": false,
+      "cupom": 0,
+      "afiliado_ativo": false,
+      "afiliado": 0,
+      "tipo_vendedor": "cnpj",
+      "cpf_acima_limite": false,
+      "cpf_adicional": 3,
+      "cpf_fonte": "conferir: a regra para CPF não abriu na página oficial sem login; sites de terceiros dizem que CPF com mais de 450 pedidos em 90 dias paga R$ 3 a mais por item vendido",
+      "cpf_conferido_em": null
     },
     "mercadolivre": {
       "nome": "Mercado Livre",
@@ -58,7 +67,7 @@
           "premium": 4
         }
       },
-      "faixa_reduzida_fonte": "https://www.mercadolivre.com.br/ajuda/51251 confirma a redução para produtos entre R$ 150 e R$ 700, mas o tamanho da redução depende da categoria; os pontos 2 e 4 vêm do app de referência, conferir",
+      "faixa_reduzida_fonte": "https://www.mercadolivre.com.br/ajuda/51251 : a comissão menor de R$ 150 a R$ 700 vale só para as categorias da lista (data/ml-categorias.json), cada uma com seus pontos. Sem categoria escolhida, ficam os pontos 2 (Clássico) e 4 (Premium) do app de referência: conferir escolhendo a categoria.",
       "faixa_reduzida_conferido_em": "2026-11-12",
       "comissao_propria": 0,
       "frete": {
@@ -136,7 +145,16 @@
       "taxa_financeira": 0,
       "frete_absorvido": 0,
       "embalagem": 0,
-      "outros": 0
+      "outros": 0,
+      "cupom_ativo": false,
+      "cupom": 0,
+      "afiliado_ativo": false,
+      "afiliado": 0,
+      "reputacao": "verde",
+      "categoria": "",
+      "reputacao_fonte": "Só a tabela de MercadoLíder, reputação verde e sem reputação é pública (página oficial do frete). Para amarela, laranja e vermelha a tabela não está publicada: a conta usa a mesma tabela até alguém conferir no simulador do Mercado Livre.",
+      "reputacao_conferido_em": "2026-11-12",
+      "frete_por_reputacao": {}
     },
     "shein": {
       "nome": "SHEIN",
@@ -149,7 +167,11 @@
       "taxa_financeira": 0,
       "frete_absorvido": 0,
       "embalagem": 0,
-      "outros": 0
+      "outros": 0,
+      "cupom_ativo": false,
+      "cupom": 0,
+      "afiliado_ativo": false,
+      "afiliado": 0
     },
     "tiktokshop": {
       "nome": "TikTok Shop",
@@ -177,7 +199,11 @@
       "taxa_financeira": 0,
       "frete_absorvido": 0,
       "embalagem": 0,
-      "outros": 0
+      "outros": 0,
+      "cupom_ativo": false,
+      "cupom": 0,
+      "afiliado_ativo": false,
+      "afiliado": 0
     },
     "lojapropria": {
       "nome": "Loja própria (site)",
@@ -190,7 +216,11 @@
       "taxa_financeira": 5,
       "frete_absorvido": 0,
       "embalagem": 0,
-      "outros": 0
+      "outros": 0,
+      "cupom_ativo": false,
+      "cupom": 0,
+      "afiliado_ativo": false,
+      "afiliado": 0
     },
     "atacado": {
       "nome": "Atacado",
@@ -204,7 +234,11 @@
       "taxa_financeira": 5,
       "frete_absorvido": 0,
       "embalagem": 0,
-      "outros": 0
+      "outros": 0,
+      "cupom_ativo": false,
+      "cupom": 0,
+      "afiliado_ativo": false,
+      "afiliado": 0
     },
     "lojafisica": {
       "nome": "Loja física",
@@ -218,7 +252,11 @@
       "taxa_financeira": 5,
       "frete_absorvido": 0,
       "embalagem": 0,
-      "outros": 0
+      "outros": 0,
+      "cupom_ativo": false,
+      "cupom": 0,
+      "afiliado_ativo": false,
+      "afiliado": 0
     }
   }
 }

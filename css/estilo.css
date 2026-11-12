@@ -248,14 +248,14 @@ input[type="range"] { width: 100%; accent-color: var(--roxo); }
   border: 1px solid var(--linha); border-radius: 14px; background: var(--superficie); color: var(--texto);
   box-shadow: 0 24px 60px rgb(0 0 0 / 28%);
 }
-.janela.media { width: min(440px, calc(100vw - 24px)); }
+.janela.media { width: min(560px, calc(100vw - 24px)); }
 .janela.pequena { width: min(440px, calc(100vw - 24px)); }
 .janela::backdrop { background: rgb(15 10 30 / 50%); }
 .janela form { display: flex; flex-direction: column; max-height: calc(100vh - 26px); }
 .janela-topo { display: flex; justify-content: space-between; align-items: center; padding: 20px 22px 8px; }
 .janela-topo h3 { font-size: 18px; }
 .fechar { border: 0; background: none; font-size: 22px; line-height: 1; cursor: pointer; color: var(--suave); }
-.janela-corpo { padding: 8px 22px 18px; overflow-y: auto; display: grid; gap: 16px; }
+.janela-corpo { padding: 8px 22px 18px; overflow-y: auto; display: grid; gap: 16px; grid-auto-rows: max-content; }
 .janela-base { padding: 12px 22px 18px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px solid var(--linha); }
 .janela-base .direita { display: flex; gap: 8px; margin-left: auto; }
 .secao-titulo { font-weight: 700; font-size: 14px; margin: 0; }
@@ -272,6 +272,16 @@ input[type="range"] { width: 100%; accent-color: var(--roxo); }
 .alternar.separado span { border: 1px solid var(--linha); border-radius: 999px; padding: 9px 14px; }
 .alternar.separado input:checked + span { background: var(--roxo-suave); color: var(--roxo); border-color: var(--roxo); }
 .alternar input:focus-visible + span { outline: 2px solid var(--roxo); }
+
+/* Opções liga/desliga e faixas editáveis na janela Configurar */
+.ligar { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; cursor: pointer; }
+.ligar input { width: 18px; height: 18px; accent-color: var(--roxo); }
+.linha-opcao { display: grid; gap: 8px; }
+.promocao { border-top: 1px solid var(--linha); padding-top: 14px; }
+.campo small.alerta { color: var(--vermelho); font-size: 12px; font-weight: 600; }
+.regra { overflow-x: auto; }
+.regra table.editaveis input { width: 72px; min-height: 30px; padding: 0 6px; border: 1px solid var(--laranja-linha); border-radius: 6px; background: var(--superficie); color: var(--texto); text-align: right; }
+.regra table.editaveis td { padding: 2px 8px 2px 0; vertical-align: middle; }
 
 /* Quadro com a regra do canal, no topo da janela Configurar */
 .regra { border-radius: 10px; padding: 12px 14px; display: grid; gap: 6px; font-size: 13px; border: 1px solid var(--linha); background: var(--superficie-2); }

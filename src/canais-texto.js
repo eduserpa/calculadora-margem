@@ -49,6 +49,9 @@ export function linhasDoCanal(c) {
     linhas.push(`<span>Comissão: ${pct(c.comissao)}</span>`, `<span>Taxa fixa: ${reaisCheio(c.taxa_fixa)}</span>`, imp);
   }
   if (extras(c)) linhas.push(`<span class="t-suave">Custos extras: ${reaisCheio(extras(c))}</span>`);
+  if (c.tipo_vendedor === 'cpf') linhas.push('<span class="t-suave">Vendedor CPF</span>');
+  if (c.cupom_ativo && Number(c.cupom)) linhas.push(`<span class="t-azul">Cupom: ${pct(c.cupom)}</span>`);
+  if (c.afiliado_ativo && Number(c.afiliado)) linhas.push(`<span class="t-azul">Afiliado: ${pct(c.afiliado)}</span>`);
   return linhas.join('');
 }
 
