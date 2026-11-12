@@ -31,6 +31,7 @@
           "taxa_fixa": 26
         }
       ],
+      "faixas_vigente_desde": "2026-10-01",
       "faixas_fonte": "app de referência, conferir (tabela para CNPJ vigente desde 01/10/2026; a página oficial seller.shopee.com.br/edu/article/18483 não abriu sem login)",
       "faixas_conferido_em": null,
       "impostos": 10,
@@ -165,6 +166,7 @@
           "taxa_fixa": 6
         }
       ],
+      "faixas_vigente_desde": "2026-07-15",
       "faixas_fonte": "https://seller-br.tiktok.com/university/essay?knowledge_id=24428156307201&lang=pt-BR (abaixo de R$ 50: 10% + R$ 4; a partir de R$ 50: 6% + R$ 6; desde 15/07/2026)",
       "faixas_conferido_em": "2026-11-12",
       "frete_percentual": 6,

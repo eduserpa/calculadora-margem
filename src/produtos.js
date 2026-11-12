@@ -3,8 +3,6 @@ import { custoRevenda, custoFabricacao, custoKit } from './calculos/custo-produt
 import { pesoParaFrete } from './calculos/peso.js';
 import { dados } from './dados.js';
 
-export const TIPOS = { revenda: 'Revenda', fabricacao: 'Fabricação', kit: 'Kit' };
-
 export const porId = () => new Map(dados.produtos.map((p) => [p.id, p]));
 
 // Itens de kit que apontam para produto excluído contam como custo 0 e marcam o kit como incompleto.

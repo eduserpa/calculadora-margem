@@ -1,6 +1,6 @@
 // Tela Configurações: taxas de cada canal. Começa com data/canais.json; o que a empresa mudar fica guardado.
 import { dados, salvar, canais, canaisDePadrao } from '../dados.js';
-import { resumoDoCanal } from './calculadora.js';
+import { resumoDoCanal } from '../canais-texto.js';
 import { lerNumero, campo, campoReais, esc } from '../formato.js';
 
 const $ = (s, raiz = document) => raiz.querySelector(s);
@@ -133,7 +133,7 @@ function cartao(id, c) {
           ${pct('Impostos (% do preço)', `${id}.impostos`, c.impostos, 'Um número só para todos os impostos da venda. É calculado sobre o preço de venda, não sobre o lucro.')}
           ${pct('Taxa financeira (%)', `${id}.taxa_financeira`, c.taxa_financeira, 'Cartão ou plataforma de pagamento.')}
           ${rs('Frete absorvido (R$/peça)', `${id}.frete_absorvido`, c.frete_absorvido)}
-          ${rs('Embalagem (R$/peça)', `${id}.embalagem`, c.embalagem)}
+          ${rs('Pick & pack (R$/peça)', `${id}.embalagem`, c.embalagem)}
           ${rs('Outros custos (R$/peça)', `${id}.outros`, c.outros)}
         </div>
         <div><button type="button" class="botao pequeno discreto" data-acao="padrao" data-canal="${id}">Voltar este canal ao padrão</button></div>

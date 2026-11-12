@@ -1,22 +1,20 @@
-// Tela Produtos: listar, buscar, cadastrar, editar e excluir.
+// Tela Meus Produtos: cartões, busca, filtro, ordem, cadastro, edição e exclusão.
 import { dados, salvar, novoId } from '../dados.js';
-import { TIPOS, porId, custoDoProduto, kitIncompleto, pesoDoProduto, kitsQueUsam, produtoVazio, exemplos } from '../produtos.js';
+import { porId, custoDoProduto, kitIncompleto, pesoDoProduto, kitsQueUsam, produtoVazio, exemplos } from '../produtos.js';
 import { lerNumero, reais, campo, campoReais, gramas, esc } from '../formato.js';
 
 const $ = (s, raiz = document) => raiz.querySelector(s);
 const janela = () => $('#janela-produto');
 const semAcento = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+const ETIQUETA = { revenda: 'Revenda', fabricacao: 'Fabricante', kit: 'Kit' };
+const CAIXA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>';
 
-let busca = '';
 let rasc = null; // produto sendo editado
 let confirmarExclusao = false;
 
 export function iniciarProdutos() {
   $('#novo-produto').addEventListener('click', () => abrir());
-  $('#busca').addEventListener('input', (e) => {
-    busca = e.target.value;
-    desenharLista();
-  });
+  ['#busca', '#filtro-tipo', '#ordem'].forEach((s) => $(s).addEventListener('input', desenharLista));
   $('#lista-produtos').addEventListener('click', (e) => {
     const editar = e.target.closest('[data-editar]');
     if (editar) abrir(editar.dataset.editar);
@@ -28,7 +26,7 @@ export function iniciarProdutos() {
   });
   const j = janela();
   j.addEventListener('input', aoDigitar);
-  j.addEventListener('change', aoTrocarTipo);
+  j.addEventListener('change', aoTrocar);
   j.addEventListener('click', aoClicar);
   j.addEventListener('submit', aoSalvar);
   desenharLista();
@@ -36,45 +34,52 @@ export function iniciarProdutos() {
 
 // ---------- lista ----------
 
+const dataCurta = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '');
+
 export function desenharLista() {
   const alvo = $('#lista-produtos');
   if (!dados.produtos.length) {
     alvo.innerHTML = `
       <div class="vazio">
-        <h3>Nenhum produto ainda</h3>
+        <h3>Nenhum produto cadastrado ainda</h3>
         <p>Cadastre o primeiro produto com o custo dele. Se quiser só testar, carregue três produtos de exemplo.</p>
         <div class="acoes">
-          <button type="button" class="botao principal" id="primeiro-produto">Cadastrar produto</button>
+          <button type="button" class="botao principal" id="primeiro-produto">Cadastrar Primeiro Produto</button>
           <button type="button" class="botao" id="carregar-exemplos">Carregar exemplos</button>
         </div>
       </div>`;
     return;
   }
-  const termo = semAcento(busca.trim());
+  const termo = semAcento($('#busca').value.trim());
+  const tipo = $('#filtro-tipo').value;
   const mapa = porId();
+  const custo = new Map(dados.produtos.map((p) => [p.id, custoDoProduto(p, mapa)]));
+  const ordens = {
+    recentes: (a, b) => String(b.atualizadoEm).localeCompare(String(a.atualizadoEm)),
+    antigos: (a, b) => String(a.atualizadoEm).localeCompare(String(b.atualizadoEm)),
+    nome: (a, b) => a.nome.localeCompare(b.nome, 'pt-BR'),
+    'cmv-menor': (a, b) => custo.get(a.id) - custo.get(b.id),
+    'cmv-maior': (a, b) => custo.get(b.id) - custo.get(a.id),
+  };
   const lista = dados.produtos
+    .filter((p) => tipo === 'todos' || p.tipoCusto === tipo)
     .filter((p) => !termo || semAcento(p.nome).includes(termo) || semAcento(p.sku).includes(termo))
-    .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    .sort(ordens[$('#ordem').value]);
   if (!lista.length) {
-    alvo.innerHTML = `<div class="vazio"><p>Nenhum produto com “${esc(busca)}”.</p></div>`;
+    alvo.innerHTML = '<div class="vazio"><p>Nenhum produto encontrado com esse filtro.</p></div>';
     return;
   }
-  alvo.innerHTML = `
-    <div class="tabela-rolagem">
-      <table>
-        <thead><tr><th>Produto</th><th>Custo formado por</th><th class="num">Custo (CMV)</th><th class="num">Peso para frete</th><th><span hidden>Ações</span></th></tr></thead>
-        <tbody>
-          ${lista.map((p) => `
-            <tr>
-              <td><div class="nome-produto">${esc(p.nome)}</div>${p.sku ? `<div class="sku">SKU ${esc(p.sku)}</div>` : ''}</td>
-              <td><span class="selo">${TIPOS[p.tipoCusto]}</span>${kitIncompleto(p, mapa) ? ' <span class="selo alerta">item excluído</span>' : ''}</td>
-              <td class="num">${reais(custoDoProduto(p, mapa))}</td>
-              <td class="num">${gramas(pesoDoProduto(p))}</td>
-              <td class="num"><button type="button" class="botao pequeno" data-editar="${p.id}">Editar</button></td>
-            </tr>`).join('')}
-        </tbody>
-      </table>
-    </div>`;
+  alvo.innerHTML = `<div class="lista-cartoes">${lista.map((p) => `
+    <article class="cartao produto">
+      <div class="produto-imagem">${CAIXA}</div>
+      <div class="produto-corpo">
+        <h3 title="${esc(p.nome)}">${esc(p.nome)}</h3>
+        ${p.sku ? `<p class="ref">Ref: ${esc(p.sku)}</p>` : ''}
+        <div class="linha-dado"><span>CMV:<span class="etiqueta ${p.tipoCusto}">${ETIQUETA[p.tipoCusto]}</span>${kitIncompleto(p, mapa) ? '<span class="etiqueta alerta">item excluído</span>' : ''}</span><strong>${reais(custo.get(p.id))}</strong></div>
+        <div class="linha-dado"><span>Peso:</span><strong>${gramas(pesoDoProduto(p))}</strong></div>
+      </div>
+      <div class="produto-base"><span>Atualizado em ${dataCurta(p.atualizadoEm)}</span><button type="button" class="botao pequeno" data-editar="${p.id}">Editar</button></div>
+    </article>`).join('')}</div>`;
 }
 
 // ---------- formulário ----------
@@ -85,52 +90,67 @@ function abrir(id) {
   rasc = original
     ? { ...base, ...structuredClone(original), revenda: { ...base.revenda, ...original.revenda }, fabricacao: { ...base.fabricacao, ...original.fabricacao } }
     : base;
+  rasc.ultimoIndividual = rasc.tipoCusto === 'kit' ? 'revenda' : rasc.tipoCusto;
   confirmarExclusao = false;
   desenharJanela();
   janela().showModal();
   $('[data-c="nome"]', janela()).focus();
 }
 
-const dinheiro = (rotulo, caminho, valor) => `
+const dinheiro = (rotulo, caminho, valor, extra = '') => `
   <label class="campo"><span>${rotulo}</span>
-    <input type="text" inputmode="decimal" data-c="${caminho}" data-num value="${campoReais(valor)}" placeholder="0,00">
+    <input type="text" inputmode="decimal" data-c="${caminho}" data-num value="${campoReais(valor)}" placeholder="0,00" ${extra}>
   </label>`;
+const opcao = (nome, valor, rotulo, marcado) =>
+  `<label><input type="radio" name="${nome}" value="${valor}" ${marcado ? 'checked' : ''}><span>${rotulo}</span></label>`;
 
 function desenharJanela() {
-  const tipos = Object.entries(TIPOS).map(([valor, rotulo]) => `
-    <label><input type="radio" name="tipoCusto" value="${valor}" ${rasc.tipoCusto === valor ? 'checked' : ''}><span>${rotulo}</span></label>`).join('');
+  const kit = rasc.tipoCusto === 'kit';
   janela().innerHTML = `
     <form method="dialog" novalidate>
-      <div class="janela-topo"><h3 id="titulo-janela">${rasc.id ? 'Editar produto' : 'Novo produto'}</h3></div>
+      <div class="janela-topo">
+        <h3 id="titulo-janela">${rasc.id ? 'Editar Produto' : 'Novo Produto'}</h3>
+        <button type="button" class="fechar" data-acao="cancelar" aria-label="Fechar">×</button>
+      </div>
       <div class="janela-corpo">
-        <div class="grade">
-          <label class="campo"><span>Nome do produto</span><input type="text" data-c="nome" value="${esc(rasc.nome)}" autocomplete="off"></label>
-          <label class="campo"><span>SKU / código</span><input type="text" data-c="sku" value="${esc(rasc.sku)}" autocomplete="off"></label>
-        </div>
-        <fieldset>
-          <legend>Como o custo é formado</legend>
-          <div class="segmentos" role="radiogroup" aria-label="Tipo de custo">${tipos}</div>
-          <div id="bloco-custo">${blocoCusto()}</div>
-          <div class="total"><span>Custo do produto (CMV)</span><strong id="total-custo"></strong></div>
-        </fieldset>
-        <fieldset>
-          <legend>Peso e medidas da embalagem</legend>
-          <p class="dica">Só o Mercado Livre usa: o frete grátis que o vendedor paga depende do peso. Caixa grande e leve paga pelo tamanho.</p>
-          <div class="grade">
-            <label class="campo"><span>Peso real (g)</span><input type="text" inputmode="decimal" data-c="pesoG" data-num value="${campo(rasc.pesoG)}"></label>
-            <label class="campo"><span>Comprimento (cm)</span><input type="text" inputmode="decimal" data-c="comprimento" data-num value="${campo(rasc.comprimento)}"></label>
-            <label class="campo"><span>Largura (cm)</span><input type="text" inputmode="decimal" data-c="largura" data-num value="${campo(rasc.largura)}"></label>
-            <label class="campo"><span>Altura (cm)</span><input type="text" inputmode="decimal" data-c="altura" data-num value="${campo(rasc.altura)}"></label>
+        <div class="secao">
+          <p class="secao-titulo">Tipo do Produto</p>
+          <div class="alternar" role="radiogroup" aria-label="Tipo do produto">
+            ${opcao('tipoProduto', 'individual', 'Individual', !kit)}${opcao('tipoProduto', 'kit', 'Kit', kit)}
           </div>
-          <p class="dica" id="peso-frete"></p>
-        </fieldset>
+        </div>
+        <div class="grade">
+          <label class="campo"><span>Nome do produto</span><input type="text" data-c="nome" value="${esc(rasc.nome)}" placeholder="Ex: Garrafa térmica 500 ml" autocomplete="off"></label>
+          <label class="campo"><span>Referência / SKU</span><input type="text" data-c="sku" value="${esc(rasc.sku)}" placeholder="Ex: GT-500" autocomplete="off"></label>
+        </div>
+        <div class="secao">
+          <p class="secao-titulo">Peso e Dimensões</p>
+          <label class="campo"><span>Peso real (g)</span><input type="text" inputmode="decimal" data-c="pesoG" data-num value="${campo(rasc.pesoG)}"></label>
+          <p class="dica">Dimensões (opcional), em cm</p>
+          <div class="grade">
+            <label class="campo"><span>Comprimento</span><input type="text" inputmode="decimal" data-c="comprimento" data-num value="${campo(rasc.comprimento)}" placeholder="0"></label>
+            <label class="campo"><span>Largura</span><input type="text" inputmode="decimal" data-c="largura" data-num value="${campo(rasc.largura)}" placeholder="0"></label>
+            <label class="campo"><span>Altura</span><input type="text" inputmode="decimal" data-c="altura" data-num value="${campo(rasc.altura)}" placeholder="0"></label>
+          </div>
+          <div class="info-peso" id="peso-frete"></div>
+        </div>
+        <div class="secao">
+          ${kit
+            ? '<p class="secao-titulo">Composição do Kit</p>'
+            : `<div class="cmv-cabeca"><p class="secao-titulo">Custo do Produto (CMV)</p>
+                 <div class="alternar compacto" role="radiogroup" aria-label="Como o custo é formado">
+                   ${opcao('tipoCusto', 'revenda', 'Revendedor', rasc.tipoCusto === 'revenda')}${opcao('tipoCusto', 'fabricacao', 'Fabricante', rasc.tipoCusto === 'fabricacao')}
+                 </div></div>`}
+          <div id="bloco-custo">${blocoCusto()}</div>
+        </div>
+        <div class="total"><span>${kit ? 'CMV Total do Kit:' : 'CMV Total:'}</span><strong id="total-custo"></strong></div>
         <p class="erro" id="erro-produto" role="alert" hidden></p>
       </div>
       <div class="janela-base">
-        ${rasc.id ? '<button type="button" class="botao perigo" data-acao="excluir">Excluir</button>' : ''}
+        ${rasc.id ? '<button type="button" class="botao perigo" data-acao="excluir">Excluir produto</button>' : ''}
         <div class="direita">
           <button type="button" class="botao" data-acao="cancelar">Cancelar</button>
-          <button type="submit" class="botao principal">Salvar</button>
+          <button type="submit" class="botao principal">${rasc.id ? 'Salvar Alterações' : 'Cadastrar Produto'}</button>
         </div>
       </div>
     </form>`;
@@ -141,40 +161,43 @@ function blocoCusto() {
   if (rasc.tipoCusto === 'revenda') {
     const r = rasc.revenda;
     return `<div class="grade">
-      ${dinheiro('Custo de compra (R$)', 'revenda.custoCompra', r.custoCompra)}
+      ${dinheiro('Custo de aquisição (R$)', 'revenda.custoCompra', r.custoCompra)}
       ${dinheiro('Frete do fornecedor (R$)', 'revenda.freteFornecedor', r.freteFornecedor)}
       ${dinheiro('Embalagem (R$)', 'revenda.embalagem', r.embalagem)}
-      ${dinheiro('Outros (R$)', 'revenda.outros', r.outros)}
+      ${dinheiro('Outros custos (R$)', 'revenda.outros', r.outros)}
     </div>`;
   }
   if (rasc.tipoCusto === 'fabricacao') {
     const f = rasc.fabricacao;
     return `
-      <div class="linhas">
-        <strong>Matérias-primas</strong>
-        ${f.materiais.map((m, i) => `
-          <div class="linha-item">
-            <label class="campo"><span>Material</span><input type="text" data-c="fabricacao.materiais.${i}.descricao" value="${esc(m.descricao)}"></label>
-            ${dinheiro('Preço por unidade (R$)', `fabricacao.materiais.${i}.precoUnitario`, m.precoUnitario)}
-            <label class="campo"><span>Quantidade usada</span><input type="text" inputmode="decimal" data-c="fabricacao.materiais.${i}.quantidade" data-num value="${campo(m.quantidade)}"></label>
-            <button type="button" class="botao pequeno discreto" data-acao="remover" data-lista="fabricacao.materiais" data-i="${i}" aria-label="Remover material">Remover</button>
-          </div>`).join('')}
-        <div><button type="button" class="botao pequeno" data-acao="adicionar" data-lista="fabricacao.materiais">Adicionar material</button></div>
-      </div>
-      <div class="linhas">
-        <strong>Mão de obra</strong>
-        ${f.maoDeObra.map((m, i) => `
-          <div class="linha-item duas">
-            <label class="campo"><span>Etapa</span><input type="text" data-c="fabricacao.maoDeObra.${i}.descricao" value="${esc(m.descricao)}"></label>
-            ${dinheiro('Valor (R$)', `fabricacao.maoDeObra.${i}.valor`, m.valor)}
-            <button type="button" class="botao pequeno discreto" data-acao="remover" data-lista="fabricacao.maoDeObra" data-i="${i}" aria-label="Remover etapa">Remover</button>
-          </div>`).join('')}
-        <div><button type="button" class="botao pequeno" data-acao="adicionar" data-lista="fabricacao.maoDeObra">Adicionar etapa</button></div>
-      </div>
-      <div class="grade">
-        ${dinheiro('Embalagem (R$)', 'fabricacao.embalagem', f.embalagem)}
-        ${dinheiro('Frete de insumos (R$)', 'fabricacao.freteInsumos', f.freteInsumos)}
-        ${dinheiro('Outros (R$)', 'fabricacao.outros', f.outros)}
+      <div class="secao">
+        <div class="linhas">
+          <div class="linhas-cabeca"><strong>Matérias-primas</strong><button type="button" class="botao pequeno discreto" data-acao="adicionar" data-lista="fabricacao.materiais">+ Adicionar</button></div>
+          ${f.materiais.map((m, i) => `
+            <div class="linha-item">
+              <label class="campo"><span>Material</span><input type="text" data-c="fabricacao.materiais.${i}.descricao" value="${esc(m.descricao)}" placeholder="Ex: Chapa, Parafuso, Tinta..."></label>
+              ${dinheiro('Preço unit. (R$)', `fabricacao.materiais.${i}.precoUnitario`, m.precoUnitario)}
+              <label class="campo"><span>Qtd</span><input type="text" inputmode="decimal" data-c="fabricacao.materiais.${i}.quantidade" data-num value="${campo(m.quantidade)}" placeholder="0"></label>
+              <div class="subtotal" id="sub-m-${i}"></div>
+              <button type="button" class="botao pequeno discreto" data-acao="remover" data-lista="fabricacao.materiais" data-i="${i}" aria-label="Remover material">×</button>
+            </div>`).join('')}
+          <p class="subtotal-linha" id="sub-mp"></p>
+        </div>
+        <div class="linhas">
+          <div class="linhas-cabeca"><strong>Mão de obra</strong><button type="button" class="botao pequeno discreto" data-acao="adicionar" data-lista="fabricacao.maoDeObra">+ Adicionar</button></div>
+          ${f.maoDeObra.map((m, i) => `
+            <div class="linha-item duas">
+              <label class="campo"><span>Etapa</span><input type="text" data-c="fabricacao.maoDeObra.${i}.descricao" value="${esc(m.descricao)}" placeholder="Ex: Corte, Solda, Acabamento..."></label>
+              ${dinheiro('Valor (R$)', `fabricacao.maoDeObra.${i}.valor`, m.valor)}
+              <button type="button" class="botao pequeno discreto" data-acao="remover" data-lista="fabricacao.maoDeObra" data-i="${i}" aria-label="Remover etapa">×</button>
+            </div>`).join('')}
+          <p class="subtotal-linha" id="sub-mdo"></p>
+        </div>
+        <div class="grade">
+          ${dinheiro('Embalagem (R$)', 'fabricacao.embalagem', f.embalagem)}
+          ${dinheiro('Frete de insumos (R$)', 'fabricacao.freteInsumos', f.freteInsumos)}
+          ${dinheiro('Outros custos (R$)', 'fabricacao.outros', f.outros)}
+        </div>
       </div>`;
   }
   const opcoes = dados.produtos.filter((p) => p.tipoCusto !== 'kit' && p.id !== rasc.id).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
@@ -183,36 +206,44 @@ function blocoCusto() {
   return `
     <div class="linhas">
       ${rasc.kit.map((item, i) => `
-        <div class="linha-item">
+        <div class="linha-item kit">
           <label class="campo"><span>Produto</span>
             <select data-c="kit.${i}.produtoId">
-              <option value="">Escolha…</option>
+              <option value="">Selecionar produto...</option>
               ${opcoes.map((p) => `<option value="${p.id}" ${p.id === item.produtoId ? 'selected' : ''}>${esc(p.nome)}${p.sku ? ` (${esc(p.sku)})` : ''}</option>`).join('')}
               ${item.produtoId && !mapa.has(item.produtoId) ? '<option value="" selected>(produto excluído)</option>' : ''}
             </select>
           </label>
-          <label class="campo"><span>Quantidade</span><input type="text" inputmode="decimal" data-c="kit.${i}.quantidade" data-num value="${campo(item.quantidade)}"></label>
+          <label class="campo"><span>Qtd</span><input type="text" inputmode="decimal" data-c="kit.${i}.quantidade" data-num value="${campo(item.quantidade)}"></label>
           <div class="subtotal" id="sub-kit-${i}"></div>
-          <button type="button" class="botao pequeno discreto" data-acao="remover" data-lista="kit" data-i="${i}" aria-label="Tirar do kit">Remover</button>
+          <button type="button" class="botao pequeno discreto" data-acao="remover" data-lista="kit" data-i="${i}" aria-label="Tirar do kit">×</button>
         </div>`).join('')}
-      <div><button type="button" class="botao pequeno" data-acao="adicionar" data-lista="kit">Adicionar produto ao kit</button></div>
+      <div><button type="button" class="botao pequeno contorno" data-acao="adicionar" data-lista="kit">+ Adicionar Produto ao Kit</button></div>
     </div>`;
 }
+
+const n = (v) => Number(v) || 0;
 
 function atualizarTotais() {
   const j = janela();
   $('#total-custo', j).textContent = reais(custoDoProduto(rasc));
+  if (rasc.tipoCusto === 'fabricacao') {
+    const f = rasc.fabricacao;
+    f.materiais.forEach((m, i) => ($(`#sub-m-${i}`, j).textContent = reais(n(m.precoUnitario) * n(m.quantidade))));
+    $('#sub-mp', j).textContent = `Subtotal MP: ${reais(f.materiais.reduce((s, m) => s + n(m.precoUnitario) * n(m.quantidade), 0))}`;
+    $('#sub-mdo', j).textContent = `Subtotal MDO: ${reais(f.maoDeObra.reduce((s, m) => s + n(m.valor), 0))}`;
+  }
   if (rasc.tipoCusto === 'kit') {
     const mapa = porId();
     rasc.kit.forEach((item, i) => {
       const alvo = $(`#sub-kit-${i}`, j);
       const p = mapa.get(item.produtoId);
-      if (alvo) alvo.textContent = p ? reais(custoDoProduto(p, mapa) * (Number(item.quantidade) || 0)) : '';
+      if (alvo) alvo.textContent = p ? reais(custoDoProduto(p, mapa) * n(item.quantidade)) : '';
     });
   }
   const peso = pesoDoProduto(rasc);
-  const pelaCaixa = peso > (Number(rasc.pesoG) || 0);
-  $('#peso-frete', j).innerHTML = `Peso usado no frete: <strong>${gramas(peso)}</strong> ${pelaCaixa ? '(pelo tamanho da caixa)' : '(peso real)'}`;
+  const pelaCaixa = peso > n(rasc.pesoG);
+  $('#peso-frete', j).innerHTML = `Peso para frete: <strong>${gramas(peso)}</strong> ${pelaCaixa ? '(pela caixa)' : '(real)'}`;
 }
 
 function definir(caminho, valor) {
@@ -229,12 +260,17 @@ function aoDigitar(e) {
   atualizarTotais();
 }
 
-function aoTrocarTipo(e) {
-  if (e.target.name !== 'tipoCusto') return;
-  rasc.tipoCusto = e.target.value;
-  if (rasc.tipoCusto === 'kit' && !rasc.kit.length) rasc.kit.push({ produtoId: '', quantidade: 1 });
-  $('#bloco-custo', janela()).innerHTML = blocoCusto();
-  atualizarTotais();
+function aoTrocar(e) {
+  if (e.target.name === 'tipoProduto') {
+    rasc.tipoCusto = e.target.value === 'kit' ? 'kit' : rasc.ultimoIndividual;
+    if (rasc.tipoCusto === 'kit' && !rasc.kit.length) rasc.kit.push({ produtoId: '', quantidade: 1 });
+    return desenharJanela();
+  }
+  if (e.target.name === 'tipoCusto') {
+    rasc.tipoCusto = rasc.ultimoIndividual = e.target.value;
+    $('#bloco-custo', janela()).innerHTML = blocoCusto();
+    atualizarTotais();
+  }
 }
 
 const LINHA_NOVA = {
@@ -243,9 +279,7 @@ const LINHA_NOVA = {
   kit: () => ({ produtoId: '', quantidade: 1 }),
 };
 
-function lista(caminho) {
-  return caminho.split('.').reduce((o, p) => o[p], rasc);
-}
+const lista = (caminho) => caminho.split('.').reduce((o, p) => o[p], rasc);
 
 function aoClicar(e) {
   const botao = e.target.closest('[data-acao]');
@@ -295,7 +329,8 @@ function aoSalvar(e) {
       return mostrarErro('Escolha pelo menos um produto para o kit, com quantidade.');
     }
   }
-  const produto = { ...structuredClone(rasc), atualizadoEm: new Date().toISOString() };
+  const { ultimoIndividual, ...limpo } = rasc;
+  const produto = { ...structuredClone(limpo), atualizadoEm: new Date().toISOString() };
   if (produto.id) dados.produtos = dados.produtos.map((p) => (p.id === produto.id ? produto : p));
   else dados.produtos.push({ ...produto, id: novoId() });
   salvar();

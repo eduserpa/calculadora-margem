@@ -1,9 +1,11 @@
-// Tela Calculadora: escolhe produto e canal, digita o preço, vê margem, lucro e preço mínimo.
+// Tela Calculadora: produto, canal, preço (DE/desconto/POR), resultado e preço mínimo.
 import { dados, canais } from '../dados.js';
 import { porId, custoDoProduto, pesoDoProduto } from '../produtos.js';
 import { calcularMargem, precoMinimo } from '../calculos/margem.js';
 import { precoPor, descontoPeloPor } from '../calculos/preco-de-por.js';
-import { lerNumero, reais, numero, campo, campoReais, porcento, gramas, esc } from '../formato.js';
+import { lerNumero, reais, numero, campo, campoReais, gramas, esc } from '../formato.js';
+import { linhasDoCanal, sigla, tipoDeVenda, TITULO_DO_GRUPO, pct } from '../canais-texto.js';
+import { abrirConfigurarCanal } from './configurar-canal.js';
 
 const $ = (s) => document.querySelector(s);
 const CHAVE = 'calculadora-margem.tela';
@@ -11,6 +13,7 @@ const semAcento = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, ''
 
 // Estado da tela (lembrado neste navegador só por conveniência).
 const estado = { produtoId: '', custoAvulso: 0, pesoAvulso: 300, canal: 'mercadolivre', de: 0, desconto: 0, margemDesejada: 20, exemplo: false };
+let pronta = false;
 
 function lembrar() {
   try {
@@ -29,8 +32,6 @@ export function faixaDaMargem(m) {
   if (m < 40) return { rotulo: 'Margem muito boa', classe: 'bom' };
   return { rotulo: 'Margem excelente', classe: 'bom' };
 }
-
-let pronta = false;
 
 export function iniciarCalculadora() {
   if (!canais()) return; // sem as taxas não há conta a fazer (o aviso geral já explica)
@@ -52,6 +53,8 @@ export function iniciarCalculadora() {
     atualizar();
   });
   $('#c-canais').addEventListener('click', (e) => {
+    const config = e.target.closest('[data-config]');
+    if (config) return abrirConfigurarCanal(config.dataset.config);
     const b = e.target.closest('[data-canal]');
     if (!b) return;
     estado.canal = b.dataset.canal;
@@ -86,35 +89,29 @@ export function desenharTudo() {
 
 function desenharProdutos() {
   const termo = semAcento($('#c-busca').value.trim());
+  if (estado.produtoId && !dados.produtos.some((p) => p.id === estado.produtoId)) estado.produtoId = '';
   const lista = dados.produtos
     .filter((p) => !termo || p.id === estado.produtoId || semAcento(p.nome).includes(termo) || semAcento(p.sku).includes(termo))
     .sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
-  if (estado.produtoId && !dados.produtos.some((p) => p.id === estado.produtoId)) estado.produtoId = '';
-  $('#c-produto').innerHTML = `<option value="">Sem produto: digitar o custo</option>${lista
+  $('#c-produto').innerHTML = `<option value="">${dados.produtos.length ? 'Selecionar produto... (ou digitar o custo)' : 'Sem produto: digitar o custo'}</option>${lista
     .map((p) => `<option value="${p.id}" ${p.id === estado.produtoId ? 'selected' : ''}>${esc(p.nome)}${p.sku ? ` (${esc(p.sku)})` : ''}</option>`)
     .join('')}`;
 }
 
-const pct = (v) => `${(Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
-
-export function resumoDoCanal(c) {
-  let cobra;
-  if (c.tipo === 'faixas') cobra = 'por faixa de preço';
-  else if (c.tipo === 'mercadolivre') {
-    const propria = Number(c.comissao_propria);
-    cobra = `${propria > 0 ? pct(propria) : c.tipo_anuncio === 'premium' ? 'Premium' : 'Clássico'} + frete`;
-  } else if (Number(c.comissao) || Number(c.taxa_fixa)) cobra = `${pct(c.comissao)}${Number(c.taxa_fixa) ? ` + ${reais(c.taxa_fixa)}` : ''}`;
-  else cobra = 'sem comissão';
-  const fin = Number(c.taxa_financeira) ? ` · taxa ${pct(c.taxa_financeira)}` : '';
-  return `${cobra} · impostos ${pct(c.impostos)}${fin}`;
-}
-
 function desenharCanais() {
   $('#c-canais').innerHTML = Object.entries(canais())
-    .map(([id, c]) => `
-      <button type="button" class="canal" role="radio" aria-checked="${id === estado.canal}" data-canal="${id}">
-        <strong>${esc(c.nome)}</strong><span>${esc(resumoDoCanal(c))}</span>
-      </button>`)
+    .map(([id, c]) => {
+      const [letras, cor] = sigla(id, c);
+      return `
+        <div class="canal-caixa">
+          <button type="button" class="canal" role="radio" aria-checked="${id === estado.canal}" data-canal="${id}">
+            <span class="canal-sigla" style="--cor:${cor}" aria-hidden="true">${letras}</span>
+            <span class="canal-nome">${esc(c.nome)}</span>
+            <span class="canal-linhas">${linhasDoCanal(c)}</span>
+          </button>
+          <button type="button" class="engrenagem" data-config="${id}" title="Configurar ${esc(c.nome)}" aria-label="Configurar ${esc(c.nome)}">⚙</button>
+        </div>`;
+    })
     .join('');
 }
 
@@ -122,8 +119,9 @@ function preencherPrecos(menos) {
   const por = precoPor(estado.de, estado.desconto);
   if (menos !== 'c-de') $('#c-de').value = campoReais(estado.de);
   if (menos !== 'c-desconto') $('#c-desconto').value = estado.desconto ? numero(estado.desconto, Number.isInteger(estado.desconto) ? 0 : 1) : '';
-  $('#c-desconto-barra').value = Math.min(70, estado.desconto);
+  if (menos !== 'c-desconto-barra') $('#c-desconto-barra').value = Math.min(70, estado.desconto);
   if (menos !== 'c-por') $('#c-por').value = campoReais(por);
+  $('#c-desconto-rotulo').textContent = `${numero(estado.desconto, 0)}%`;
 }
 
 function aoDigitar(e) {
@@ -142,7 +140,7 @@ function aoDigitar(e) {
     else $('#c-margem').value = estado.margemDesejada;
   } else return;
   estado.exemplo = false;
-  preencherPrecos(id === 'c-desconto-barra' ? '' : id);
+  preencherPrecos(id);
   atualizar();
 }
 
@@ -152,8 +150,40 @@ function custoEPeso() {
   return { cmv: estado.custoAvulso, pesoG: estado.pesoAvulso, produto: null };
 }
 
-const linha = (rotulo, valor, preco, classe = '') =>
-  `<tr class="${classe}"><td>${rotulo}</td><td class="num">${reais(valor)}</td><td class="num suave">${preco > 0 ? porcento((valor / preco) * 100) : ''}</td></tr>`;
+const parte = (valor, preco) => `-${reais(valor)} (${numero((valor / preco) * 100, 1)}%)`;
+const sub = (rotulo, valor) => (valor ? `<div class="res-linha res-sub"><span>${rotulo}:</span><span class="valor">${reais(valor)}</span></div>` : '');
+
+function htmlResultado(r, canal, pesoG) {
+  const venda = tipoDeVenda(canal);
+  const ml = canal.tipo === 'mercadolivre';
+  const rotuloComissao = venda === 'vendedor' ? 'Comissão vendedora' : canal.tipo === 'fixo' ? 'Comissão' : 'Comissão variável';
+  const custosCanal = r.comissao + r.taxaFixa + r.freteCanal + r.taxaFinanceira + r.freteAbsorvido + r.embalagem + r.outros;
+  const f = faixaDaMargem(r.margem);
+  return `
+    <div class="res-linha receita"><span>Receita:</span><span class="valor">${reais(r.preco)}</span></div>
+    <div class="res-grupo vermelho"><div class="res-linha"><span>Custo do Produto (CMV):</span><span>${parte(r.cmv, r.preco)}</span></div></div>
+    ${custosCanal ? `
+      <div class="res-grupo vermelho">
+        <div class="res-linha"><span>${TITULO_DO_GRUPO[venda]}:</span><span>${parte(custosCanal, r.preco)}</span></div>
+        ${sub(`${rotuloComissao} (${pct(r.comissaoPercentual)})`, r.comissao)}
+        ${sub('Taxa fixa', r.taxaFixa)}
+        ${ml ? `${sub('Custo do frete grátis (você paga)', r.freteCanal)}<div class="res-detalhe">${reais(r.preco)} + ${gramas(pesoG)} = ${reais(r.freteCanal)}</div>` : sub(`Taxa de frete (${pct(canal.frete_percentual)})`, r.freteCanal)}
+        ${sub(`${venda === 'loja' ? 'Taxa fin./plataforma' : 'Taxa financeira'} (${pct(r.taxaFinanceiraPercentual)})`, r.taxaFinanceira)}
+        ${sub('Frete absorvido', r.freteAbsorvido)}
+        ${sub('Pick & pack', r.embalagem)}
+        ${sub('Outros custos', r.outros)}
+      </div>` : ''}
+    <div class="res-grupo laranja">
+      <div class="res-linha"><span>Impostos (${pct(r.impostosPercentual)}):</span><span>${parte(r.impostos, r.preco)}</span></div>
+      <div class="res-sub">sobre o preço de venda</div>
+    </div>
+    <div class="res-total">
+      <span class="rotulo">Margem de contribuição</span>
+      <div class="numeros"><span class="${f.classe}">${numero(r.margem, 1)}%</span><i></i><span class="${f.classe}">${reais(r.lucro)}</span></div>
+      <small>lucro por unidade</small>
+      <span class="selo ${f.classe}">${f.rotulo}</span>
+    </div>`;
+}
 
 function atualizar() {
   lembrar();
@@ -161,44 +191,25 @@ function atualizar() {
   const { cmv, pesoG, produto } = custoEPeso();
   const ml = canal.tipo === 'mercadolivre';
 
+  $('#c-produto-cartao').classList.toggle('ativo', Boolean(produto));
+  $('#c-produto-titulo').innerHTML = produto ? `${esc(produto.nome)}${produto.sku ? ` <span class="sub">(${esc(produto.sku)})</span>` : ''}` : 'Selecione o Produto';
   $('#c-avulso').hidden = Boolean(produto);
   $('#c-peso-campo').hidden = !ml;
+  const pelaCaixa = produto && pesoG > (Number(produto.pesoG) || 0);
   $('#c-info-produto').innerHTML = produto
-    ? `Custo do produto <strong>${reais(cmv)}</strong>${ml ? ` · peso para frete <strong>${gramas(pesoG)}</strong>` : ''}`
+    ? `<span>CMV: <strong>${reais(cmv)}</strong></span><span>Peso: <strong>${gramas(pesoG)}</strong>${pelaCaixa ? ' (pela caixa)' : ''}</span>`
     : '';
   $('#c-exemplo').hidden = !estado.exemplo;
+  $('#c-por-rotulo').textContent = `Preço POR (Final) — ${canal.nome}`;
+  $('#c-resultado-titulo').textContent = `Resultado — ${canal.nome}`;
+  $('#c-data').textContent = new Date().toLocaleDateString('pt-BR');
 
   const preco = precoPor(estado.de, estado.desconto);
   const alvo = $('#c-resultado');
   if (!(preco > 0) || !(cmv > 0)) {
-    alvo.innerHTML = `<div class="vazio"><p>${!(cmv > 0) ? 'Escolha um produto ou digite o custo.' : 'Digite o preço de venda para ver a margem.'}</p></div>`;
+    alvo.innerHTML = `<div class="vazio-resultado"><b aria-hidden="true">▦</b>${!(cmv > 0) ? 'Selecione um produto ou digite o custo' : 'Preencha os campos para ver o resultado'}</div>`;
   } else {
-    const r = calcularMargem({ preco, cmv, canal, pesoG });
-    const f = faixaDaMargem(r.margem);
-    alvo.innerHTML = `
-      <div class="placar">
-        <div><span class="rotulo">Margem</span><strong class="grande ${f.classe}">${porcento(r.margem)}</strong></div>
-        <div><span class="rotulo">Lucro por peça</span><strong class="grande ${f.classe}">${reais(r.lucro)}</strong></div>
-        <span class="selo ${f.classe}">${f.rotulo}</span>
-      </div>
-      <div class="tabela-rolagem">
-        <table class="detalhe">
-          <thead><tr><th>${esc(canal.nome)}</th><th class="num">R$</th><th class="num">% do preço</th></tr></thead>
-          <tbody>
-            ${linha('Preço de venda', r.preco, r.preco, 'forte')}
-            ${linha(`Comissão (${numero(r.comissaoPercentual, 1)}%)`, -r.comissao, r.preco)}
-            ${r.taxaFixa ? linha('Taxa fixa por venda', -r.taxaFixa, r.preco) : ''}
-            ${r.freteCanal ? linha(ml ? `Frete grátis pago por você (${gramas(pesoG)})` : `Taxa de frete (${numero(canal.frete_percentual, 0)}%)`, -r.freteCanal, r.preco) : ''}
-            ${linha(`Impostos (${numero(r.impostosPercentual, 1)}% sobre o preço)`, -r.impostos, r.preco)}
-            ${r.taxaFinanceira ? linha(`Taxa financeira (${numero(r.taxaFinanceiraPercentual, 1)}%)`, -r.taxaFinanceira, r.preco) : ''}
-            ${r.embalagem ? linha('Embalagem e manuseio', -r.embalagem, r.preco) : ''}
-            ${r.freteAbsorvido ? linha('Frete absorvido', -r.freteAbsorvido, r.preco) : ''}
-            ${r.outros ? linha('Outros custos', -r.outros, r.preco) : ''}
-            ${linha('Custo do produto (CMV)', -r.cmv, r.preco)}
-            ${linha('Lucro por peça', r.lucro, r.preco, 'forte')}
-          </tbody>
-        </table>
-      </div>`;
+    alvo.innerHTML = htmlResultado(calcularMargem({ preco, cmv, canal, pesoG }), canal, pesoG);
   }
 
   const minimo = cmv > 0 ? precoMinimo({ cmv, canal, pesoG, margemDesejada: estado.margemDesejada }) : 0;
@@ -208,11 +219,12 @@ function atualizar() {
   let aviso = '';
   if (!(cmv > 0)) aviso = 'Informe o custo para calcular.';
   else if (!minimo) aviso = `Com essas taxas não dá para chegar a ${estado.margemDesejada}% de margem.`;
-  else if (preco > 0 && preco < minimo) aviso = 'O preço digitado está abaixo do mínimo.';
+  else if (preco > 0 && preco < minimo) aviso = 'Seu preço atual está abaixo do mínimo!';
   else if (preco > 0 && calcularMargem({ preco, cmv, canal, pesoG }).margem < estado.margemDesejada) {
-    aviso = `O preço digitado cai numa faixa com taxa ou frete mais caro e não chega a ${estado.margemDesejada}%.`;
+    aviso = `Seu preço atual cai numa faixa de taxa ou frete mais cara e não chega a ${estado.margemDesejada}% de margem.`;
   }
   $('#c-minimo-valor').textContent = minimo ? reais(minimo) : '—';
+  $('#c-minimo-sub').textContent = `para margem de ${estado.margemDesejada}%`;
   $('#c-minimo-aviso').textContent = aviso;
   $('#c-minimo-aviso').hidden = !aviso;
 }

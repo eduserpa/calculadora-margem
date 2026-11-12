@@ -2,6 +2,7 @@ import { carregar, aoMudar, paraArquivo, lerArquivo, substituirTudo, dados } fro
 import { iniciarProdutos, desenharLista } from './telas/produtos.js';
 import { iniciarCalculadora, desenharTudo } from './telas/calculadora.js';
 import { iniciarConfiguracoes, aoMudarDados } from './telas/configuracoes.js';
+import { iniciarConfigurarCanal } from './telas/configurar-canal.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -12,6 +13,22 @@ function mostrarTela() {
   document.querySelectorAll('.aba').forEach((a) =>
     a.dataset.aba === atual ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'),
   );
+}
+
+// Tema claro é o padrão; o escuro fica guardado neste navegador.
+function trocarTema(inicio) {
+  const raiz = document.documentElement;
+  if (!inicio) {
+    const escuro = raiz.dataset.tema !== 'escuro';
+    if (escuro) raiz.dataset.tema = 'escuro';
+    else delete raiz.dataset.tema;
+    try {
+      localStorage.setItem('calculadora-margem.tema', escuro ? 'escuro' : 'claro');
+    } catch {
+      // sem armazenamento: vale só nesta visita
+    }
+  }
+  $('#tema').textContent = raiz.dataset.tema === 'escuro' ? 'Tema claro' : 'Tema escuro';
 }
 
 function aviso(texto, ok = false) {
@@ -77,6 +94,9 @@ async function iniciar() {
   iniciarProdutos();
   iniciarCalculadora();
   iniciarConfiguracoes();
+  iniciarConfigurarCanal();
+  trocarTema(true);
+  $('#tema').addEventListener('click', () => trocarTema(false));
   $('#exportar').addEventListener('click', exportar);
   $('#importar').addEventListener('change', importar);
   window.addEventListener('hashchange', mostrarTela);
