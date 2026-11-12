@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Calculadora de Margem</title>
+  <link rel="stylesheet" href="css/estilo.css">
+  <script type="module" src="src/app.js"></script>
+</head>
+<body>
+  <header class="topo">
+    <div class="topo-dentro">
+      <h1 class="marca">Calculadora de Margem</h1>
+      <nav class="abas" aria-label="Telas">
+        <a href="#produtos" class="aba" data-aba="produtos">Produtos</a>
+      </nav>
+      <div class="arquivo">
+        <button type="button" class="botao discreto" id="exportar">Exportar dados</button>
+        <label class="botao discreto" for="importar">Importar dados</label>
+        <input type="file" id="importar" accept=".json,application/json" hidden>
+      </div>
+    </div>
+  </header>
+
+  <main class="conteudo">
+    <p class="aviso" id="aviso-geral" role="status" hidden></p>
+
+    <section id="tela-produtos" class="tela" aria-labelledby="titulo-produtos">
+      <div class="cabeca-tela">
+        <div>
+          <h2 id="titulo-produtos">Produtos</h2>
+          <p class="sub">Cadastre o custo de cada produto. A calculadora usa esse custo para achar a margem.</p>
+        </div>
+        <button type="button" class="botao principal" id="novo-produto">Novo produto</button>
+      </div>
+      <input type="search" id="busca" class="busca" placeholder="Buscar por nome ou SKU" aria-label="Buscar produto">
+      <div id="lista-produtos"></div>
+    </section>
+  </main>
+
+  <dialog id="janela-produto" class="janela" aria-labelledby="titulo-janela"></dialog>
+  <dialog id="janela-importar" class="janela pequena" aria-labelledby="titulo-importar"></dialog>
+
+  <footer class="rodape">
+    Os dados ficam só neste navegador. Use “Exportar dados” para guardar uma cópia ou levar para outro computador.
+  </footer>
+</body>
+</html>
