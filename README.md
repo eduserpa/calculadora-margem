@@ -1,4 +1,6 @@
-# Calculadora de margem
+# Leomargens
+
+Calculadora de margem
 
 Cadastro de produtos com preço de custo e calculadora de margem por canal (comissão, taxa fixa, frete, impostos e taxa financeira).
 
