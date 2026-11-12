@@ -55,9 +55,10 @@ function contar(id, chave, valor, formatar) {
   ultimos.set(chave, valor);
   el.textContent = formatar(valor);
   if (semMovimento() || de == null || de === valor || !Number.isFinite(de)) return;
-  const inicio = performance.now();
+  let inicio = null;
   const passo = (agora) => {
     if (ultimos.get(chave) !== valor) return; // chegou um valor mais novo: este para
+    inicio ??= agora; // conta a partir do 1º quadro: se ele demorar, a animação não pula direto para o fim
     const t = Math.min(1, (agora - inicio) / 250);
     const suave = 1 - (1 - t) ** 3;
     const atual = document.getElementById(id); // o resultado pode ter sido redesenhado no meio
