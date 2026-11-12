@@ -362,7 +362,7 @@ function atualizar() {
   $('#c-avulso').hidden = estado.produtoId !== AVULSO;
   const pelaCaixa = produto && pesoG > (Number(produto.pesoG) || 0);
   $('#c-info-produto').innerHTML = produto
-    ? `<span>CMV: <strong>${reais(cmv)}</strong></span><span>Peso: <strong>${gramas(pesoG)}</strong>${pelaCaixa ? ' (pela caixa)' : ''}</span>`
+    ? `<span>CMV: <strong>${reais(cmv)}</strong></span><span>Peso: <strong>${gramas(Number(produto.pesoG) || 0)}</strong></span>${pelaCaixa ? `<span>Frete do ML calculado como <strong>${gramas(pesoG)}</strong> (caixa grande)</span>` : ''}`
     : '';
   $('#c-exemplo').hidden = true;
   $('#c-sem-canal').hidden = Boolean(estado.canal);
