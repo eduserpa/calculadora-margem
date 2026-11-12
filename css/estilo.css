@@ -433,7 +433,10 @@ input[type="range"] { width: 100%; accent-color: var(--roxo); }
 .canal-config > summary::before { content: "▸"; color: var(--suave); }
 .canal-config[open] > summary::before { content: "▾"; }
 .canal-corpo { display: grid; gap: 24px; padding: 0 24px 24px; }
-.fonte { font-size: 12px; }
+.barra-regra { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: -6px; }
+.info { display: inline-grid; place-items: center; margin-right: auto; color: var(--suave); cursor: help; }
+.info .ic { width: 16px; height: 16px; }
+.fixo { display: flex; align-items: center; min-height: 38px; padding: 0 12px; border-radius: 8px; background: var(--superficie-2); font-weight: 600; }
 .tabela-rolagem { overflow-x: auto; border: 1px solid var(--linha); border-radius: 10px; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--linha); }

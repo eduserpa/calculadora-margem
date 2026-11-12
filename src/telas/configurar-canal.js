@@ -1,4 +1,4 @@
-// Janela "Configurar <canal>": primeiro a regra do canal (editável), depois impostos, custos por unidade e promoção.
+// Janela "Configurar <canal>": a regra do canal (fixa; o lápis libera para editar), depois impostos, custos por unidade e promoção.
 import { icone } from '../icones.js';
 import { dados, salvar, canais, canaisDePadrao } from '../dados.js';
 import { quadroDaRegra, notaDoMercadoLivre, tipoDeVenda, faixasEmTexto, data } from '../canais-texto.js';
@@ -8,6 +8,7 @@ const $ = (s, raiz = document) => raiz.querySelector(s);
 const janela = () => $('#janela-canal');
 let id = '';
 let rasc = null;
+let editando = false; // regra do canal liberada pelo lápis
 let categorias = null; // lista oficial do ML, carregada quando a janela do ML abre
 
 const REPUTACOES = { verde: 'Verde ou MercadoLíder', sem: 'Sem reputação', amarela: 'Amarela', laranja: 'Laranja', vermelha: 'Vermelha' };
@@ -29,6 +30,8 @@ export function iniciarConfigurarCanal() {
 export async function abrirConfigurarCanal(idCanal) {
   id = idCanal;
   rasc = structuredClone(canais()[id]);
+  if (rasc.tipo_vendedor) rasc.tipo_vendedor = 'cnpj'; // a empresa vende como CNPJ
+  editando = false;
   if (rasc.tipo === 'mercadolivre' && !categorias) {
     try {
       categorias = (await (await fetch('data/ml-categorias.json')).json()).categorias;
@@ -56,8 +59,19 @@ const radio = (nome, opcao, rotulo, marcado) =>
   `<label><input type="radio" name="${nome}" data-c="${nome}" value="${opcao}" ${marcado ? 'checked' : ''}><span>${rotulo}</span></label>`;
 const ligar = (chave, rotulo) =>
   `<label class="ligar"><input type="checkbox" data-c="${chave}" ${valor(chave) ? 'checked' : ''}><span>${rotulo}</span></label>`;
-const fonte = (texto, conferido) =>
-  texto ? `<p class="dica fonte">${esc(texto)}${/[.!?]$/.test(texto) ? '' : '.'}${conferido ? ` Conferido em ${data(conferido)}.` : ' A conferir.'}</p>` : '';
+// Fonte e data num "i" discreto (title), fora do meio da janela.
+function info(...fontes) {
+  const t = fontes.filter(([texto]) => texto).map(([texto, conferido]) => `Fonte: ${texto.replace(/[.!?]$/, '')}. ${conferido ? `Conferido em ${data(conferido)}` : 'A conferir'}.`).join(' ');
+  return t ? `<span class="info" tabindex="0" role="img" aria-label="${esc(t)}" title="${esc(t)}">${icone('info')}</span>` : '';
+}
+const fixo = (rotulo, texto) => `<div class="campo"><span>${rotulo}</span><strong class="fixo">${texto}</strong></div>`;
+const pctFixo = (v) => `${campo(v) || '0'}%`;
+
+// Barra da regra: lápis para editar; editando, "Voltar ao padrão" e "Pronto".
+const barraDaRegra = (...fontes) => `
+  <div class="barra-regra">${info(...fontes)}${editando
+    ? `<button type="button" class="botao pequeno" data-acao="padrao">Voltar ao padrão</button><button type="button" class="botao pequeno" data-acao="pronto">${icone('check')} Pronto</button>`
+    : `<button type="button" class="botao pequeno" data-acao="editar">${icone('pencil')} Editar</button>`}</div>`;
 
 function valor(caminho) {
   return caminho.split('.').reduce((o, p) => (o == null ? undefined : o[p]), rasc);
@@ -69,12 +83,19 @@ function definir(caminho, v) {
   alvo[partes.at(-1)] = v;
 }
 
+function faixas() {
+  const fontes = [[rasc.faixas_fonte, rasc.faixas_conferido_em], [rasc.frete_fonte, rasc.frete_conferido_em]];
+  if (!editando) return `${barraDaRegra(...fontes)}${quadroDaRegra(id, rasc)}`;
+  const frete = rasc.frete_percentual != null ? `<div class="grade">${porcento('Taxa de frete (% do preço)', 'frete_percentual')}${dinheiro('Teto da taxa de frete (R$)', 'frete_teto')}</div>` : '';
+  return `${barraDaRegra(...fontes)}${faixasEditaveis()}${frete}`;
+}
+
 function faixasEditaveis() {
   const ultima = rasc.faixas.length - 1;
   const textos = faixasEmTexto(rasc.faixas);
   return `
     <div class="regra laranja">
-      <strong>Comissão por faixa de preço${id === 'shopee' ? ` (${rasc.tipo_vendedor === 'cpf' ? 'CPF' : 'CNPJ'})` : ''}</strong>
+      <strong>Comissão por faixa de preço</strong>
       <table class="faixas editaveis">
         <thead><tr><th>Valor do item</th><th>Até (R$)</th><th>Comissão (%)</th><th>Taxa fixa (R$)</th><th><span hidden>Tirar</span></th></tr></thead>
         <tbody>${rasc.faixas.map((f, i) => `
@@ -88,23 +109,6 @@ function faixasEditaveis() {
         </tbody>
       </table>
       <div><button type="button" class="botao pequeno discreto" data-acao="nova-faixa">${icone('plus')} Adicionar faixa</button></div>
-      <p class="pe">Calculada automaticamente pelo preço de venda.${id === 'shopee' ? ' Inclui taxa de transação.' : ''}${rasc.faixas_vigente_desde ? ` Tabela vigente desde ${data(rasc.faixas_vigente_desde)}.` : ''}</p>
-    </div>
-    ${fonte(rasc.faixas_fonte, rasc.faixas_conferido_em)}`;
-}
-
-function opcoesShopee() {
-  const cpf = rasc.tipo_vendedor === 'cpf';
-  return `
-    <div class="secao">
-      <p class="secao-titulo">Tipo de vendedor</p>
-      <div class="alternar separado" role="radiogroup" aria-label="Tipo de vendedor">
-        ${radio('tipo_vendedor', 'cnpj', 'CNPJ', !cpf)}${radio('tipo_vendedor', 'cpf', 'CPF', cpf)}
-      </div>
-      ${cpf ? `
-        ${ligar('cpf_acima_limite', 'Mais de 450 pedidos nos últimos 90 dias')}
-        ${dinheiro('Adicional por item vendido, para CPF (R$)', 'cpf_adicional')}
-        ${fonte(rasc.cpf_fonte, rasc.cpf_conferido_em)}` : ''}
     </div>`;
 }
 
@@ -121,25 +125,24 @@ function opcoesMercadoLivre() {
       </div>
       <p class="dica" id="nota-ml">${esc(notaDoMercadoLivre(rasc))}</p>
     </div>
+    ${barraDaRegra([rasc.comissao_fonte, rasc.comissao_conferido_em], [rasc.faixa_reduzida_fonte, rasc.faixa_reduzida_conferido_em])}
     <div class="secao">
       <p class="secao-titulo">Comissão da categoria</p>
-      <div class="grade">${porcento('Clássico (%)', 'comissao.classico')}${porcento('Premium (%)', 'comissao.premium')}</div>
-      <p class="dica">O Mercado Livre cobra entre 10% e 14% no Clássico e entre 15% e 19% no Premium, conforme a categoria. A % exata aparece no simulador de custos da sua conta.</p>
-      ${fonte(rasc.comissao_fonte, rasc.comissao_conferido_em)}
+      <div class="grade">${editando
+        ? `${porcento('Clássico (%)', 'comissao.classico')}${porcento('Premium (%)', 'comissao.premium')}`
+        : `${fixo('Clássico', pctFixo(rasc.comissao.classico))}${fixo('Premium', pctFixo(rasc.comissao.premium))}`}</div>
     </div>
-    ${porcento('Comissão própria (opcional)', 'comissao_propria', 'Se preencher, vale em qualquer preço e no lugar das comissões acima.')}
+    ${porcento('Comissão própria (opcional)', 'comissao_propria', 'Se preencher, vale no lugar das comissões acima.')}
     <div class="secao">
       <p class="secao-titulo">Comissão menor de R$ ${campoReais(r.de)} a R$ ${campoReais(r.ate)}</p>
       <label class="campo"><span>Categoria do produto</span>
         <input type="text" list="lista-categorias-ml" id="categoria-ml" value="${esc(rasc.categoria)}" placeholder="Digite para buscar na lista oficial..." autocomplete="off">
         <datalist id="lista-categorias-ml"><option value="Outra categoria (sem redução)"></option>${(categorias ?? []).map((c) => `<option value="${esc(c[0])}"></option>`).join('')}</datalist>
-        <small class="dica">${(categorias ?? []).length.toLocaleString('pt-BR')} categorias da lista oficial. Ao escolher, a redução abaixo é preenchida.</small>
       </label>
-      <div class="grade">
-        ${dinheiro('De (R$)', 'faixa_reduzida.de')}${dinheiro('Até (R$)', 'faixa_reduzida.ate')}
-        ${porcento('Redução Clássico (pontos)', 'faixa_reduzida.reducao.classico')}${porcento('Redução Premium (pontos)', 'faixa_reduzida.reducao.premium')}
-      </div>
-      ${fonte(rasc.faixa_reduzida_fonte, rasc.faixa_reduzida_conferido_em)}
+      <div class="grade">${editando
+        ? `${dinheiro('De (R$)', 'faixa_reduzida.de')}${dinheiro('Até (R$)', 'faixa_reduzida.ate')}
+           ${porcento('Redução Clássico (pontos)', 'faixa_reduzida.reducao.classico')}${porcento('Redução Premium (pontos)', 'faixa_reduzida.reducao.premium')}`
+        : `${fixo('Redução Clássico', pctFixo(r.reducao.classico))}${fixo('Redução Premium', pctFixo(r.reducao.premium))}`}</div>
     </div>
     <label class="campo"><span>Reputação da conta</span>
       <select data-c="reputacao">${Object.entries(REPUTACOES).map(([v, t]) => `<option value="${v}" ${v === rep ? 'selected' : ''}>${t}</option>`).join('')}</select>
@@ -159,12 +162,7 @@ function promocao() {
 
 function camposDoCanal() {
   if (rasc.tipo === 'mercadolivre') return opcoesMercadoLivre();
-  if (rasc.tipo === 'faixas') {
-    const frete = rasc.frete_percentual != null
-      ? `<div class="grade">${porcento('Taxa de frete (% do preço)', 'frete_percentual')}${dinheiro('Teto da taxa de frete (R$)', 'frete_teto')}</div>${fonte(rasc.frete_fonte, rasc.frete_conferido_em)}`
-      : '';
-    return `${id === 'shopee' ? opcoesShopee() : ''}${faixasEditaveis()}${frete}`;
-  }
+  if (rasc.tipo === 'faixas') return faixas();
   const venda = tipoDeVenda(rasc);
   if (venda === 'loja') return quadroDaRegra(id, rasc);
   if (venda === 'vendedor') return `${quadroDaRegra(id, rasc)}${porcento('Comissão de vendedora (%)', 'comissao')}`;
@@ -192,7 +190,6 @@ function desenhar() {
         ${promocao()}
       </div>
       <div class="janela-base">
-        <button type="button" class="botao discreto" data-acao="padrao">Voltar ao padrão</button>
         <div class="direita">
           <button type="button" class="botao" data-acao="cancelar">Cancelar</button>
           <button type="submit" class="botao principal">Salvar</button>
@@ -238,7 +235,15 @@ function aoClicar(e) {
   if (!b) return;
   const acao = b.dataset.acao;
   if (acao === 'cancelar') return janela().close();
-  if (acao === 'padrao') rasc = canaisDePadrao()[id];
+  if (acao === 'editar') editando = true;
+  if (acao === 'pronto') editando = false;
+  if (acao === 'padrao') {
+    // só a regra do canal volta ao padrão; impostos, custos e promoção ficam
+    const padrao = canaisDePadrao()[id];
+    ['faixas', 'frete_percentual', 'frete_teto', 'comissao', 'faixa_reduzida', 'categoria'].forEach((k) => {
+      if (k in padrao) rasc[k] = structuredClone(padrao[k]);
+    });
+  }
   if (acao === 'nova-faixa') {
     const f = rasc.faixas;
     const anterior = f[f.length - 2];
