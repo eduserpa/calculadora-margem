@@ -43,12 +43,12 @@ export async function abrirConfigurarCanal(idCanal) {
 
 const porcento = (rotulo, chave, dica = '') => `
   <label class="campo"><span>${rotulo}</span>
-    <input type="text" inputmode="decimal" data-c="${chave}" data-num value="${campo(valor(chave))}" placeholder="0">
+    <input type="text" inputmode="decimal" data-c="${chave}" data-num value="${valor(chave) ? `${campo(valor(chave))}%` : ''}" placeholder="0%">
     ${dica ? `<small class="dica">${dica}</small>` : ''}
   </label>`;
 const dinheiro = (rotulo, chave, dica = '') => `
   <label class="campo"><span>${rotulo}</span>
-    <input type="text" inputmode="decimal" data-c="${chave}" data-num value="${campoReais(valor(chave))}" placeholder="0,00">
+    <input type="text" inputmode="decimal" data-c="${chave}" data-num value="${valor(chave) ? `R$ ${campoReais(valor(chave))}` : ''}" placeholder="0,00">
     ${dica ? `<small class="dica">${dica}</small>` : ''}
   </label>`;
 const radio = (nome, opcao, rotulo, marcado) =>
