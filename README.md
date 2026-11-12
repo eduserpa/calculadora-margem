@@ -1,4 +1,4 @@
-# Leomargens
+# Léomargens
 
 Calculadora de margem
 
