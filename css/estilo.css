@@ -493,5 +493,8 @@ table.faixas input { width: 96px; min-height: 34px; padding: 0 8px; border: 1px 
 /* logo do Calculéo (leão com focinho de %) ao lado do nome */
 .marca { display: flex; align-items: center; gap: 10px; }
 .marca-logo { flex: none; display: block; }
-.marca .marca-txt { font-size: 17px; font-weight: 700; line-height: 1.1; }
-.marca .marca-txt span { font-size: 13px; font-weight: 600; }
+.marca .marca-txt { font-size: 26px; font-weight: 900; line-height: 1; letter-spacing: -0.03em; color: #ccec7b; }
+.marca .marca-txt span { display: inline-block; margin-top: 4px; font-family: var(--fonte-texto); font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--lateral-suave); }
+.marca-logo { width: 44px; height: 44px; border-radius: 10px; }
+/* mascote (o leão vendedor) no estado vazio de Meus Produtos */
+.vazio .mascote { display: block; width: 180px; height: auto; margin: 0 auto 8px; }

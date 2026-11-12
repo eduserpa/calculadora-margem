@@ -70,6 +70,7 @@ export function desenharLista() {
   if (!dados.produtos.length) {
     alvo.innerHTML = `
       <div class="vazio">
+        <img class="mascote" src="assets/calculeo-mascote.webp" alt="" width="180" height="163">
         <h3>Nenhum produto cadastrado ainda</h3>
         <p>Cadastre o primeiro produto com o custo dele. Se quiser só testar, carregue três produtos de exemplo.</p>
         <div class="acoes">
