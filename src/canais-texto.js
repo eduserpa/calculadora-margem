@@ -38,7 +38,7 @@ export function linhasDoCanal(c) {
       propria > 0
         ? `<span class="t-laranja">Comissão: Própria ${pct(propria)}</span>`
         : `<span class="t-laranja">Comissão: ${tipo === 'premium' ? 'Premium' : 'Clássico'} ${pct(c.comissao[tipo])}*</span>`,
-      '<span class="t-azul">Frete: Automático*</span>',
+      '<span class="t-azul">Taxa fixa: Automática*</span>',
       imp,
     );
   } else if (venda === 'loja') {

@@ -10,6 +10,7 @@ const ETIQUETA = { revenda: 'Revenda', fabricacao: 'Fabricante', kit: 'Kit' };
 const CAIXA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5M12 12v9"/></svg>';
 
 let rasc = null; // produto sendo editado
+let unidadePeso = 'g';
 let confirmarExclusao = false;
 
 export function iniciarProdutos() {
@@ -18,6 +19,8 @@ export function iniciarProdutos() {
   $('#lista-produtos').addEventListener('click', (e) => {
     const editar = e.target.closest('[data-editar]');
     if (editar) abrir(editar.dataset.editar);
+    const lixeira = e.target.closest('[data-excluir]');
+    if (lixeira) excluirDoCartao(lixeira);
     if (e.target.closest('#primeiro-produto')) abrir();
     if (e.target.closest('#carregar-exemplos')) {
       dados.produtos.push(...exemplos(novoId));
@@ -35,6 +38,31 @@ export function iniciarProdutos() {
 // ---------- lista ----------
 
 const dataCurta = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '');
+const precificacoes = (id) => Object.keys(dados.precificacoes?.[id] ?? {}).length;
+
+function apagar(id) {
+  dados.produtos = dados.produtos.filter((p) => p.id !== id);
+  delete dados.precificacoes?.[id];
+  salvar();
+}
+
+// Lixeira do cartão: o primeiro clique pede confirmação no próprio botão.
+function excluirDoCartao(botao) {
+  const id = botao.dataset.excluir;
+  const kits = kitsQueUsam(id);
+  if (kits.length) {
+    botao.textContent = 'Está num kit';
+    botao.disabled = true;
+    return;
+  }
+  if (botao.dataset.confirmar !== 'sim') {
+    botao.dataset.confirmar = 'sim';
+    botao.textContent = 'Excluir?';
+    botao.classList.add('confirmar');
+    return;
+  }
+  apagar(id);
+}
 
 export function desenharLista() {
   const alvo = $('#lista-produtos');
@@ -77,8 +105,10 @@ export function desenharLista() {
         ${p.sku ? `<p class="ref">Ref: ${esc(p.sku)}</p>` : ''}
         <div class="linha-dado"><span>CMV:<span class="etiqueta ${p.tipoCusto}">${ETIQUETA[p.tipoCusto]}</span>${kitIncompleto(p, mapa) ? '<span class="etiqueta alerta">item excluído</span>' : ''}</span><strong>${reais(custo.get(p.id))}</strong></div>
         <div class="linha-dado"><span>Peso:</span><strong>${gramas(pesoDoProduto(p))}</strong></div>
+        <div class="linha-dado"><span>Precificações:</span>${precificacoes(p.id) ? `<strong class="bom">${precificacoes(p.id)} canal(is)</strong>` : '<span>Nenhuma</span>'}</div>
       </div>
-      <div class="produto-base"><span>Atualizado em ${dataCurta(p.atualizadoEm)}</span><button type="button" class="botao pequeno" data-editar="${p.id}">Editar</button></div>
+      <div class="produto-base"><span>Atualizado em ${dataCurta(p.atualizadoEm)}</span>
+        <span class="acoes-cartao"><button type="button" class="botao pequeno" data-editar="${p.id}">Editar</button><button type="button" class="botao pequeno perigo" data-excluir="${p.id}" aria-label="Excluir ${esc(p.nome)}" title="Excluir">🗑</button></span></div>
     </article>`).join('')}</div>`;
 }
 
@@ -120,12 +150,16 @@ function desenharJanela() {
           </div>
         </div>
         <div class="grade">
-          <label class="campo"><span>Nome do produto</span><input type="text" data-c="nome" value="${esc(rasc.nome)}" placeholder="Ex: Garrafa térmica 500 ml" autocomplete="off"></label>
+          <label class="campo"><span>${kit ? 'Nome do Kit' : 'Nome do produto'}</span><input type="text" data-c="nome" value="${esc(rasc.nome)}" placeholder="${kit ? 'Ex: Kit 2 garrafas' : 'Ex: Garrafa térmica 500 ml'}" autocomplete="off"></label>
           <label class="campo"><span>Referência / SKU</span><input type="text" data-c="sku" value="${esc(rasc.sku)}" placeholder="Ex: GT-500" autocomplete="off"></label>
+          <label class="campo"><span>Grade</span><input type="text" data-c="grade" value="${esc(rasc.grade ?? '')}" placeholder="Ex: P-GG" autocomplete="off"></label>
         </div>
         <div class="secao">
           <p class="secao-titulo">Peso e Dimensões</p>
-          <label class="campo"><span>Peso real (g)</span><input type="text" inputmode="decimal" data-c="pesoG" data-num value="${campo(rasc.pesoG)}"></label>
+          <div class="linha-peso">
+            <label class="campo"><span>Peso real</span><input type="text" inputmode="decimal" id="peso-real" value="${campo(unidadePeso === 'kg' ? (Number(rasc.pesoG) || 0) / 1000 : rasc.pesoG)}"></label>
+            <div class="alternar compacto" role="radiogroup" aria-label="Unidade do peso">${opcao('unidadePeso', 'g', 'g', unidadePeso === 'g')}${opcao('unidadePeso', 'kg', 'kg', unidadePeso === 'kg')}</div>
+          </div>
           <p class="dica">Dimensões (opcional), em cm</p>
           <div class="grade">
             <label class="campo"><span>Comprimento</span><input type="text" inputmode="decimal" data-c="comprimento" data-num value="${campo(rasc.comprimento)}" placeholder="0"></label>
@@ -205,6 +239,7 @@ function blocoCusto() {
   const mapa = porId();
   return `
     <div class="linhas">
+      ${rasc.kit.length ? '' : '<p class="dica">Adicione produtos ao kit usando o seletor abaixo</p>'}
       ${rasc.kit.map((item, i) => `
         <div class="linha-item kit">
           <label class="campo"><span>Produto</span>
@@ -255,15 +290,22 @@ function definir(caminho, valor) {
 
 function aoDigitar(e) {
   const el = e.target;
+  if (el.id === 'peso-real') {
+    rasc.pesoG = lerNumero(el.value) * (unidadePeso === 'kg' ? 1000 : 1);
+    return atualizarTotais();
+  }
   if (!el.dataset.c) return;
   definir(el.dataset.c, el.hasAttribute('data-num') ? lerNumero(el.value) : el.value);
   atualizarTotais();
 }
 
 function aoTrocar(e) {
+  if (e.target.name === 'unidadePeso') {
+    unidadePeso = e.target.value;
+    return desenharJanela();
+  }
   if (e.target.name === 'tipoProduto') {
     rasc.tipoCusto = e.target.value === 'kit' ? 'kit' : rasc.ultimoIndividual;
-    if (rasc.tipoCusto === 'kit' && !rasc.kit.length) rasc.kit.push({ produtoId: '', quantidade: 1 });
     return desenharJanela();
   }
   if (e.target.name === 'tipoCusto') {
@@ -310,8 +352,7 @@ function excluir(botao) {
     botao.classList.add('confirmar');
     return;
   }
-  dados.produtos = dados.produtos.filter((p) => p.id !== rasc.id);
-  salvar();
+  apagar(rasc.id);
   janela().close();
 }
 

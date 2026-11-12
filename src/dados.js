@@ -3,7 +3,7 @@
 
 const CHAVE = 'calculadora-margem.v1';
 
-export const dados = { produtos: [], canais: null };
+export const dados = { produtos: [], canais: null, precificacoes: {} };
 let canaisPadrao = null;
 const avisos = new Set();
 
@@ -14,7 +14,7 @@ export function aoMudar(fn) {
 export async function carregar() {
   try {
     const salvo = JSON.parse(localStorage.getItem(CHAVE) || 'null');
-    if (salvo) Object.assign(dados, { produtos: salvo.produtos ?? [], canais: salvo.canais ?? null });
+    if (salvo) Object.assign(dados, { produtos: salvo.produtos ?? [], canais: salvo.canais ?? null, precificacoes: salvo.precificacoes ?? {} });
   } catch {
     // navegador sem acesso ao armazenamento: segue só na memória
   }
@@ -54,11 +54,12 @@ export function lerArquivo(texto) {
   if (obj?.tipo !== 'calculadora-margem' || !Array.isArray(obj.produtos)) {
     throw new Error('Este arquivo não foi exportado por esta calculadora.');
   }
-  return { produtos: obj.produtos, canais: obj.canais ?? null };
+  return { produtos: obj.produtos, canais: obj.canais ?? null, precificacoes: obj.precificacoes ?? {} };
 }
 
 export function substituirTudo(novo) {
   dados.produtos = novo.produtos;
   dados.canais = novo.canais;
+  dados.precificacoes = novo.precificacoes ?? {};
   return salvar();
 }

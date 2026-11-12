@@ -105,3 +105,12 @@ test('preço mínimo com cupom ligado continua sendo o menor preço que chega na
   assert.ok(calcularMargem({ preco: minimo, cmv: 30, canal: sh }).margem >= 20);
   assert.ok(calcularMargem({ preco: minimo - 0.01, cmv: 30, canal: sh }).margem < 20);
 });
+
+test('liquidação: desconto máximo sobre o preço DE, 1 casa, sempre para baixo', async () => {
+  const { descontoMaximo } = await import('../src/calculos/preco-de-por.js');
+  assert.equal(descontoMaximo(199.9, 140), 29.9); // 29,96% vira 29,9
+  assert.equal(descontoMaximo(199.9, 144.29), 27.8);
+  assert.equal(descontoMaximo(100, 61.54), 38.4);
+  assert.equal(descontoMaximo(0, 50), 0);
+  assert.ok(descontoMaximo(100, 120) < 0); // liquidação acima do preço atual
+});

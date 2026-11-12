@@ -54,6 +54,7 @@
           </div>
         </div>
 
+        <div id="c-depois-produto" class="pilha" hidden>
         <div class="bloco">
           <h2>Canal de Venda</h2>
           <p class="sub">Selecione o canal para precificar</p>
@@ -61,7 +62,8 @@
           <p class="nota">* calculado automaticamente pelo preço de venda</p>
         </div>
 
-        <div class="calc">
+        <p class="vazio-canal" id="c-sem-canal">Selecione um canal de venda para precificar</p>
+        <div class="calc" id="c-calc">
           <div class="cartao com-faixa azul">
             <h2 class="faixa-titulo">Precificação</h2>
             <div class="cartao-corpo">
@@ -92,7 +94,15 @@
             <input type="range" id="c-margem" min="5" max="50" step="1">
             <div class="limites"><span>5%</span><span>50%</span></div>
             <p class="dica-caixa"><strong>Dica:</strong> uma margem entre 20% e 25% costuma dar folga para promoções e anúncios.</p>
+            <div class="liquidacao" id="c-liquidacao"></div>
           </div>
+
+          <div class="cartao analise" id="c-analise"></div>
+        </div>
+        <div class="acoes-salvar" id="c-acoes">
+          <button type="button" class="botao principal" id="c-salvar">Salvar Precificação</button>
+          <span class="dica" id="c-salvo"></span>
+        </div>
         </div>
       </section>
 
