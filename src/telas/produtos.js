@@ -106,7 +106,7 @@ export function desenharLista() {
         <h3 title="${esc(p.nome)}">${esc(p.nome)}</h3>
         ${p.sku ? `<p class="ref">Ref: ${esc(p.sku)}</p>` : ''}
         <div class="linha-dado"><span>CMV:<span class="etiqueta ${p.tipoCusto}">${ETIQUETA[p.tipoCusto]}</span>${kitIncompleto(p, mapa) ? '<span class="etiqueta alerta">item excluído</span>' : ''}</span><strong>${reais(custo.get(p.id))}</strong></div>
-        <div class="linha-dado"><span>Peso:</span><strong>${gramas(pesoDoProduto(p))}</strong></div>
+        <div class="linha-dado"><span>Peso:</span><strong>${gramas(Number(p.pesoG) || 0)}</strong></div>
         <div class="linha-dado"><span>Precificações:</span>${precificacoes(p.id) ? `<strong class="bom">${precificacoes(p.id)} canal(is)</strong>` : '<span>Nenhuma</span>'}</div>
       </div>
       <div class="produto-base"><span>Atualizado em ${dataCurta(p.atualizadoEm)}</span>
@@ -310,7 +310,7 @@ function atualizarTotais() {
   }
   const peso = pesoDoProduto(rasc);
   const pelaCaixa = peso > n(rasc.pesoG);
-  $('#peso-frete', j).innerHTML = `Peso para frete: <strong>${gramas(peso)}</strong> ${pelaCaixa ? '(pela caixa)' : '(real)'}`;
+  $('#peso-frete', j).innerHTML = pelaCaixa ? `Peso usado no frete: <strong>${gramas(peso)}</strong> (pelo tamanho da caixa, que conta mais que o peso real)` : `Peso usado no frete: <strong>${gramas(peso)}</strong>`;
 }
 
 function definir(caminho, valor) {
