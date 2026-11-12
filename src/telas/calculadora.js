@@ -52,7 +52,22 @@ export function iniciarCalculadora() {
   }
 
   $('#c-busca').addEventListener('input', desenharProdutos);
-  $('#c-produto').addEventListener('change', (e) => escolherProduto(e.target.value));
+  $('#c-seletor').addEventListener('click', () => abrirLista($('#c-seletor-lista').hidden));
+  $('#c-opcoes').addEventListener('click', (e) => {
+    const o = e.target.closest('[data-produto]');
+    if (!o) return;
+    abrirLista(false);
+    escolherProduto(o.dataset.produto);
+  });
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.seletor')) abrirLista(false);
+  });
+  $('#c-seletor-lista').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      abrirLista(false);
+      $('#c-seletor').focus();
+    }
+  });
   $('#c-canais').addEventListener('click', (e) => {
     const config = e.target.closest('[data-config]');
     if (config) return abrirConfigurarCanal(config.dataset.config);
@@ -99,9 +114,20 @@ function escolherProduto(id) {
   estado.canal = '';
   // Começa com os preços já salvos deste produto em cada canal.
   estado.precos = structuredClone(id && id !== AVULSO ? salvas(id) : {});
+  desenharProdutos();
   desenharCanais();
   preencherPrecos();
   atualizar();
+}
+
+function abrirLista(abrir) {
+  $('#c-seletor-lista').hidden = !abrir;
+  $('#c-seletor').setAttribute('aria-expanded', String(abrir));
+  if (abrir) {
+    $('#c-busca').value = '';
+    desenharProdutos();
+    $('#c-busca').focus();
+  }
 }
 
 function desenharProdutos() {
@@ -109,13 +135,20 @@ function desenharProdutos() {
   if (estado.produtoId && estado.produtoId !== AVULSO && !dados.produtos.some((p) => p.id === estado.produtoId)) estado.produtoId = '';
   const mapa = porId();
   const lista = dados.produtos
-    .filter((p) => !termo || p.id === estado.produtoId || semAcento(p.nome).includes(termo) || semAcento(p.sku).includes(termo))
+    .filter((p) => !termo || semAcento(p.nome).includes(termo) || semAcento(p.sku).includes(termo))
     .sort((a, b) => String(b.atualizadoEm).localeCompare(String(a.atualizadoEm)));
   const quantos = (p) => Object.keys(salvas(p.id)).length;
-  $('#c-produto').innerHTML = `
-    <option value="">Selecionar produto...</option>
-    ${lista.map((p) => `<option value="${p.id}" ${p.id === estado.produtoId ? 'selected' : ''}>${esc(p.nome)} — ${p.sku ? `${esc(p.sku)} · ` : ''}CMV: ${reais(custoDoProduto(p, mapa))} · ${quantos(p) ? `${quantos(p)} preço${quantos(p) > 1 ? 's' : ''}` : 'sem preço'}</option>`).join('')}
-    <option value="${AVULSO}" ${estado.produtoId === AVULSO ? 'selected' : ''}>Sem cadastro: digitar o custo</option>`;
+  $('#c-opcoes').innerHTML = `
+    ${lista.map((p) => `
+      <button type="button" class="opcao" role="option" aria-selected="${p.id === estado.produtoId}" data-produto="${p.id}">
+        <b>${esc(p.nome)}</b>
+        <small>${p.sku ? `${esc(p.sku)} · ` : ''}CMV: ${reais(custoDoProduto(p, mapa))}</small>
+        ${quantos(p) ? `<span class="etiqueta com">${quantos(p)} preço${quantos(p) > 1 ? 's' : ''}</span>` : '<span class="etiqueta sem">sem preço</span>'}
+      </button>`).join('')}
+    ${lista.length || !termo ? '' : '<p class="dica">Nenhum produto com esse nome ou SKU.</p>'}
+    <button type="button" class="opcao" role="option" aria-selected="${estado.produtoId === AVULSO}" data-produto="${AVULSO}"><b>Sem cadastro: digitar o custo</b><small>para uma conta rápida</small></button>`;
+  const escolhido = estado.produtoId === AVULSO ? null : mapa.get(estado.produtoId);
+  $('#c-seletor').textContent = escolhido ? `${escolhido.nome}${escolhido.sku ? ` (${escolhido.sku})` : ''}` : estado.produtoId === AVULSO ? 'Sem cadastro: digitar o custo' : 'Selecionar produto...';
 }
 
 function desenharCanais() {

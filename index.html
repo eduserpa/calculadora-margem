@@ -45,8 +45,13 @@
             <h2 id="c-produto-titulo">Selecione o Produto</h2>
             <a class="botao contorno pequeno" href="#produtos">Gerenciar Produtos</a>
           </div>
-          <input type="search" id="c-busca" class="campo-texto" placeholder="Buscar produto..." aria-label="Buscar produto">
-          <select id="c-produto" class="campo-texto" aria-label="Produto"></select>
+          <div class="seletor">
+            <button type="button" id="c-seletor" class="campo-texto seletor-botao" aria-haspopup="listbox" aria-expanded="false">Selecionar produto...</button>
+            <div class="seletor-lista" id="c-seletor-lista" hidden>
+              <input type="search" id="c-busca" class="campo-texto" placeholder="Buscar produto..." aria-label="Buscar produto">
+              <div id="c-opcoes" role="listbox" aria-label="Produtos"></div>
+            </div>
+          </div>
           <div class="produto-info" id="c-info-produto"></div>
           <div class="grade" id="c-avulso">
             <label class="campo"><span>Custo do produto (R$)</span><input type="text" inputmode="decimal" id="c-custo" placeholder="0,00"></label>
