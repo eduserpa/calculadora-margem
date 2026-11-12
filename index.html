@@ -14,6 +14,7 @@
       <nav class="abas" aria-label="Telas">
         <a href="#calculadora" class="aba" data-aba="calculadora">Calculadora</a>
         <a href="#produtos" class="aba" data-aba="produtos">Produtos</a>
+        <a href="#configuracoes" class="aba" data-aba="configuracoes">Configurações</a>
       </nav>
       <div class="arquivo">
         <button type="button" class="botao discreto" id="exportar">Exportar dados</button>
@@ -49,7 +50,7 @@
           <fieldset>
             <legend>Canal de venda</legend>
             <div class="canais" id="c-canais" role="radiogroup" aria-label="Canal de venda"></div>
-            <p class="dica">As taxas de cada canal ficam em Configurações.</p>
+            <p class="dica">As taxas de cada canal ficam em <a href="#configuracoes">Configurações</a>.</p>
           </fieldset>
           <fieldset>
             <legend>Preço</legend>
@@ -86,6 +87,23 @@
       </div>
       <input type="search" id="busca" class="busca" placeholder="Buscar por nome ou SKU" aria-label="Buscar produto">
       <div id="lista-produtos"></div>
+    </section>
+    <section id="tela-configuracoes" class="tela" aria-labelledby="titulo-configuracoes">
+      <div class="cabeca-tela">
+        <div>
+          <h2 id="titulo-configuracoes">Taxas dos canais</h2>
+          <p class="sub">Quanto cada canal cobra. A calculadora usa estes números. Abra um canal para ajustar e depois salve.</p>
+        </div>
+      </div>
+      <div class="barra-salvar">
+        <span id="cfg-estado" class="dica"></span>
+        <div class="direita">
+          <button type="button" class="botao discreto" id="cfg-padrao-tudo">Voltar tudo ao padrão</button>
+          <button type="button" class="botao" id="cfg-descartar" hidden>Descartar mudanças</button>
+          <button type="button" class="botao principal" id="cfg-salvar" disabled>Salvar taxas</button>
+        </div>
+      </div>
+      <div id="lista-canais" class="lista-canais"></div>
     </section>
   </main>
 

@@ -133,7 +133,7 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
 legend { font-weight: 700; margin-bottom: 6px; padding: 0; }
 .grade { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-.campo { display: grid; gap: 4px; min-width: 0; }
+.campo { display: grid; gap: 4px; min-width: 0; align-content: start; }
 .campo > span { font-size: 13px; font-weight: 600; color: var(--texto-suave); }
 .campo input, .campo select {
   width: 100%; min-height: 40px; padding: 0 10px; border: 1px solid var(--linha);
@@ -198,6 +198,32 @@ input[type="range"] { width: 100%; accent-color: var(--acao); }
 .linha-margem input { width: 64px; min-height: 34px; padding: 0 6px; border: 1px solid var(--linha); border-radius: 8px; background: var(--superficie); text-align: right; }
 .minimo-valor { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
 .minimo-valor strong { font-size: 28px; color: var(--acao); font-variant-numeric: tabular-nums; }
+
+/* Configurações */
+.barra-salvar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px;
+  padding: 10px 12px; background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio);
+  position: sticky; top: 64px; z-index: 4;
+}
+.barra-salvar .direita { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.botao:disabled { opacity: 0.5; cursor: not-allowed; }
+.lista-canais { display: grid; gap: 10px; }
+.canal-config { padding: 0; gap: 0; }
+.canal-config > summary {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 14px 16px; cursor: pointer; list-style: none;
+}
+.canal-config > summary::-webkit-details-marker { display: none; }
+.canal-config > summary::before { content: "▸"; color: var(--texto-suave); }
+.canal-config[open] > summary::before { content: "▾"; }
+.canal-corpo { display: grid; gap: 14px; padding: 0 16px 16px; }
+.campo small.dica { font-size: 12px; }
+.fonte { font-size: 12px; }
+.fonte a { color: var(--acao); }
+table.faixas td { padding: 6px 10px; white-space: nowrap; }
+table.faixas input { width: 96px; min-height: 34px; padding: 0 8px; border: 1px solid var(--linha); border-radius: 6px; background: var(--superficie); text-align: right; }
+.tabela-frete summary { cursor: pointer; font-weight: 600; color: var(--acao); }
+.tabela-frete .tabela-rolagem { margin-top: 10px; box-shadow: none; }
+.tabela-frete td, .tabela-frete th { padding: 6px 10px; font-size: 13px; }
 
 @media (max-width: 560px) {
   .linha-item, .linha-item.duas { grid-template-columns: 1fr 1fr; }

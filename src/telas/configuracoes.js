@@ -16,8 +16,12 @@ export function iniciarConfiguracoes() {
   recomecar();
 }
 
-// Chamado quando os dados mudam por fora (ex.: importação).
-export function recomecar() {
+// Chamado quando os dados mudam por fora (ex.: importação). Não apaga uma edição em andamento.
+export function aoMudarDados() {
+  if (!mudou) recomecar();
+}
+
+function recomecar() {
   if (!canais()) return;
   rasc = structuredClone(canais());
   mudou = false;
@@ -56,7 +60,7 @@ function faixas(id, c) {
           ${c.faixas.map((f, i) => `
             <tr>
               <td>${i === ultima
-                ? `Acima de ${c.faixas[i - 1] ? esc(campoReais(c.faixas[i - 1].ate)) : 'R$ 0'}`
+                ? (c.faixas[i - 1] ? `Acima de R$ ${esc(campoReais(c.faixas[i - 1].ate))}` : 'Qualquer preço')
                 : `até R$ <input type="text" inputmode="decimal" data-c="${id}.faixas.${i}.ate" data-num value="${campoReais(f.ate)}" aria-label="Até quanto vai a faixa ${i + 1}">`}</td>
               <td><input type="text" inputmode="decimal" data-c="${id}.faixas.${i}.comissao" data-num value="${campo(f.comissao)}" aria-label="Comissão da faixa ${i + 1}"></td>
               <td><input type="text" inputmode="decimal" data-c="${id}.faixas.${i}.taxa_fixa" data-num value="${campoReais(f.taxa_fixa)}" aria-label="Taxa fixa da faixa ${i + 1}"></td>
@@ -126,11 +130,11 @@ function cartao(id, c) {
         ${especifico}
         ${freteTiktok}
         <div class="grade">
-          ${pct('Impostos (% sobre o preço de venda)', `${id}.impostos`, c.impostos, 'Um número só para todos os impostos da venda, calculado sobre o preço, não sobre o lucro.')}
+          ${pct('Impostos (% do preço)', `${id}.impostos`, c.impostos, 'Um número só para todos os impostos da venda. É calculado sobre o preço de venda, não sobre o lucro.')}
           ${pct('Taxa financeira (%)', `${id}.taxa_financeira`, c.taxa_financeira, 'Cartão ou plataforma de pagamento.')}
-          ${rs('Frete absorvido (R$ por peça)', `${id}.frete_absorvido`, c.frete_absorvido)}
-          ${rs('Embalagem e manuseio (R$ por peça)', `${id}.embalagem`, c.embalagem)}
-          ${rs('Outros custos (R$ por peça)', `${id}.outros`, c.outros)}
+          ${rs('Frete absorvido (R$/peça)', `${id}.frete_absorvido`, c.frete_absorvido)}
+          ${rs('Embalagem (R$/peça)', `${id}.embalagem`, c.embalagem)}
+          ${rs('Outros custos (R$/peça)', `${id}.outros`, c.outros)}
         </div>
         <div><button type="button" class="botao pequeno discreto" data-acao="padrao" data-canal="${id}">Voltar este canal ao padrão</button></div>
       </div>

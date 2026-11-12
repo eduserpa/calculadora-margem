@@ -4,6 +4,12 @@ Cadastro de produtos com preço de custo e calculadora de margem por canal (comi
 
 Página estática (HTML, CSS e JS, sem build e sem dependências), pronta para publicar na Vercel.
 
+Três telas:
+
+- **Calculadora**: escolhe o produto e o canal, digita o preço (DE e desconto, ou POR) e vê a margem, o lucro por peça e o preço mínimo para a margem desejada.
+- **Produtos**: cadastro com o custo (revenda, fabricação ou kit) e o peso para frete.
+- **Configurações**: as taxas de cada canal, com a fonte de cada número.
+
 Os dados ficam no navegador de quem usa (localStorage) nesta fase de testes. Use **Exportar dados** para guardar uma cópia em arquivo e **Importar dados** para levar a outro computador.
 
 ## Pastas

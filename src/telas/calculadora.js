@@ -97,7 +97,7 @@ function desenharProdutos() {
 
 const pct = (v) => `${(Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
 
-function resumoDoCanal(c) {
+export function resumoDoCanal(c) {
   let cobra;
   if (c.tipo === 'faixas') cobra = 'por faixa de preço';
   else if (c.tipo === 'mercadolivre') {
