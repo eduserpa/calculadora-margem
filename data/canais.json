@@ -1,0 +1,222 @@
+{
+  "sobre": "Taxas que a calculadora usa por canal. Valores em %, R$ e gramas. 'fonte' diz de onde veio; 'conferido_em' é a data em que foi conferido na fonte (null = ainda não conferido na página oficial). Ajuste na tela Configurações ou aqui, sempre com nova fonte e data.",
+  "canais": {
+    "shopee": {
+      "nome": "Shopee",
+      "tipo": "faixas",
+      "faixas": [
+        {
+          "ate": 79.99,
+          "comissao": 20,
+          "taxa_fixa": 4.5
+        },
+        {
+          "ate": 99.99,
+          "comissao": 14,
+          "taxa_fixa": 16
+        },
+        {
+          "ate": 199.99,
+          "comissao": 14,
+          "taxa_fixa": 20
+        },
+        {
+          "ate": 499.99,
+          "comissao": 14,
+          "taxa_fixa": 26
+        },
+        {
+          "ate": null,
+          "comissao": 14,
+          "taxa_fixa": 26
+        }
+      ],
+      "faixas_fonte": "app de referência, conferir (tabela para CNPJ vigente desde 01/10/2026; a página oficial seller.shopee.com.br/edu/article/18483 não abriu sem login)",
+      "faixas_conferido_em": null,
+      "impostos": 10,
+      "taxa_financeira": 0,
+      "frete_absorvido": 0,
+      "embalagem": 0,
+      "outros": 0
+    },
+    "mercadolivre": {
+      "nome": "Mercado Livre",
+      "tipo": "mercadolivre",
+      "tipo_anuncio": "classico",
+      "comissao": {
+        "classico": 14,
+        "premium": 19
+      },
+      "comissao_fonte": "app de referência, conferir (a comissão do Mercado Livre muda por categoria; o melhor é preencher a 'comissão própria' com a da sua categoria, pelo simulador de custos do Mercado Livre)",
+      "comissao_conferido_em": null,
+      "faixa_reduzida": {
+        "de": 150,
+        "ate": 699.99,
+        "reducao": {
+          "classico": 2,
+          "premium": 4
+        }
+      },
+      "faixa_reduzida_fonte": "https://www.mercadolivre.com.br/ajuda/51251 confirma a redução para produtos entre R$ 150 e R$ 700, mas o tamanho da redução depende da categoria; os pontos 2 e 4 vêm do app de referência, conferir",
+      "faixa_reduzida_conferido_em": "2026-11-12",
+      "comissao_propria": 0,
+      "frete": {
+        "precos_a_partir_de": [0, 19, 49, 79, 100, 120, 150, 200],
+        "pesos_ate_g": [
+          300,
+          500,
+          1000,
+          1500,
+          2000,
+          3000,
+          4000,
+          5000,
+          6000,
+          7000,
+          8000,
+          9000,
+          10000,
+          11000,
+          13000,
+          15000,
+          17000,
+          20000,
+          25000,
+          30000,
+          40000,
+          50000,
+          60000,
+          70000,
+          80000,
+          90000,
+          100000,
+          125000,
+          150000,
+          null
+        ],
+        "custos": [
+          [5.65, 6.85, 8.15, 12.95, 14.95, 16.95, 19.05, 21.65],
+          [5.95, 6.95, 8.25, 13.85, 16.15, 18.15, 20.45, 23.25],
+          [6.05, 7.15, 8.45, 14.45, 16.85, 19.05, 21.35, 24.45],
+          [6.15, 7.35, 8.65, 14.75, 17.15, 19.45, 21.75, 25.45],
+          [6.25, 7.45, 8.75, 15.05, 17.65, 19.85, 22.25, 25.55],
+          [6.35, 8.65, 9.15, 16.45, 19.15, 21.65, 24.35, 27.05],
+          [6.45, 8.75, 9.75, 17.85, 20.75, 23.35, 26.35, 29.25],
+          [6.55, 8.85, 10.25, 19.75, 22.85, 26.05, 29.25, 32.45],
+          [6.65, 8.95, 10.35, 25.95, 29.15, 33.35, 36.45, 40.85],
+          [6.75, 9.05, 10.45, 27.55, 31.65, 36.75, 40.85, 45.25],
+          [6.85, 9.25, 10.55, 29.45, 34.35, 39.25, 44.15, 49.35],
+          [6.95, 9.35, 10.65, 30.25, 35.25, 40.35, 45.35, 50.75],
+          [7.05, 9.45, 10.85, 38.25, 45.05, 51.95, 58.75, 65.85],
+          [7.05, 9.65, 11.05, 41.65, 48.55, 55.45, 62.35, 69.35],
+          [7.15, 10.05, 11.45, 42.55, 49.75, 56.85, 63.85, 70.95],
+          [7.25, 10.25, 11.65, 45.55, 52.95, 60.55, 68.15, 75.65],
+          [7.35, 10.45, 11.85, 48.95, 56.55, 64.05, 71.35, 79.35],
+          [7.45, 10.65, 12.05, 55.15, 64.35, 73.55, 82.75, 91.95],
+          [7.65, 11.05, 12.25, 64.55, 75.75, 85.45, 96.25, 106.85],
+          [7.75, 11.25, 12.45, 66.45, 76.05, 86.25, 97.15, 107.85],
+          [7.85, 11.45, 12.65, 68.35, 79.65, 89.75, 100.05, 107.95],
+          [7.95, 11.65, 12.85, 70.95, 81.85, 92.85, 103.45, 111.65],
+          [8.05, 11.85, 13.05, 75.55, 87.25, 99.05, 110.25, 119.05],
+          [8.15, 12.05, 13.25, 80.95, 93.75, 105.95, 118.05, 127.45],
+          [8.25, 12.25, 13.45, 84.65, 97.95, 110.75, 123.35, 133.15],
+          [8.35, 12.45, 13.65, 94.05, 108.35, 122.95, 136.95, 147.85],
+          [8.45, 12.65, 13.85, 107.45, 124.85, 140.45, 156.45, 168.85],
+          [8.55, 12.85, 14.05, 120.15, 138.95, 156.95, 174.85, 188.85],
+          [8.65, 12.85, 14.25, 127.45, 147.05, 166.55, 185.55, 200.35],
+          [8.75, 12.85, 14.45, 167.05, 193.35, 218.45, 243.45, 262.85]
+        ],
+        "abaixo_de": 19,
+        "maximo_do_preco": 0.5
+      },
+      "frete_fonte": "https://www.mercadolivre.com.br/ajuda/custos-envio-reputacao-verde-mercado-lider_40538 (MercadoLíder, reputação verde ou sem reputação; produtos novos. Abaixo de R$ 19 paga no máximo metade do preço)",
+      "frete_conferido_em": "2026-11-12",
+      "impostos": 10,
+      "taxa_financeira": 0,
+      "frete_absorvido": 0,
+      "embalagem": 0,
+      "outros": 0
+    },
+    "shein": {
+      "nome": "SHEIN",
+      "tipo": "fixo",
+      "comissao": 20,
+      "taxa_fixa": 5,
+      "comissao_fonte": "app de referência, conferir",
+      "comissao_conferido_em": null,
+      "impostos": 10,
+      "taxa_financeira": 0,
+      "frete_absorvido": 0,
+      "embalagem": 0,
+      "outros": 0
+    },
+    "tiktokshop": {
+      "nome": "TikTok Shop",
+      "tipo": "faixas",
+      "faixas": [
+        {
+          "ate": 49.99,
+          "comissao": 10,
+          "taxa_fixa": 4
+        },
+        {
+          "ate": null,
+          "comissao": 6,
+          "taxa_fixa": 6
+        }
+      ],
+      "faixas_fonte": "https://seller-br.tiktok.com/university/essay?knowledge_id=24428156307201&lang=pt-BR (abaixo de R$ 50: 10% + R$ 4; a partir de R$ 50: 6% + R$ 6; desde 15/07/2026)",
+      "faixas_conferido_em": "2026-11-12",
+      "frete_percentual": 6,
+      "frete_teto": 50,
+      "frete_fonte": "app de referência, conferir (programa de taxas de envio: 6% do preço, teto de R$ 50 por produto; confirmado só em sites de terceiros)",
+      "frete_conferido_em": null,
+      "impostos": 10,
+      "taxa_financeira": 0,
+      "frete_absorvido": 0,
+      "embalagem": 0,
+      "outros": 0
+    },
+    "lojapropria": {
+      "nome": "Loja própria (site)",
+      "tipo": "fixo",
+      "comissao": 0,
+      "taxa_fixa": 0,
+      "comissao_fonte": "padrão sugerido: sem comissão; taxa financeira 5% (cartão/plataforma), ajustar para a empresa",
+      "comissao_conferido_em": null,
+      "impostos": 10,
+      "taxa_financeira": 5,
+      "frete_absorvido": 0,
+      "embalagem": 0,
+      "outros": 0
+    },
+    "atacado": {
+      "nome": "Atacado",
+      "tipo": "fixo",
+      "comissao": 1,
+      "taxa_fixa": 0,
+      "rotulo_comissao": "Comissão de vendedor",
+      "comissao_fonte": "padrão sugerido, ajustar para a empresa",
+      "comissao_conferido_em": null,
+      "impostos": 10,
+      "taxa_financeira": 5,
+      "frete_absorvido": 0,
+      "embalagem": 0,
+      "outros": 0
+    },
+    "lojafisica": {
+      "nome": "Loja física",
+      "tipo": "fixo",
+      "comissao": 1,
+      "taxa_fixa": 0,
+      "rotulo_comissao": "Comissão de vendedor",
+      "comissao_fonte": "padrão sugerido, ajustar para a empresa",
+      "comissao_conferido_em": null,
+      "impostos": 10,
+      "taxa_financeira": 5,
+      "frete_absorvido": 0,
+      "embalagem": 0,
+      "outros": 0
+    }
+  }
+}
