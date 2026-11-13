@@ -201,6 +201,27 @@ test('banco: copiar produtos entre empresas leva cadastro, não leva preços nem
   assert.ok(Math.abs(mb - ma - 8) < 1e-9, `margens ${ma} e ${mb}`);
 });
 
+test('banco: copiar com SKU repetido cria novo em vez de sobrescrever', async () => {
+  const db = await bancoComDados();
+  await db.exec(`
+    insert into produtos (empresa_id, nome, sku, tipo_custo) values
+      ('${A}', 'Kit 20 piso', '1121', 'revenda'), ('${A}', 'Kit 10 piso', '1121', 'revenda'),
+      ('${A}', 'Porta luvas', '13689', 'revenda'),
+      ('${B}', 'Porta luvas B', '13689', 'revenda'), ('${B}', 'Kit 2 porta luvas B', '13689', 'revenda'),
+      ('${B}', 'Banco B', '1058', 'revenda');
+  `);
+  const previa = await linhas(db, 'authenticated', DUDA, `select nome, situacao from previa_copia('${A}', '${B}') order by nome`);
+  assert.deepEqual(previa, [
+    { nome: 'Banco', situacao: 'atualizado' }, // 1058: único nas duas
+    { nome: 'Kit 10 piso', situacao: 'novo' }, // 1121: repetido na origem
+    { nome: 'Kit 20 piso', situacao: 'novo' },
+    { nome: 'Porta luvas', situacao: 'novo' }, // 13689: repetido no destino
+  ]);
+  assert.deepEqual((await linhas(db, 'authenticated', DUDA, `select copiar_produtos('${A}', '${B}') r`))[0].r, { novos: 3, atualizados: 1 }, 'cópia faz o que a prévia disse');
+  const nomesB = (await db.query(`select nome from produtos where empresa_id = '${B}' order by nome`)).rows.map((r) => r.nome);
+  assert.deepEqual(nomesB, ['Banco', 'Kit 10 piso', 'Kit 2 porta luvas B', 'Kit 20 piso', 'Porta luvas', 'Porta luvas B', 'Suporte'], 'nada some');
+});
+
 test('banco: fotos no Storage só na pasta da própria empresa', async () => {
   const db = await bancoComDados();
   await como(db, 'authenticated', ANA, `insert into storage.objects values ('fotos', '${A}/banco.webp')`);

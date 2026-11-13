@@ -181,16 +181,21 @@ begin
 end $$;
 
 -- ---------- copiar produtos de outra empresa do grupo ----------
--- Só para quem é membro das duas. Copia nome, SKU, custo, peso, medidas e fotos; casa pelo SKU (atualiza) ou cria.
+-- Só para quem é membro das duas. Copia nome, SKU, custo, peso, medidas e fotos; casa pelo SKU único (atualiza) ou cria.
 -- Preços salvos e taxas NÃO vão: cada empresa tem a sua tributação. Kits ficam de fora (os itens são de cada empresa).
+
+-- Casa pelo SKU só quando ele aparece uma vez na origem e uma vez no destino; SKU vazio ou repetido vira produto novo.
+create function sku_unico(_empresa uuid, _sku text) returns boolean
+language sql stable security definer set search_path = public
+as $$ select nullif(trim(_sku), '') is not null
+  and (select count(*) from produtos p where p.empresa_id = _empresa and lower(trim(p.sku)) = lower(trim(_sku))) = 1 $$;
 
 create function previa_copia(origem uuid, destino uuid)
 returns table (nome text, sku text, situacao text)
 language sql stable security definer set search_path = public
 as $$
   select o.nome, o.sku,
-    case when exists (select 1 from produtos d where d.empresa_id = destino and lower(trim(d.sku)) = lower(trim(o.sku)))
-      then 'atualizado' else 'novo' end
+    case when sku_unico(origem, o.sku) and sku_unico(destino, o.sku) then 'atualizado' else 'novo' end
   from produtos o
   where o.empresa_id = origem and o.tipo_custo <> 'kit'
     and origem in (select minhas_empresas()) and destino in (select minhas_empresas())
@@ -204,20 +209,15 @@ declare
   o produtos;
   novos int := 0;
   atualizados int := 0;
-  n int;
 begin
   if origem not in (select minhas_empresas()) or destino not in (select minhas_empresas()) or origem = destino then
     raise exception 'só dá para copiar entre duas empresas suas';
   end if;
   for o in select * from produtos where empresa_id = origem and tipo_custo <> 'kit' loop
-    n := 0;
-    if nullif(trim(o.sku), '') is not null then
+    if sku_unico(origem, o.sku) and sku_unico(destino, o.sku) then
       update produtos d set nome = o.nome, tipo_custo = o.tipo_custo, custo = o.custo, peso_g = o.peso_g,
         comprimento_cm = o.comprimento_cm, largura_cm = o.largura_cm, altura_cm = o.altura_cm, fotos = o.fotos, atualizado_em = now()
       where d.empresa_id = destino and lower(trim(d.sku)) = lower(trim(o.sku));
-      get diagnostics n = row_count;
-    end if;
-    if n > 0 then
       atualizados := atualizados + 1;
     else
       insert into produtos (empresa_id, nome, sku, tipo_custo, custo, peso_g, comprimento_cm, largura_cm, altura_cm, fotos)
