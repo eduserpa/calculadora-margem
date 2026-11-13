@@ -30,7 +30,7 @@ as $$
   select coalesce(
     (select nullif(c.config ->> 'nome', '') from config_canais c where c.empresa_id = empresa and c.canal = nome_do_canal.canal),
     case canal when 'shopee' then 'Shopee' when 'mercadolivre' then 'Mercado Livre' when 'shein' then 'SHEIN'
-      when 'tiktokshop' then 'TikTok Shop' when 'lojapropria' then 'Loja própria (site)' when 'atacado' then 'Atacado'
+      when 'tiktokshop' then 'TikTok Shop' when 'lojapropria' then 'Loja online' when 'atacado' then 'Atacado'
       when 'lojafisica' then 'Loja física' else canal end)
 $$;
 

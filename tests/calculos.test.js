@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { calcularMargem, precoMinimo } from '../src/calculos/margem.js';
+import { calcularMargem, precoMinimo, margemMaxima } from '../src/calculos/margem.js';
 import { precoPor, descontoPeloPor } from '../src/calculos/preco-de-por.js';
 import { custoRevenda, custoFabricacao, custoKit } from '../src/calculos/custo-produto.js';
 import { pesoParaFrete } from '../src/calculos/peso.js';
@@ -49,6 +49,24 @@ test('desconto calculado a partir do preço POR volta no mesmo POR', () => {
   }
   assert.equal(descontoPeloPor(100, 120), 0);
   assert.equal(descontoPeloPor(0, 50), 0);
+});
+
+test('margem máxima do canal: 100% menos o que é % do preço (custo fixo não conta)', () => {
+  // Loja online: sem comissão; impostos 10% + taxa financeira 5% + afiliado 3% = 18% do preço; embalagem fixa não entra
+  assert.equal(margemMaxima({ canal: canalCom('lojapropria', { afiliado_ativo: true, afiliado: 3, embalagem: 4 }) }), 82);
+  // passar do teto não tem preço; abaixo dele tem
+  assert.equal(precoMinimo({ cmv: 10, canal: canalCom('lojapropria'), margemDesejada: 85.5 }), 0);
+  assert.ok(precoMinimo({ cmv: 10, canal: canalCom('lojapropria'), margemDesejada: 84.5 }) > 0);
+});
+
+test('preço mínimo: a margem nele nunca fica abaixo do alvo, e 1 centavo a menos já não chega', () => {
+  for (const [id, cmv, pesoG] of [['mercadolivre', 79.07, 3300], ['shopee', 79.07, 300], ['lojapropria', 33.33, 300]]) {
+    for (const alvo of [10, 15, 20.5, 33.33]) {
+      const minimo = precoMinimo({ cmv, canal: canais[id], pesoG, margemDesejada: alvo });
+      assert.ok(calcularMargem({ preco: minimo, cmv, canal: canais[id], pesoG }).margem >= alvo, `${id} ${alvo}%: ${minimo}`);
+      assert.ok(calcularMargem({ preco: minimo - 0.01, cmv, canal: canais[id], pesoG }).margem < alvo, `${id} ${alvo}%: ${minimo} não é o menor`);
+    }
+  }
 });
 
 test('preço mínimo devolve 0 quando as taxas não deixam chegar na margem', () => {

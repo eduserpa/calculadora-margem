@@ -1,0 +1,37 @@
+[
+  {
+    "versao": "Alpha 1.1.1",
+    "data": "13/11/2026",
+    "itens": [
+      "Página Novidades: o que mudou em cada versão (clique no leão da versão)",
+      "Calculadora mostra CMV e Ref do produto, sem o peso",
+      "Canal Loja própria agora se chama Loja online",
+      "Ícones novos de Loja online, Atacado e Loja física",
+      "Botão Descartar na Calculadora",
+      "Mostra a margem máxima possível de cada canal",
+      "Endereços mais simples: /produtos em vez de /#produtos"
+    ]
+  },
+  {
+    "versao": "Alpha 1.1.0",
+    "data": "13/11/2026",
+    "itens": [
+      "Início com as margens da empresa: média, por canal e os preços abaixo de 10%",
+      "Várias empresas: selo no topo para trocar, foto da empresa e equipe com admin e membros",
+      "Histórico detalhado: o que mudou em cada alteração, antes → depois",
+      "Clonar produtos de outra empresa, escolhendo quais levar",
+      "Taxas dos Canais em cartões, com Mercado Livre Clássico e Premium separados",
+      "Meus Produtos em cartões ou em lista",
+      "Abre mais rápido: fotos fora do banco e um leão animado enquanto carrega"
+    ]
+  },
+  {
+    "versao": "Alpha 1",
+    "data": "12/11/2026",
+    "itens": [
+      "Calculadora de margem por canal de venda",
+      "Meus Produtos: cadastro com custo, peso, fotos e kits",
+      "Planilhas: importar produtos e exportar os preços"
+    ]
+  }
+]

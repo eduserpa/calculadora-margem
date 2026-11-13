@@ -1,5 +1,6 @@
 import { carregar, aoMudar, paraArquivo, lerArquivo, substituirTudo, dados, usarGuardado, lerDoNavegador } from './dados.js';
 import * as nuvem from './nuvem.js';
+import { ligarRotas, telaAtual } from './rotas.js';
 import { VERSAO, ESQUECI_SENHA } from './config.js';
 import { iniciarProdutos, desenharLista } from './telas/produtos.js';
 import { iniciarCalculadora, desenharTudo } from './telas/calculadora.js';
@@ -7,13 +8,15 @@ import { iniciarConfiguracoes, aoMudarDados } from './telas/configuracoes.js';
 import { iniciarConfigurarCanal } from './telas/configurar-canal.js';
 import { iniciarPlanilhas } from './telas/planilhas.js';
 import { iniciarInicio } from './telas/inicio.js';
+import { iniciarNovidades } from './telas/novidades.js';
+import './telas/dica.js'; // balão dos (i): um listener só, no document
 import { iniciarNuvemTelas } from './telas/empresa.js'; // equipe, histórico e empresa: chamar depois do login e dos dados carregados
 
 const $ = (s) => document.querySelector(s);
 
 function mostrarTela() {
   const telas = [...document.querySelectorAll('.tela')].map((t) => t.id.replace('tela-', ''));
-  const atual = telas.includes(location.hash.slice(1)) ? location.hash.slice(1) : telas[0];
+  const atual = telas.includes(telaAtual()) ? telaAtual() : telas[0];
   telas.forEach((t) => ($(`#tela-${t}`).hidden = t !== atual));
   scrollTo(0, 0); // tela nova sempre abre no topo (senão herdava a rolagem da anterior)
   document.querySelectorAll('.aba').forEach((a) =>
@@ -277,7 +280,8 @@ function temSessaoGuardada() {
 async function iniciar() {
   const recuperando = /type=recovery/.test(location.hash); // voltou pelo link de "Esqueci a senha" (antes do login limpar o endereço)
   // As telas trocam primeiro, para nunca aparecerem todas juntas.
-  window.addEventListener('hashchange', mostrarTela);
+  ligarRotas(); // /produtos, Voltar/Avançar e o /#produtos antigo
+  window.addEventListener('tela', mostrarTela);
   mostrarTela();
   $('#versao-num').textContent = VERSAO; // a versão mora em src/config.js
   iniciarLogin();
@@ -312,6 +316,7 @@ async function iniciar() {
   ligar('planilhas', iniciarPlanilhas);
   ligar('calculadora', iniciarCalculadora);
   ligar('início', iniciarInicio);
+  ligar('novidades', iniciarNovidades);
   ligar('taxas dos canais', iniciarConfiguracoes);
   ligar('configurar canal', iniciarConfigurarCanal);
   ligar('exportar e importar', () => {

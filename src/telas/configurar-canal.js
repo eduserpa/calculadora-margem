@@ -4,6 +4,7 @@ import { dados, salvar, canais, canaisDePadrao } from '../dados.js';
 import { quadroDaRegra, notaDoMercadoLivre, tipoDeVenda, faixasEmTexto, data } from '../canais-texto.js';
 import { lerNumero, campo, campoReais, esc } from '../formato.js';
 import { comissoesProprias } from '../calculos/canal.js';
+import { campoNumero } from './numero.js';
 
 const $ = (s, raiz = document) => raiz.querySelector(s);
 const janela = () => $('#janela-canal');
@@ -51,12 +52,12 @@ export async function abrirConfigurarCanal(idCanal) {
 
 const porcento = (rotulo, chave, dica = '') => `
   <label class="campo"><span>${rotulo}</span>
-    <input type="text" inputmode="decimal" data-c="${chave}" data-num value="${valor(chave) ? `${campo(valor(chave))}%` : ''}" placeholder="0%">
+    ${campoNumero(`<input type="text" inputmode="decimal" data-c="${chave}" data-num data-min="0" value="${valor(chave) ? campo(valor(chave)) : ''}" placeholder="0">`, '%', rotulo.replace(/\s*\([^)]*\)$/, '').toLowerCase())}
     ${dica ? `<small class="dica">${dica}</small>` : ''}
   </label>`;
 const dinheiro = (rotulo, chave, dica = '') => `
   <label class="campo"><span>${rotulo}</span>
-    <input type="text" inputmode="decimal" data-c="${chave}" data-num value="${valor(chave) ? `R$ ${campoReais(valor(chave))}` : ''}" placeholder="0,00">
+    ${campoNumero(`<input type="text" inputmode="decimal" data-c="${chave}" data-num value="${valor(chave) ? campoReais(valor(chave)) : ''}" placeholder="0,00">`, 'R$')}
     ${dica ? `<small class="dica">${dica}</small>` : ''}
   </label>`;
 const radio = (nome, opcao, rotulo, marcado) =>
@@ -66,7 +67,7 @@ const ligar = (chave, rotulo) =>
 // Fonte e data num "i" discreto (title), fora do meio da janela.
 function info(...fontes) {
   const t = fontes.filter(([texto]) => texto).map(([texto, conferido]) => `Fonte: ${texto.replace(/[.!?]$/, '')}. ${conferido ? `Conferido em ${data(conferido)}` : 'A conferir'}.`).join(' ');
-  return t ? `<span class="info" tabindex="0" role="img" aria-label="${esc(t)}" title="${esc(t)}">${icone('info')}</span>` : '';
+  return t ? `<span class="info" tabindex="0" role="img" aria-label="${esc(t)}" data-dica>${icone('info')}</span>` : '';
 }
 const fixo = (rotulo, texto) => `<div class="campo"><span>${rotulo}</span><strong class="fixo">${texto}</strong></div>`;
 const pctFixo = (v) => `${campo(v) || '0'}%`;

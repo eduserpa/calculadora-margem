@@ -4,11 +4,12 @@ import { dados, aoMudar } from '../dados.js';
 import { precosSalvos } from '../produtos.js';
 import { faixaDaMargem, abrirNaCalculadora } from './calculadora.js';
 import { historico } from '../nuvem.js';
-import { reais, numero, esc } from '../formato.js';
+import { telaAtual } from '../rotas.js';
+import { reais, numero, esc, margemPct } from '../formato.js';
 import { htmlVazio } from './mascote.js';
 
 const $ = (s) => document.querySelector(s);
-const pct = (v) => `${numero(Math.abs(v) < 0.05 ? 0 : v, 1)}%`; // -0,04 não vira "-0,0%"
+const pct = margemPct; // 2 casas, como na Calculadora
 // Object.groupBy não existe em navegador mais antigo (iOS abaixo de 17.4): agrupa à mão
 const agrupar = (lista, chave) => lista.reduce((g, x) => ((g[chave(x)] ??= []).push(x), g), {});
 // As 7 faixas da Análise da margem, na ordem, com a classe que pinta cada uma.
@@ -22,8 +23,8 @@ const ponderada = (lista) => (lista.reduce((s, x) => s + x.r.lucro, 0) / lista.r
 const quando = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
 export function iniciarInicio() {
-  aoMudar(() => location.hash.slice(1) === 'inicio' || !location.hash ? desenhar() : null);
-  window.addEventListener('hashchange', () => location.hash === '#inicio' && desenhar());
+  aoMudar(() => (telaAtual() === 'inicio' ? desenhar() : null));
+  window.addEventListener('tela', () => telaAtual() === 'inicio' && desenhar());
   $('#tela-inicio').addEventListener('click', (e) => {
     const b = e.target.closest('[data-abrir]');
     if (b) abrirNaCalculadora(b.dataset.abrir, b.dataset.canal);
@@ -35,7 +36,7 @@ function desenhar() {
   const corpo = $('#inicio-corpo');
   if (!dados.produtos.length) {
     corpo.innerHTML = htmlVazio('calculando', 'Bora calcular essa margem?', 'Cadastre o primeiro produto com o custo. Depois é só escolher o canal na Calculadora.')
-      + '<div class="inicio-atalhos"><a class="botao principal" href="#produtos">Cadastrar produto</a></div>';
+      + '<div class="inicio-atalhos"><a class="botao principal" href="/produtos">Cadastrar produto</a></div>';
     return;
   }
   const precos = precosSalvos();
@@ -90,7 +91,7 @@ function desenhar() {
   const criticosPorCanal = Object.entries(agrupar(baixos, (p) => p.canal.nome)).sort((a, b) => b[1].length - a[1].length);
   if (baixos.length >= 2 && porCanal.length >= 2) passos.push(  // com 1 canal só, "concentra" não diz nada
     `<strong>${esc(criticosPorCanal[0][0])} concentra as margens baixas:</strong> ${criticosPorCanal[0][1].length} dos ${baixos.length} preços abaixo de 10%. Comece a revisão por esse canal.`);
-  if (semPreco.length) passos.push(`<strong>${semPreco.length} de ${dados.produtos.length} produtos ainda não têm preço salvo.</strong> A margem deles não entra em nada aqui. <a href="#calculadora">Precificar</a>`);
+  if (semPreco.length) passos.push(`<strong>${semPreco.length} de ${dados.produtos.length} produtos ainda não têm preço salvo.</strong> A margem deles não entra em nada aqui. <a href="/calculadora">Precificar</a>`);
   const plano = `
     <section class="cartao">
       <h2>Plano de ação</h2>
@@ -100,9 +101,9 @@ function desenhar() {
   corpo.innerHTML = `
     ${numeros}
     <div class="inicio-grade">${plano}${canais}${atencao}
-      <section class="cartao"><h2>Últimas alterações</h2><div id="inicio-historico"><p class="dica">Carregando…</p></div><a class="link-botao" href="#historico">Ver histórico completo</a></section>
+      <section class="cartao"><h2>Últimas alterações</h2><div id="inicio-historico"><p class="dica">Carregando…</p></div><a class="link-botao" href="/historico">Ver histórico completo</a></section>
     </div>
-    <div class="inicio-atalhos"><a class="botao principal" href="#calculadora">Abrir a Calculadora</a><a class="botao" href="#produtos">Meus Produtos</a></div>`;
+    <div class="inicio-atalhos"><a class="botao principal" href="/calculadora">Abrir a Calculadora</a><a class="botao" href="/produtos">Meus Produtos</a></div>`;
   desenharHistorico();
 }
 

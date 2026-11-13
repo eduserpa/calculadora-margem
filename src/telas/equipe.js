@@ -2,6 +2,7 @@
 // Quem barra o membro é o banco (RLS); aqui o membro só não vê os botões.
 import { equipe, convidar, cancelarConvite, removerMembro, mudarPapel, pessoaLogada } from '../nuvem.js';
 import { esc } from '../formato.js';
+import { telaAtual } from '../rotas.js';
 import { mostrarErro } from './erro.js';
 import { htmlVazio, htmlCarregando } from './mascote.js';
 import { mostrarAviso } from './aviso.js';
@@ -20,11 +21,11 @@ export async function iniciarEquipe() {
   // Clicar fora ou Esc desfaz o "Confirmar remoção" e a pergunta do papel.
   document.addEventListener('click', (ev) => !ev.target.closest('[data-remover]') && desarmarRemover());
   document.addEventListener('keydown', (ev) => {
-    if (ev.key !== 'Escape' || location.hash !== '#equipe') return;
+    if (ev.key !== 'Escape' || telaAtual() !== 'equipe') return;
     desarmarRemover();
     cancelarPapel();
   });
-  window.addEventListener('hashchange', () => location.hash === '#equipe' && desenhar());
+  window.addEventListener('tela', () => telaAtual() === 'equipe' && desenhar());
   await desenhar();
 }
 

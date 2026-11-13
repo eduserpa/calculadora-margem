@@ -40,6 +40,11 @@ export function calcularMargem({ preco, cmv, canal, pesoG = 300 }) {
 
 const MAIOR_PRECO_CENTAVOS = 100_000_000;
 
+// Teto da margem no canal: num preço enorme e sem custo, o que é fixo (taxa fixa, frete com teto, embalagem) some e sobra
+// 100% menos tudo o que é % do preço (comissão da faixa mais alta, impostos, taxa financeira, afiliado...). A mesma conta da
+// margem, sem fórmula nova; 2 casas para não mostrar 75,9999.
+export const margemMaxima = ({ canal, pesoG = 300 }) => Math.round(calcularMargem({ preco: 1e9, cmv: 0, canal, pesoG }).margem * 100) / 100;
+
 // Menor preço do anúncio (em centavos) com margem >= margemDesejada. 0 = nenhum preço chega lá.
 // Com cupom, as viradas de faixa acontecem num preço de anúncio maior (preço ÷ (1 − cupom)).
 export function precoMinimo({ cmv, canal, pesoG = 300, margemDesejada }) {

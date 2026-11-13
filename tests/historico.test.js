@@ -67,7 +67,7 @@ async function regrasDoHistorico(db) {
   `);
   assert.deepEqual((await hist(db)).filter((h) => h.acao === 'Preço salvo').map((h) => h.detalhe), [
     'Pia Inox · Mercado Livre · R$ 119,90',
-    'Pia Inox · Loja própria (site) · R$ 1.234,50 com 12,5% de desconto',
+    'Pia Inox · Loja online · R$ 1.234,50 com 12,5% de desconto',
     'Pia Inox · Shopee · R$ 99,00 com 10% de desconto',
     'Pia Inox · SHEIN Loja Oficial · R$ 0,50',
   ]);
@@ -93,6 +93,7 @@ test('histórico: correcao-06 por cima, 2 vezes, sem apagar nada', async () => {
   const antes = await hist(db);
   await db.exec(ler('../supabase/correcao-06-historico.sql'));
   await db.exec(ler('../supabase/correcao-06-historico.sql'));
+  await db.exec(ler('../supabase/correcao-10-loja-online.sql')); // a 06 ainda tem o nome antigo da Loja online
   assert.deepEqual(await hist(db), antes, 'rodar a correção não apaga histórico (o bloco opcional está comentado)');
   await db.exec('delete from historico');
   await regrasDoHistorico(db);
@@ -126,4 +127,15 @@ test('histórico: o bloco opcional apaga só a migração de hoje', async () => 
   ]); // saíram só 10:05 Pia (foto no Storage) e 10:20 Copo (foto no Storage)
   // sem trocar o intervalo, o comando dá erro e não apaga nada
   await assert.rejects(db.exec(sql.slice(sql.indexOf('-- APAGAR'), sql.lastIndexOf('*/'))));
+});
+
+test('histórico: correcao-10, Loja online mesmo com o nome antigo guardado nas taxas da empresa', async () => {
+  const db = await banco();
+  await db.exec(ler('../supabase/correcao-10-loja-online.sql'));
+  await quem(db, ANA);
+  await db.exec(`
+    insert into config_canais (empresa_id, canal, config) values ('${A}', 'lojapropria', '{"nome": "Loja própria (site)"}');
+    insert into precificacoes (empresa_id, produto_id, canal, preco_de) values ('${A}', '${PIA}', 'lojapropria', 10);
+  `);
+  assert.deepEqual((await hist(db)).map((h) => h.detalhe), ['Loja online', 'Pia · Loja online · R$ 10,00']);
 });

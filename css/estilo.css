@@ -170,6 +170,10 @@ a.marca, a.marca:hover, a.marca span { text-decoration: none; }  /* a marca é l
    Placa branca: x 45-77, y 44-64 -> o número fica centralizado nesse retângulo */
 .versao-num { position: absolute; left: 45px; top: 44px; width: 33px; height: 21px; display: grid; place-items: center; text-align: center;
   font: 700 8px / 1.1 var(--fonte); color: #0c0d11; overflow-wrap: anywhere; }
+a.versao { pointer-events: auto; text-decoration: none; }  /* o leão da versão abre as Novidades */
+.novidades { display: grid; gap: 16px; }
+.novidades h2 { margin: 0; font-size: 18px; }
+.novidades ul { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
 .versao-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }  /* lido, não visto */
 @media (max-width: 600px) {
   .conteudo { padding-bottom: 48px; }
@@ -295,6 +299,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .canal[aria-checked="true"] { border-color: var(--lima-forte); background: var(--roxo-suave); }
 .canal[aria-checked="true"]::before { content: ""; position: absolute; top: 12px; left: 12px; width: 20px; height: 20px; border-radius: 50%; background: var(--lima) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230c0d11' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 12px no-repeat; }  /* o check do Lucide, como no resto do app */
 .canal-icone { width: 46px; height: 46px; border-radius: 10px; }
+.canal-icone.com-fundo { background: var(--cor); padding: 6px; object-fit: contain; }  /* desenho sem fundo + quadrado na cor do canal */
 .canal-sigla { width: 46px; height: 46px; border-radius: 10px; display: grid; place-items: center; font-weight: 800; font-size: 15px; color: #fff; background: var(--cor, #6b6880); }
 .canal-nome { font-weight: 700; font-size: 13px; }
 .canal-linhas { border-top: 1px solid var(--linha); padding-top: 8px; width: 100%; display: grid; gap: 1px; font-size: 12px; }
@@ -905,3 +910,45 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
   .editar-foto .avatar-empresa { grid-row: auto; }
   .editar-foto .dica { grid-column: 1; }
 }
+
+/* NÚMERO numa peça só: [−][ 20 % ][+] (Eduardo 13/11, desenho do seletor de quantidade da Conceito, em camadas).
+   Secundário em camadas por fora; − e + nas pontas; unidade dentro, discreta, colada no número. R$ é prefixo, sem botões. JS: src/telas/numero.js */
+.passo-numero { display: inline-flex; align-items: stretch; height: var(--alt); border: 1px solid var(--grafite); border-radius: var(--raio-p);
+  background: var(--superficie); box-shadow: var(--sombra-dura-cinza); overflow: hidden; }
+.passo-numero:focus-within { border-color: var(--roxo); box-shadow: var(--sombra-dura-cinza), 0 0 0 3px var(--roxo-claro); }
+.passo-numero > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { flex: 1 1 auto; width: auto; field-sizing: content; min-width: calc(3ch + 10px); max-width: calc(7ch + 10px); min-height: 0; height: 100%;
+  padding: 0 2px 0 8px; border: 0; border-radius: 0; background: transparent; box-shadow: none; outline: none; text-align: right; -moz-appearance: textfield; appearance: textfield; }
+.passo-numero > input::-webkit-inner-spin-button, .passo-numero > input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.passo-numero .passo-numero-un { display: flex; align-items: center; padding: 0 8px 0 0; color: var(--suave); font-size: 13px; font-weight: 600; }
+.passo-numero .passo-numero-un:first-child { padding: 0 0 0 12px; }  /* R$ antes do número */
+.passo-numero > .passo-numero-un:first-child + input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { padding: 0 12px 0 6px; text-align: left; }
+.passo-numero-btn { order: 1; flex: none; display: grid; place-items: center; width: var(--alt); padding: 0; border: 0; border-left: 1px solid var(--linha);
+  background: transparent; color: var(--grafite); font: 600 18px / 1 var(--fonte-titulo); cursor: pointer; transition: background-color .15s ease-out; }
+.passo-numero-btn[data-passo="-1"] { order: -1; border-left: 0; border-right: 1px solid var(--linha); }
+.passo-numero-btn:hover { background: var(--superficie-2); }
+.passo-numero-btn:active { background: var(--linha); }
+.campo .passo-numero:not(:has(> [data-passo])) { display: flex; width: 100%; }  /* R$ (sem botões): a largura do campo */
+/* com − e + (Eduardo 13/11): largura do conteúdo, só o bastante para "XX,XX %" + os 2 botões, à esquerda, número no meio entre − e + */
+.campo .passo-numero:has(> [data-passo]) { justify-self: start; }
+.passo-numero:has(> [data-passo]) { min-width: calc(2 * var(--alt) + 76px); }
+.passo-numero:has(> [data-passo]) > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { flex: none; }
+.passo-numero > .passo-numero-btn[data-passo="-1"] { margin-right: auto; }
+.passo-numero > .passo-numero-btn[data-passo="1"] { margin-left: auto; }
+@media (pointer: coarse) { .passo-numero:has(> [data-passo]) { min-width: calc(2 * var(--alt-toque) + 76px); } }
+.campo .passo-numero > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { max-width: none; }
+/* o campo cresce com o número (21,5 / 99,99 / 100,00 inteiros, sem cortar); sem field-sizing (Safari, Firefox), já nasce com 7 caracteres */
+@supports not (field-sizing: content) { .passo-numero > input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { width: calc(7ch + 10px); } }
+.linha-barra .passo-numero { flex: none; }  /* Desconto: o slider encolhe, a peça não */
+@media (pointer: coarse) { .passo-numero { height: var(--alt-toque); } .passo-numero-btn { width: var(--alt-toque); } }
+
+/* DICA dos (i) (Eduardo 13/11): balão próprio no lugar do title (que demora e não abre no toque). JS: src/telas/dica.js.
+   Grafite, texto claro de 13 px, até 260 px, seta para o (i); acima, ou embaixo quando não cabe. Em popover: por cima até da janela. */
+.dica-balao { position: fixed; inset: auto; margin: 0; z-index: 60; width: max-content; max-width: min(260px, calc(100vw - 16px)); padding: 8px 10px;
+  border: 0; border-radius: var(--raio-p); background: var(--grafite); color: #f5f5f2; font-size: 13px; font-weight: 400; line-height: 1.4; text-align: left;
+  box-shadow: 0 6px 18px rgba(12, 13, 17, .22); overflow: visible; pointer-events: none; }
+.dica-balao[hidden] { display: none; }
+.dica-balao::after { content: ""; position: absolute; top: 100%; left: var(--seta-x, 50%); transform: translateX(-50%); border: 6px solid transparent; border-top-color: var(--grafite); }
+.dica-balao.embaixo::after { top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: var(--grafite); }
+@media (prefers-reduced-motion: no-preference) { .dica-balao:not([hidden]) { animation: dica-entra 120ms ease-out; } }
+@keyframes dica-entra { from { opacity: 0; } }
+[data-dica] { cursor: help; }

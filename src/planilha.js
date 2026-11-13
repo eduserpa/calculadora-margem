@@ -107,7 +107,7 @@ export function prepararImportacao(texto, produtos, novoId, agora = new Date().t
 export function csvPrecificacoes(linhas) {
   return paraCsv([
     ['produto', 'sku', 'canal', 'preco', 'margem_%', 'lucro_r$', 'preco_minimo_20%'], // mínimo para 20%, a margem com que a Calculadora abre
-    ...linhas.map((l) => [l.produto, l.sku ?? '', l.canal, decimal(l.preco), decimal(l.margem, 1), decimal(l.lucro), decimal(l.minimo)]),
+    ...linhas.map((l) => [l.produto, l.sku ?? '', l.canal, decimal(l.preco), decimal(l.margem), decimal(l.lucro), decimal(l.minimo)]),
   ]);
 }
 

@@ -24,11 +24,16 @@ export const sigla = (id, c) => SIGLA[id] ?? [c.nome.slice(0, 2).toUpperCase(), 
 // Ícone de cada canal (assets/canais). Canal sem ícone (um criado depois) fica com as letras.
 const ICONE_CANAL = {
   shopee: 'shopee', mercadolivre: 'mercado-livre', shein: 'shein', tiktokshop: 'tiktok',
-  lojapropria: 'loja-propria', atacado: 'atacado', lojafisica: 'loja-fisica',
+  lojapropria: 'carrinho', atacado: 'caixas', lojafisica: 'lojinha',
 };
+// Ícones desenhados por nós vêm sem fundo: o quadrado colorido é a cor do canal (SIGLA), posta pelo CSS.
+const SEM_FUNDO = new Set(['lojapropria', 'atacado', 'lojafisica']);
 // Ícone do canal (cartões da Calculadora e de Taxas dos Canais): a imagem, ou as letras se não houver.
 export function iconeDoCanal(id, c) {
-  if (ICONE_CANAL[id]) return `<img class="canal-icone" src="assets/canais/${ICONE_CANAL[id]}.webp" alt="" width="46" height="46">`;
+  if (ICONE_CANAL[id]) {
+    const fundo = SEM_FUNDO.has(id) ? ` com-fundo" style="--cor:${SIGLA[id][1]}` : '';
+    return `<img class="canal-icone${fundo}" src="assets/canais/${ICONE_CANAL[id]}.webp" alt="" width="46" height="46">`;
+  }
   const [letras, cor] = sigla(id, c);
   return `<span class="canal-sigla" style="--cor:${cor}" aria-hidden="true">${letras}</span>`;
 }

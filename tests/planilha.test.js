@@ -67,5 +67,5 @@ test('planilha sem as colunas obrigatórias', () => {
 
 test('exporta precificações com ; e vírgula decimal', () => {
   const csv = csvPrecificacoes([{ produto: 'Banco; inox', sku: '1058', canal: 'Shopee', preco: 735.2, margem: 14.94, lucro: 109.8, minimo: 801 }]);
-  assert.equal(csv, '\uFEFFproduto;sku;canal;preco;margem_%;lucro_r$;preco_minimo_20%\r\n"Banco; inox";1058;Shopee;735,20;14,9;109,80;801,00\r\n');
+  assert.equal(csv, '\uFEFFproduto;sku;canal;preco;margem_%;lucro_r$;preco_minimo_20%\r\n"Banco; inox";1058;Shopee;735,20;14,94;109,80;801,00\r\n');
 });

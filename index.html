@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
+  <base href="/"> <!-- /produtos não quebra os caminhos de assets, css e src -->
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Calculéo · Calculadora de Margem</title>
   <link rel="icon" href="assets/calculeo-icone-64.png" type="image/png">
@@ -64,18 +65,19 @@
   <div class="app" hidden>
     <aside class="lateral" id="menu-lateral">
       <div class="lateral-topo">
-        <a href="#inicio" class="marca" title="Ir para o Início"><img src="assets/calculeo-icone.webp" alt="" width="44" height="44" class="marca-logo"><span class="marca-txt">Calculéo<br><span>Calculadora de Margem</span></span></a>
+        <a href="/inicio" class="marca" title="Ir para o Início"><img src="assets/calculeo-icone.webp" alt="" width="44" height="44" class="marca-logo"><span class="marca-txt">Calculéo<br><span>Calculadora de Margem</span></span></a>
         <button type="button" class="lateral-alternar" id="lateral-fechar" aria-controls="menu-lateral" aria-expanded="true" aria-label="Ocultar menu lateral" title="Ocultar menu"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#chevrons-left"></use></svg></button>
       </div>
       <nav class="menu" aria-label="Telas">
         <p class="menu-titulo">Principal</p>
-        <a href="#inicio" class="aba" data-aba="inicio"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#building-2"></use></svg>Início</a>
-        <a href="#calculadora" class="aba" data-aba="calculadora"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#percent"></use></svg>Calculadora de Margem</a>
-        <a href="#produtos" class="aba" data-aba="produtos"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#package"></use></svg>Meus Produtos</a>
+        <a href="/inicio" class="aba" data-aba="inicio"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#building-2"></use></svg>Início</a>
+        <a href="/calculadora" class="aba" data-aba="calculadora"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#percent"></use></svg>Calculadora de Margem</a>
+        <a href="/produtos" class="aba" data-aba="produtos"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#package"></use></svg>Meus Produtos</a>
         <p class="menu-titulo">Ajustes</p>
-        <a href="#configuracoes" class="aba" data-aba="configuracoes"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#sliders-horizontal"></use></svg>Taxas dos Canais</a>
-        <a href="#equipe" class="aba" data-aba="equipe" data-nuvem hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#users"></use></svg>Equipe</a>
-        <a href="#historico" class="aba" data-aba="historico" data-nuvem hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#history"></use></svg>Histórico</a>
+        <a href="/taxas" class="aba" data-aba="configuracoes"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#sliders-horizontal"></use></svg>Taxas dos Canais</a>
+        <a href="/equipe" class="aba" data-aba="equipe" data-nuvem hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#users"></use></svg>Equipe</a>
+        <a href="/historico" class="aba" data-aba="historico" data-nuvem hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#history"></use></svg>Histórico</a>
+        <a href="/novidades" class="aba" data-aba="novidades"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#sparkles"></use></svg>Novidades</a>
       </nav>
       <div class="lateral-base">
         <button type="button" class="lateral-botao" id="exportar" title="Guarda uma cópia dos dados num arquivo."><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#download"></use></svg> Exportar dados</button>
@@ -114,7 +116,7 @@
         <div class="cartao produto-escolhido" id="c-produto-cartao">
           <div class="cartao-topo">
             <h2 id="c-produto-titulo">Produto</h2>
-            <a class="botao contorno pequeno" href="#produtos">Gerenciar Produtos</a>
+            <a class="botao contorno pequeno" href="/produtos">Gerenciar Produtos</a>
           </div>
           <div class="seletor">
             <span class="miniatura mini seletor-foto" id="c-seletor-foto" hidden></span>
@@ -144,14 +146,14 @@
             <h2 class="faixa-titulo">Precificação</h2>
             <div class="cartao-corpo">
               <div class="caixa-azul">
-                <label class="campo"><span>Preço DE (R$)</span><input type="text" inputmode="decimal" id="c-de" placeholder="0,00"></label>
+                <label class="campo"><span>Preço DE (R$)</span><span class="passo-numero"><span class="passo-numero-un" aria-hidden="true">R$</span><input type="text" inputmode="decimal" id="c-de" placeholder="0,00"></span></label>
                 <label class="campo" for="c-desconto-barra"><span>Desconto: <strong id="c-desconto-rotulo">0%</strong></span></label>
                 <div class="linha-barra">
                   <input type="range" id="c-desconto-barra" min="0" max="70" step="1" value="0">
-                  <input type="text" inputmode="decimal" id="c-desconto" class="mini" aria-label="Desconto em porcentagem" placeholder="0">
+                  <span class="passo-numero"><input type="text" inputmode="decimal" id="c-desconto" class="mini" data-min="0" data-max="99" aria-label="Desconto em porcentagem" placeholder="0"><span class="passo-numero-un" aria-hidden="true">%</span><button type="button" class="passo-numero-btn" data-passo="-1" tabindex="-1" aria-label="Diminuir o desconto">−</button><button type="button" class="passo-numero-btn" data-passo="1" tabindex="-1" aria-label="Aumentar o desconto">+</button></span>
                 </div>
               </div>
-              <label class="campo"><span id="c-por-rotulo">Preço POR (Final)</span><input type="text" inputmode="decimal" id="c-por" class="destaque" placeholder="0,00"></label>
+              <label class="campo"><span id="c-por-rotulo">Preço POR (Final)</span><span class="passo-numero"><span class="passo-numero-un" aria-hidden="true">R$</span><input type="text" inputmode="decimal" id="c-por" class="destaque" placeholder="0,00"></span></label>
             </div>
           </div>
 
@@ -164,9 +166,9 @@
             <h2><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#target"></use></svg> Preço Mínimo Sugerido</h2>
             <strong class="minimo-valor" id="c-minimo-valor">—</strong>
             <p class="minimo-sub" id="c-minimo-sub"></p>
-            <p class="alerta" id="c-minimo-aviso" hidden></p>
+            <p class="dica" id="c-minimo-aviso" hidden></p>
             <button type="button" class="botao contorno pequeno" id="c-usar-minimo" hidden>Usar este preço</button>
-            <div class="linha-margem"><label for="c-margem">Margem desejada</label><span><input type="number" id="c-margem-num" min="1" max="90" step="1" aria-label="Margem desejada em porcentagem">%</span></div>
+            <div class="linha-margem"><label for="c-margem">Margem desejada</label><span class="passo-numero"><button type="button" class="passo-numero-btn" data-passo="-1" tabindex="-1" aria-label="Diminuir a margem">−</button><input type="text" inputmode="decimal" id="c-margem-num" data-min="1" data-max="90" aria-label="Margem desejada em porcentagem"><span class="passo-numero-un" aria-hidden="true">%</span><button type="button" class="passo-numero-btn" data-passo="1" tabindex="-1" aria-label="Aumentar a margem">+</button></span></div>
             <input type="range" id="c-margem" min="5" max="50" step="1">
             <div class="limites"><span>5%</span><span>50%</span></div>
             <p class="dica-caixa"><strong>Dica:</strong> uma margem entre 20% e 25% costuma dar folga para promoções e anúncios.</p>
@@ -177,6 +179,7 @@
         </div>
         <div class="acoes-salvar" id="c-acoes">
           <button type="button" class="botao principal" id="c-salvar">Salvar Precificação</button>
+          <button type="button" class="botao" id="c-descartar" hidden>Descartar</button>
           <span class="dica" id="c-salvo"></span>
         </div>
         </div>
@@ -271,7 +274,15 @@
         <div id="historico-lista" class="cartao"></div>
       </section>
 
-      <p class="versao"><span class="versao-rotulo">Versão</span> <span class="versao-num" id="versao-num">Alpha 1.1.0</span></p>
+      <section id="tela-novidades" class="tela" aria-labelledby="titulo-novidades" hidden>
+        <header class="titulo-tela">
+          <h1 id="titulo-novidades">Novidades</h1>
+          <p>O que mudou em cada versão</p>
+        </header>
+        <div id="novidades-lista" class="novidades"></div>
+      </section>
+
+      <a class="versao" href="/novidades" title="Ver novidades"><span class="versao-rotulo">Versão</span> <span class="versao-num" id="versao-num">Alpha 1.1.1</span></a>
     </main>
   </div>
 

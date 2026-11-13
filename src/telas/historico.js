@@ -1,5 +1,6 @@
 // Tela Histórico: quem mudou o quê e quando (o banco anota sozinho), com filtro por pessoa. Mostra os últimos 200.
 import { historico } from '../nuvem.js';
+import { telaAtual } from '../rotas.js';
 import { esc } from '../formato.js';
 import { mostrarErro } from './erro.js';
 import { htmlVazio, htmlCarregando } from './mascote.js';
@@ -9,7 +10,7 @@ const quando = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', 
 
 export async function iniciarHistorico() {
   $('#historico-pessoa').addEventListener('change', () => desenhar());
-  window.addEventListener('hashchange', () => location.hash === '#historico' && desenhar(true));
+  window.addEventListener('tela', () => telaAtual() === 'historico' && desenhar(true));
   await desenhar(true);
 }
 

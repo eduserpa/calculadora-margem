@@ -22,6 +22,8 @@ export const campo = (v) => (v ? v.toLocaleString('pt-BR', { maximumFractionDigi
 export const campoReais = (v) => (v ? numero(v, 2) : '');
 
 export const porcento = (v, casas = 1) => `${numero(v, casas)}%`;
+// Margem na tela: sempre 2 casas (preciso até o centavo do preço); a conta usa o valor inteiro. -0,004 não vira "-0,00%".
+export const margemPct = (v) => `${numero(Math.abs(v) < 0.005 ? 0 : v, 2)}%`;
 
 export const gramas = (g) => `${Math.round(g).toLocaleString('pt-BR')} g`;
 // Peso curto: em kg a partir de 1.000 g (1,8 kg), em g abaixo disso.

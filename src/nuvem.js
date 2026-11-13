@@ -54,7 +54,7 @@ export async function pessoaLogada() {
 export async function mandarLink(email) {
   const { error } = await (await supa()).auth.signInWithOtp({
     email: email.trim().toLowerCase(),
-    options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname },
+    options: { shouldCreateUser: true, emailRedirectTo: `${location.origin}/` },
   });
   if (!error) return;
   throw new Error(/não foi convidado|signups? not allowed|not found|otp_disabled|hook/i.test(error.message)
@@ -83,7 +83,7 @@ export async function entrarComSenha(email, senha, criar = false) {
 
 // Esqueci a senha: manda o link para criar uma nova (precisa de SMTP próprio no Supabase; ver config.ESQUECI_SENHA).
 export async function esqueciSenha(email) {
-  const { error } = await (await supa()).auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: location.origin + location.pathname });
+  const { error } = await (await supa()).auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${location.origin}/` });
   if (error) throw new Error(/rate|seconds/i.test(error.message) ? 'Já mandamos um link há pouco. Espere 1 minuto e tente de novo.' : 'Não deu para mandar o link agora. Confira o e-mail e tente de novo.');
 }
 

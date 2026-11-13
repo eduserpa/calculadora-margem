@@ -84,7 +84,7 @@ function desenharEmpresas() {
       <ul class="menu-empresas" id="menu-empresas" role="menu" aria-label="Suas empresas" hidden>
         ${empresas.map(item).join('')}
         <li role="separator" class="menu-separador"></li>
-        <li role="none"><a role="menuitem" tabindex="-1" href="#equipe" class="menu-nova">${icone('plus')} Nova empresa</a></li>
+        <li role="none"><a role="menuitem" tabindex="-1" href="/equipe" class="menu-nova">${icone('plus')} Nova empresa</a></li>
       </ul>
     </div>`;
   desenharCartaoEmpresa();
