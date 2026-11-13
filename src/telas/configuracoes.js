@@ -167,6 +167,7 @@ function aoDigitar(e) {
   definir(el.dataset.c, el.hasAttribute('data-num') ? lerNumero(el.value) : el.value);
   mudou = true;
   const id = el.dataset.c.split('.')[0];
+  if (el.dataset.c === `${id}.impostos`) rasc[id].impostosProprio = el.value.trim() !== ''; // vazio: vale o imposto da empresa
   const resumo = $(`.canal-config[data-id="${id}"] summary .dica`);
   if (resumo) resumo.textContent = resumoDoCanal(rasc[id]);
   barra();

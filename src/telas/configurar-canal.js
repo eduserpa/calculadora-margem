@@ -206,6 +206,7 @@ function aoDigitar(e) {
   if (el.id === 'categoria-ml') return escolherCategoria(el.value, false);
   if (!el.dataset?.c || el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT') return;
   definir(el.dataset.c, el.hasAttribute('data-num') ? lerNumero(el.value) : el.value);
+  if (el.dataset.c === 'impostos') rasc.impostosProprio = el.value.trim() !== ''; // vazio: vale o imposto da empresa
   const nota = $('#nota-ml', janela());
   if (nota) nota.textContent = notaDoMercadoLivre(rasc);
 }

@@ -1,9 +1,11 @@
-import { carregar, aoMudar, paraArquivo, lerArquivo, substituirTudo, dados } from './dados.js';
+import { carregar, aoMudar, paraArquivo, lerArquivo, substituirTudo, dados, usarGuardado, lerDoNavegador } from './dados.js';
+import * as nuvem from './nuvem.js';
 import { iniciarProdutos, desenharLista } from './telas/produtos.js';
 import { iniciarCalculadora, desenharTudo } from './telas/calculadora.js';
 import { iniciarConfiguracoes, aoMudarDados } from './telas/configuracoes.js';
 import { iniciarConfigurarCanal } from './telas/configurar-canal.js';
 import { iniciarPlanilhas } from './telas/planilhas.js';
+import { iniciarNuvemTelas } from './telas/empresa.js'; // equipe, histórico e empresa: chamar depois do login e dos dados carregados
 
 const $ = (s) => document.querySelector(s);
 
@@ -89,7 +91,11 @@ function janelaImportar(conteudo, erro) {
       </div></div>
     </form>`;
   j.onclose = () => {
-    if (j.returnValue === 'substituir') aviso(substituirTudo(conteudo) ? 'Dados importados.' : '', true);
+    if (j.returnValue !== 'substituir' || !substituirTudo(conteudo)) return;
+    aviso('Dados importados. Enviando para a nuvem...', true);
+    nuvem.anotarImportacao(`Arquivo com ${conteudo.produtos.length} produto(s)`)
+      .then(() => aviso('Dados importados e salvos na nuvem.', true))
+      .catch((e) => aviso(e.message));
   };
   j.returnValue = '';
   j.showModal();
@@ -116,21 +122,86 @@ function ligar(nome, fn) {
   }
 }
 
+// ---------- login (só ele aparece até a pessoa entrar) ----------
+
+function mostrarLogin(texto = '', logada = false) {
+  $('#login').hidden = false;
+  $('#login-form').hidden = logada;
+  $('#login-sair').hidden = !logada;
+  $('#login-msg').textContent = texto;
+}
+
+function iniciarLogin() {
+  $('#login-sair').addEventListener('click', nuvem.sair);
+  $('#login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const botao = e.target.querySelector('button');
+    botao.disabled = true;
+    $('#login-msg').textContent = 'Mandando...';
+    try {
+      await nuvem.mandarLink($('#login-email').value);
+      $('#login-mascote').src = 'assets/mascote/email.webp';
+      $('#login-frase').textContent = 'Link enviado! Confira seu e-mail.';
+      $('#login-msg').textContent = 'Abra o e-mail neste aparelho e clique no link para entrar.';
+      $('#login-form').hidden = true;
+    } catch (erro) {
+      $('#login-msg').textContent = erro.message;
+    }
+    botao.disabled = false;
+  });
+}
+
+// 1º login com a nuvem vazia e dados neste navegador: oferece levar.
+function oferecerLevarDados() {
+  const local = lerDoNavegador();
+  if (dados.produtos.length || !local?.produtos?.length) return;
+  const j = $('#janela-importar');
+  j.innerHTML = `
+    <form method="dialog">
+      <div class="janela-topo"><h3 id="titulo-importar">Levar meus dados para a nuvem</h3></div>
+      <div class="janela-corpo">
+        <p>Este navegador tem <strong>${local.produtos.length} produto(s)</strong> guardados só nele. Levando para a nuvem, a equipe vê também.</p>
+        <p class="dica">A cópia neste navegador continua guardada.</p>
+      </div>
+      <div class="janela-base"><div class="direita">
+        <button type="submit" class="botao" value="nao">Agora não</button>
+        <button type="submit" class="botao principal" value="levar">Levar meus dados para a nuvem</button>
+      </div></div>
+    </form>`;
+  j.onclose = () => {
+    if (j.returnValue !== 'levar') return;
+    substituirTudo({ produtos: local.produtos, canais: local.canais ?? null, precificacoes: local.precificacoes ?? {}, empresa: local.empresa ?? null });
+    aviso('Levando para a nuvem...', true);
+    nuvem.anotarImportacao(`Dados do navegador: ${local.produtos.length} produto(s)`)
+      .then(() => aviso('Pronto: seus dados estão na nuvem.', true))
+      .catch((e) => aviso(e.message));
+  };
+  j.returnValue = '';
+  j.showModal();
+}
+
 async function iniciar() {
   // As telas trocam primeiro, para nunca aparecerem todas juntas.
   window.addEventListener('hashchange', mostrarTela);
   mostrarTela();
+  iniciarLogin();
   try {
+    if (!(await nuvem.pessoaLogada())) return mostrarLogin();
+    if (!(await nuvem.prepararEmpresa())) return mostrarLogin('Seu e-mail ainda não está em nenhuma empresa. Peça um convite ao dono.', true);
+    usarGuardado(nuvem.guardadoNaNuvem);
     await carregar();
-  } catch {
-    aviso('Não deu para carregar as taxas dos canais (data/canais.json). Abra a página por um endereço http, não direto do arquivo.');
+  } catch (erro) {
+    return mostrarLogin(/canais\.json|JSON/.test(erro.message) ? 'Não deu para carregar as taxas dos canais. Recarregue a página.' : erro.message || 'Não deu para falar com o servidor. Confira a internet e recarregue.', Boolean(nuvem.emailAtual()));
   }
+  $('.app').hidden = false;
+  nuvem.quandoFalhar((e) => aviso(`Não deu para salvar na nuvem (${e.message}). Confira a internet e faça a alteração de novo.`));
   aoMudar((ok) => {
     desenharLista();
     desenharTudo();
     aoMudarDados();
-    if (!ok) aviso('Este navegador não deixou guardar os dados. Exporte para não perder o que fez.');
+    if (!ok) aviso('Não deu para guardar os dados. Exporte para não perder o que fez.');
   });
+  $('#sair').addEventListener('click', nuvem.sair);
   ligar('menu lateral', iniciarLateral);
   ligar('produtos', iniciarProdutos);
   ligar('planilhas', iniciarPlanilhas);
@@ -142,6 +213,8 @@ async function iniciar() {
     $('#importar').addEventListener('change', importar);
     $('#importar-botao').addEventListener('click', () => $('#importar').click());
   });
+  ligar('equipe, histórico e empresa', iniciarNuvemTelas);
+  oferecerLevarDados();
 }
 
 iniciar();

@@ -13,23 +13,40 @@
   <script type="module" src="src/app.js"></script>
 </head>
 <body>
-  <div class="app">
+  <main class="login" id="login" hidden>
+    <div class="login-cartao">
+      <img class="login-mascote" id="login-mascote" src="assets/mascote/login.webp" alt="" width="180" height="180">
+      <h1>Calculéo</h1>
+      <p class="login-frase" id="login-frase">Bora calcular essa margem?</p>
+      <form id="login-form" novalidate>
+        <label class="campo"><span>Seu e-mail</span><input type="email" id="login-email" autocomplete="email" required></label>
+        <button type="submit" class="botao principal">Mandar link de acesso</button>
+      </form>
+      <p class="login-msg" id="login-msg" role="status"></p>
+      <button type="button" class="botao" id="login-sair" hidden>Sair</button>
+    </div>
+  </main>
+  <div class="app" hidden>
     <aside class="lateral" id="menu-lateral">
       <div class="lateral-topo">
         <div class="marca"><img src="assets/calculeo-icone.webp" alt="" width="44" height="44" class="marca-logo"><span class="marca-txt">Calculéo<br><span>Calculadora de Margem</span></span></div>
         <button type="button" class="lateral-alternar" id="lateral-fechar" aria-controls="menu-lateral" aria-expanded="true" aria-label="Ocultar menu lateral" title="Ocultar menu"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#chevrons-left"></use></svg></button>
       </div>
+      <div id="seletor-empresa" class="seletor-empresa" hidden></div>
       <nav class="menu" aria-label="Telas">
         <p class="menu-titulo">Principal</p>
         <a href="#calculadora" class="aba" data-aba="calculadora"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#percent"></use></svg>Calculadora de Margem</a>
         <a href="#produtos" class="aba" data-aba="produtos"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#package"></use></svg>Meus Produtos</a>
         <p class="menu-titulo">Ajustes</p>
         <a href="#configuracoes" class="aba" data-aba="configuracoes"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#sliders-horizontal"></use></svg>Taxas dos Canais</a>
+        <a href="#equipe" class="aba" data-aba="equipe" data-nuvem hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#users"></use></svg>Equipe</a>
+        <a href="#historico" class="aba" data-aba="historico" data-nuvem hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#history"></use></svg>Histórico</a>
       </nav>
       <div class="lateral-base">
-        <button type="button" class="lateral-botao" id="exportar" title="Os dados ficam só neste navegador. Exporte para guardar uma cópia ou levar para outro computador."><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#download"></use></svg> Exportar dados</button>
+        <button type="button" class="lateral-botao" id="exportar" title="Guarda uma cópia dos dados num arquivo."><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#download"></use></svg> Exportar dados</button>
         <button type="button" class="lateral-botao" id="importar-botao"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#upload"></use></svg> Importar dados</button>
         <input type="file" id="importar" accept=".json,application/json" hidden>
+        <button type="button" class="lateral-botao" id="sair">Sair</button>
         <a class="credito" href="https://lucerpy.com.br" target="_blank" rel="noopener"><span>Feito por</span><img src="assets/lucerpy-wordmark-white-lime-dot-transparent-preloader.avif" alt="Lucerpy" width="110" height="32"></a>
       </div>
     </aside>
@@ -127,6 +144,7 @@
             <button type="button" class="botao" id="exportar-precos" title="Planilha com preço, margem, lucro e preço mínimo de cada produto em cada canal salvo"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#download"></use></svg> Exportar preços</button>
             <button type="button" class="botao" id="importar-planilha"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#upload"></use></svg> Importar planilha</button>
             <button type="button" class="botao principal" id="novo-produto"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#plus"></use></svg> Novo Produto</button>
+            <button type="button" class="botao" id="copiar-produtos" hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#copy"></use></svg> Copiar produtos de outra empresa</button>
           </div>
         </header>
         <div class="filtros">
@@ -154,6 +172,7 @@
           <h1 id="titulo-configuracoes">Taxas dos Canais</h1>
           <p>Quanto cada canal cobra, com a fonte de cada número. A calculadora usa estes valores. Também dá para ajustar pela engrenagem em cada canal da calculadora.</p>
         </header>
+        <div id="imposto-empresa" class="cartao imposto-empresa" data-nuvem hidden></div>
         <div class="barra-salvar">
           <span id="cfg-estado" class="sub"></span>
           <div class="direita">
@@ -165,6 +184,37 @@
         <div id="lista-canais" class="lista-canais"></div>
       </section>
 
+      <!-- Equipe e Histórico (src/telas/equipe.js e historico.js) -->
+      <section id="tela-equipe" class="tela" aria-labelledby="titulo-equipe" hidden>
+        <header class="titulo-tela">
+          <h1 id="titulo-equipe">Equipe</h1>
+          <p>Quem usa o Calculéo nesta empresa</p>
+        </header>
+        <form id="equipe-convidar" class="cartao" novalidate hidden>
+          <h2>Convidar pessoa</h2>
+          <div class="linha-convite">
+            <label class="campo"><span>E-mail</span><input type="email" id="convite-email" class="campo-texto" autocomplete="off" required placeholder="nome@empresa.com.br"></label>
+            <label class="campo"><span>Papel</span><select id="convite-papel" class="campo-texto"><option value="membro">Membro</option><option value="dono">Dono</option></select></label>
+            <button type="submit" class="botao principal">Convidar</button>
+          </div>
+          <p class="dica">Membro usa a calculadora e os produtos. Dono também convida e remove pessoas.</p>
+        </form>
+        <p id="equipe-estado" class="dica" role="status" tabindex="-1"></p>
+        <div id="equipe-lista" class="cartao"></div>
+      </section>
+
+      <section id="tela-historico" class="tela" aria-labelledby="titulo-historico" hidden>
+        <header class="titulo-tela">
+          <h1 id="titulo-historico">Histórico</h1>
+          <p>Quem mudou o quê, e quando</p>
+        </header>
+        <div class="filtro-historico">
+          <label class="campo"><span>Pessoa</span><select id="historico-pessoa" class="campo-texto"><option value="">Todas as pessoas</option></select></label>
+          <span id="historico-total" class="dica" role="status"></span>
+        </div>
+        <div id="historico-lista" class="cartao"></div>
+      </section>
+
       <p class="versao">Versão Alpha 1</p>
     </main>
   </div>
@@ -173,5 +223,6 @@
   <dialog id="janela-canal" class="janela media" aria-labelledby="titulo-canal"></dialog>
   <dialog id="janela-importar" class="janela pequena" aria-labelledby="titulo-importar"></dialog>
   <dialog id="janela-planilha" class="janela pequena" aria-labelledby="titulo-planilha"></dialog>
+  <dialog id="janela-copiar" class="janela pequena" aria-labelledby="titulo-copiar"></dialog>
 </body>
 </html>

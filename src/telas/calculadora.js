@@ -356,12 +356,24 @@ function htmlResultado(r, canal, pesoG) {
     </div>`;
 }
 
+// Mascote só nas pontas: margem excelente (comemora) e prejuízo (bolsos vazios). A entrada só anima quando ele aparece ou troca,
+// não a cada tecla (o cartão é redesenhado a cada número digitado).
+let mascoteAntes = null;
+function mascoteDaAnalise(f) {
+  const m = f.rotulo === 'Margem excelente' ? ['sucesso', 'Margem de leão! Esse preço rende bem.', 130]
+    : f.rotulo === 'Prejuízo' ? ['prejuizo', 'Assim o leão passa fome!', 131] : null;
+  const entra = m && m[0] !== mascoteAntes;
+  mascoteAntes = m?.[0] ?? null;
+  return m ? `<div class="mascote-analise"><img src="assets/mascote/${m[0]}.webp" alt="" width="120" height="${m[2]}" class="mascote-img${entra ? ' mascote-entra' : ''}" decoding="async"><p>${m[1]}</p></div>` : '';
+}
+
 function htmlAnalise(margem) {
   const f = faixaDaMargem(margem);
   const posicao = ((Math.max(-10, Math.min(50, margem)) + 10) / 60) * 100;
   return `
     <div class="analise-topo"><h2>Análise da margem</h2><span>${f.faixa}</span></div>
     <h3 class="${f.classe}">${f.frase}</h3>
+    ${mascoteDaAnalise(f)}
     <div class="marcador" style="margin-top:28px" data-alvo="${posicao}"><b style="left:${posicaoMarcador ?? posicao}%">${numero(margem, 1)}%</b><i style="left:${posicaoMarcador ?? posicao}%"></i></div>
     <div class="barra-faixas" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
     <div class="escala">${[-10, 0, 10, 20, 25, 40, 50].map((v) => `<span style="left:${((v + 10) / 60) * 100}%">${v}%${v === 50 ? '+' : ''}</span>`).join('')}</div>`;

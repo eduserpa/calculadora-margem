@@ -7,6 +7,7 @@ import { calcularMargem, precoMinimo } from '../calculos/margem.js';
 import { precoPor } from '../calculos/preco-de-por.js';
 import { esc, reais } from '../formato.js';
 import { aviso } from '../app.js';
+import { anotarImportacao } from '../nuvem.js';
 
 const janela = () => document.getElementById('janela-planilha');
 let previa = null;
@@ -72,7 +73,9 @@ function gravar() {
     return desenhar(previa, 'O espaço do navegador acabou. Nada foi gravado. Exporte os dados e apague produtos antigos.');
   }
   janela().close();
-  aviso(`${total(previa)} produto(s) importado(s): ${previa.novos.length} novo(s), ${previa.atualizados.length} atualizado(s).`, true);
+  const resumo = `${total(previa)} produto(s) importado(s): ${previa.novos.length} novo(s), ${previa.atualizados.length} atualizado(s).`;
+  aviso(resumo, true);
+  anotarImportacao(`Planilha: ${resumo}`).catch((e) => aviso(e.message));
 }
 
 const total = (p) => p.novos.length + p.atualizados.length;

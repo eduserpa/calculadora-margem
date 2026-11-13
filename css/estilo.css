@@ -509,3 +509,60 @@ table.faixas input { width: 96px; min-height: 34px; padding: 0 8px; border: 1px 
 .marca-logo { width: 44px; height: 44px; border-radius: 10px; }
 /* mascote (o leão vendedor) no estado vazio de Meus Produtos */
 .vazio .mascote { display: block; width: 180px; height: auto; margin: 0 auto 8px; }
+
+/* Login (Hermione): só ele aparece até a pessoa entrar */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.login-cartao { width: min(380px, 100%); display: grid; gap: 14px; justify-items: center; text-align: center; padding: 28px 24px; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--superficie); box-shadow: var(--sombra); }
+.login-cartao h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* o nome já está no mascote */
+.login-frase { margin: -6px 0 0; color: var(--suave); }
+.login-mascote { width: 180px; height: auto; }
+.login-cartao form { display: grid; gap: 12px; width: 100%; text-align: left; }
+.login-cartao form[hidden] { display: none; }
+.login-msg { margin: 0; font-size: 14px; }
+.login-msg:empty { display: none; }
+@media (max-width: 600px) { .login-mascote { width: 120px; } }
+@media (prefers-reduced-motion: no-preference) { .login-mascote { animation: aparecer 300ms ease-out; } }
+
+/* Ellie: equipe/histórico/empresa (src/telas/equipe.js, historico.js, empresa.js) */
+.seletor-empresa { min-width: 240px; display: grid; gap: 4px; margin: 12px 0 4px; padding: 0 8px; }
+.seletor-empresa label { font-size: 12px; font-weight: 700; color: var(--lateral-texto); }
+.seletor-empresa select { min-height: 40px; padding: 0 10px; border-radius: 8px; border: 1px solid #3a3c44; background: #1b1d23; color: var(--lateral-texto); font: inherit; }
+.imposto-empresa { gap: 8px; }
+.linha-imposto { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.linha-imposto .campo-texto { width: 200px; max-width: 100%; }
+.linha-convite { display: grid; grid-template-columns: minmax(0, 1fr) 160px auto; gap: 12px; align-items: end; }
+.lista-pessoas, .lista-historico { list-style: none; margin: 0; padding: 0; display: grid; }
+.pessoa { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 0; border-top: 1px solid var(--linha); }
+.pessoa:first-child { border-top: 0; }
+.pessoa-nome { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+#equipe-lista h2 { font-size: 16px; }
+#equipe-estado:empty { display: none; }
+.filtro-historico { display: flex; flex-wrap: wrap; align-items: end; gap: 12px 16px; }
+.filtro-historico .campo { width: min(320px, 100%); }
+.lista-historico li { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 2px 16px; padding: 10px 0; border-top: 1px solid var(--linha); overflow-wrap: anywhere; }
+.lista-historico li:first-child { border-top: 0; }
+.lista-historico time { color: var(--suave); font-variant-numeric: tabular-nums; font-size: 13px; }
+.lista-historico small { grid-column: 2; }
+@media (max-width: 600px) {
+  .linha-convite { grid-template-columns: minmax(0, 1fr); }
+  .lista-historico li { grid-template-columns: minmax(0, 1fr); }
+  .lista-historico small { grid-column: 1; }
+}
+@media (pointer: coarse) { .seletor-empresa select { min-height: 44px; } }
+/* mascote (Ellie 13/11): pequeno, decorativo (alt vazio), entrada leve só sem reduced motion */
+.mascote-img { display: block; width: 120px; max-width: 100%; height: auto; flex: none; }
+.mascote-analise { display: flex; align-items: center; gap: 12px; }
+.mascote-analise .mascote-img { width: 96px; }
+.mascote-analise p { margin: 0; font-weight: 700; }
+.estado-erro { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 20px; }
+.estado-erro h2 { font-size: 18px; margin: 0; }
+.estado-erro p { margin: 4px 0 12px; color: var(--suave); }
+.pagina-404 { min-height: 100vh; display: grid; place-content: center; justify-items: center; gap: 12px; padding: 24px 16px; text-align: center; }
+.pagina-404 .mascote-img { width: 180px; }
+.pagina-404 h1 { font-size: 26px; font-weight: 800; margin: 0; }
+.pagina-404 p { margin: 0 0 8px; color: var(--suave); max-width: 36ch; }
+@media (max-width: 600px) { .pagina-404 .mascote-img { width: 120px; } }
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes mascote-entra { from { opacity: 0; transform: translateY(10px) scale(.96); } to { opacity: 1; transform: none; } }
+  .mascote-entra { animation: mascote-entra 320ms ease-out; }
+}
