@@ -22,5 +22,20 @@ export async function prepararFoto(origem) {
   }
 }
 
+// Foto guardada como data URL vira um endereço curto (blob:) uma vez só, para listas longas não repetirem
+// dezenas de KB de texto a cada redesenho. ponytail: os endereços não são liberados; cresce com o nº de fotos vistas.
+const enderecos = new Map();
+function enderecoLeve(foto) {
+  if (!foto.startsWith('data:') || typeof URL.createObjectURL !== 'function') return foto;
+  let url = enderecos.get(foto);
+  if (!url) {
+    const [cabeca, base64] = foto.split(',');
+    const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+    url = URL.createObjectURL(new Blob([bytes], { type: cabeca.slice(5).split(';')[0] }));
+    enderecos.set(foto, url);
+  }
+  return url;
+}
+
 // 1ª foto do produto, ou a caixinha quando não tem foto.
-export const capa = (p) => (p?.fotos?.[0] ? `<img src="${esc(p.fotos[0])}" alt="" loading="lazy">` : icone('package'));
+export const capa = (p) => (p?.fotos?.[0] ? `<img src="${esc(enderecoLeve(p.fotos[0]))}" alt="" loading="lazy" decoding="async">` : icone('package'));

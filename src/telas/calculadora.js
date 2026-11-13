@@ -237,12 +237,13 @@ function desenharProdutos(busca) {
   $('#c-opcoes').innerHTML = `
     ${lista.map((p, i) => `
       <div class="opcao" id="c-opcao-${i}" role="option" aria-selected="false" data-produto="${p.id}">
+        <span class="miniatura mini">${capa(p)}</span>
         <b>${esc(p.nome)}</b>
         <small>${p.sku ? `${esc(p.sku)} · ` : ''}CMV: ${reais(custoDoProduto(p, mapa))}</small>
         ${quantos(p) ? `<span class="etiqueta com">${quantos(p)} preço${quantos(p) > 1 ? 's' : ''}</span>` : '<span class="etiqueta sem">sem preço</span>'}
       </div>`).join('')}
     ${lista.length || !termo ? '' : '<p class="dica" role="presentation">Nenhum produto com esse nome ou SKU.</p>'}
-    <div class="opcao" id="c-opcao-avulso" role="option" aria-selected="false" data-produto="${AVULSO}"><b>Sem cadastro: digitar o custo</b><small>para uma conta rápida</small></div>`;
+    <div class="opcao" id="c-opcao-avulso" role="option" aria-selected="false" data-produto="${AVULSO}"><span class="miniatura mini">${icone('percent')}</span><b>Sem cadastro: digitar o custo</b><small>para uma conta rápida</small></div>`;
   const indiceEscolhido = opcoes().findIndex((o) => o.dataset.produto === estado.produtoId);
   ativa = -1;
   if (!$('#c-seletor-lista').hidden) marcar(termo || indiceEscolhido < 0 ? 0 : indiceEscolhido);
@@ -385,6 +386,9 @@ function atualizar() {
   const { cmv, pesoG, produto } = custoEPeso();
   $('#c-depois-produto').hidden = !temProduto;
   $('#c-produto-cartao').classList.toggle('ativo', Boolean(produto));
+  $('#c-seletor-foto').hidden = !produto;
+  $('#c-seletor-foto').innerHTML = produto ? capa(produto) : '';
+  $('#c-seletor').classList.toggle('com-foto', Boolean(produto));
   $('#c-produto-titulo').innerHTML = produto ? `<span class="miniatura">${capa(produto)}</span>${esc(produto.nome)}${produto.sku ? ` <span class="sub">(${esc(produto.sku)})</span>` : ''}` : 'Selecione o Produto';
   $('#c-avulso').hidden = estado.produtoId !== AVULSO;
   const pelaCaixa = produto && pesoG > (Number(produto.pesoG) || 0);

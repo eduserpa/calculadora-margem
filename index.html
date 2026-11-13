@@ -56,6 +56,7 @@
 
     <main class="conteudo">
       <button type="button" class="abrir-menu" id="lateral-abrir" aria-controls="menu-lateral" aria-expanded="true" aria-label="Mostrar menu lateral" title="Mostrar menu" hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#menu"></use></svg></button>
+      <div id="barra-empresa" class="barra-empresa" data-nuvem hidden></div>
       <p class="aviso" id="aviso-geral" role="status" hidden></p>
 
       <!-- Calculadora -->
@@ -72,6 +73,7 @@
             <a class="botao contorno pequeno" href="#produtos">Gerenciar Produtos</a>
           </div>
           <div class="seletor">
+            <span class="miniatura mini seletor-foto" id="c-seletor-foto" hidden></span>
             <input type="text" id="c-seletor" class="campo-texto seletor-campo" role="combobox" aria-expanded="false" aria-controls="c-opcoes" aria-autocomplete="list" aria-label="Produto" placeholder="Selecionar produto..." autocomplete="off">
             <div class="seletor-lista" id="c-seletor-lista" hidden>
               <div id="c-opcoes" role="listbox" aria-label="Produtos"></div>
@@ -193,6 +195,7 @@
           <h1 id="titulo-equipe">Equipe</h1>
           <p>Quem usa o Calculéo nesta empresa</p>
         </header>
+        <div id="empresa-cartao" class="cartao empresa-cartao"></div>
         <form id="equipe-convidar" class="cartao" novalidate hidden>
           <h2>Convidar pessoa</h2>
           <div class="linha-convite">

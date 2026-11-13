@@ -206,11 +206,17 @@ input[type="range"] { width: 100%; accent-color: var(--roxo); }
 .seletor-campo { cursor: text; padding-right: 36px; background: var(--superficie) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23646568' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 14px center; }
 .seletor-lista { position: absolute; z-index: 6; left: 0; right: 0; top: calc(100% + 4px); background: var(--superficie); border: 1px solid var(--linha); border-radius: 10px; box-shadow: var(--sombra); padding: 8px; display: grid; gap: 6px; }
 #c-opcoes { max-height: 300px; overflow-y: auto; display: grid; }
-.opcao { cursor: pointer; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; text-align: left; padding: 8px 10px; border: 0; border-radius: 8px; background: none; cursor: pointer; }
+.opcao { cursor: pointer; display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; text-align: left; padding: 8px 10px; border: 0; border-radius: 8px; background: none; cursor: pointer; }
 .opcao:hover, .opcao:focus-visible, .opcao[aria-selected="true"] { background: var(--roxo-suave); }
 .opcao b { font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
-.opcao small { color: var(--suave); grid-column: 1; }
-.opcao .etiqueta { grid-row: 1 / span 2; grid-column: 2; align-self: center; }
+.opcao small { color: var(--suave); grid-column: 2; }
+.opcao .etiqueta { grid-row: 1 / span 2; grid-column: 3; align-self: center; }
+.opcao .miniatura { grid-row: 1 / span 2; }
+.miniatura.mini { width: 40px; height: 40px; }
+.miniatura.mini .ic { width: 20px; height: 20px; }
+.seletor-foto { position: absolute; z-index: 1; left: 6px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+.seletor-foto[hidden] { display: none; }
+.seletor-campo.com-foto { padding-left: 56px; min-height: 52px; }
 .etiqueta.sem { background: var(--superficie-2); color: var(--suave); }
 .etiqueta.com { background: var(--verde-suave); color: var(--verde); }
 
@@ -583,3 +589,28 @@ table.faixas input { width: 96px; min-height: 34px; padding: 0 8px; border: 1px 
 .estado-mascote[role="status"] .mascote-img { width: 96px; }
 .aviso-repetido { margin-top: 8px; padding: 8px 12px; border-left: 3px solid var(--laranja); background: var(--laranja-suave); border-radius: 6px; }
 .aviso-repetido p { margin: 0 0 4px; }
+
+/* selo da empresa em uso: canto superior direito, fixo no topo do conteúdo, em todas as telas (Ellie 13/11) */
+.barra-empresa { position: sticky; top: 0; z-index: 12; display: flex; justify-content: flex-end; margin: -32px -32px 8px 0; padding: 10px 32px 10px 0; background: var(--fundo); }
+.barra-empresa[hidden] { display: none; }
+.selo-caixa { position: relative; max-width: 100%; }
+.selo-empresa { display: inline-flex; align-items: center; gap: 8px; max-width: 100%; min-height: 40px; margin: 0; padding: 6px 12px; border: 1px solid var(--lima-forte); border-radius: 999px; background: var(--lima-claro); color: var(--texto); font: 600 13px/1.2 var(--fonte); }
+button.selo-empresa { cursor: pointer; }
+button.selo-empresa:hover { background: var(--lima); }
+.selo-empresa .ic { flex: none; }
+.selo-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.selo-papel { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--superficie); font-size: 11px; font-weight: 700; color: var(--suave); }
+.selo-seta { flex: none; font-size: 11px; }
+.selo-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.troca-empresa { position: absolute; right: 0; top: calc(100% + 6px); z-index: 13; display: grid; gap: 6px; width: max(240px, 100%); padding: 12px; background: var(--superficie); border: 1px solid var(--linha); border-radius: 10px; box-shadow: var(--sombra); }
+.troca-empresa label { font-size: 12px; font-weight: 700; }
+.barra-salvar { top: 68px; } /* a barra "Salvar taxas" gruda abaixo do selo */
+.empresa-cartao { gap: 12px; }
+.empresa-cartao h2 { font-size: 16px; }
+.empresa-cartao p { margin: 0; }
+.linha-form { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.linha-form .campo { flex: 1 1 220px; }
+@media (max-width: 760px) {
+  .barra-empresa { margin: -64px -16px 12px 0; padding: 12px 16px 8px 52px; }
+}
+@media (pointer: coarse) { .selo-empresa { min-height: 44px; } }
