@@ -114,3 +114,26 @@ test('liquidação: desconto máximo sobre o preço DE, 1 casa, sempre para baix
   assert.equal(descontoMaximo(0, 50), 0);
   assert.ok(descontoMaximo(100, 120) < 0); // liquidação acima do preço atual
 });
+
+// Mercado Livre: cada tipo de anúncio guarda a sua comissão própria.
+const ml = canal('mercadolivre');
+test('ML: comissão própria antiga (um número) vira a do tipo que estava escolhido', async () => {
+  const { comissoesProprias } = await import('../src/calculos/canal.js');
+  assert.deepEqual(comissoesProprias({ ...ml, tipo_anuncio: 'premium', comissao_propria: 11.5 }), { classico: 0, premium: 11.5 });
+  assert.deepEqual(comissoesProprias({ ...ml, tipo_anuncio: 'classico', comissao_propria: 9 }), { classico: 9, premium: 0 });
+  // a conta não muda com a migração
+  const antigo = { ...ml, tipo_anuncio: 'premium', comissao_propria: 11.5 };
+  const novo = { ...ml, tipo_anuncio: 'premium', comissao_propria: comissoesProprias(antigo) };
+  assert.equal(calcularMargem({ preco: 300, cmv: 50, canal: antigo }).margem, calcularMargem({ preco: 300, cmv: 50, canal: novo }).margem);
+});
+
+test('ML: trocar Clássico <-> Premium mantém os valores dos dois e a conta usa o do tipo escolhido', () => {
+  const canal = { ...ml, comissao: { classico: 14, premium: 19 }, comissao_propria: { classico: 0, premium: 12 } };
+  const classico = { ...canal, tipo_anuncio: 'classico' };
+  const premium = { ...classico, tipo_anuncio: 'premium' };
+  const deVolta = { ...premium, tipo_anuncio: 'classico' };
+  assert.equal(calcularMargem({ preco: 100, cmv: 30, canal: classico }).comissaoPercentual, 14, 'Clássico sem própria: comissão da categoria');
+  assert.equal(calcularMargem({ preco: 100, cmv: 30, canal: premium }).comissaoPercentual, 12, 'Premium: a própria dele');
+  assert.equal(calcularMargem({ preco: 100, cmv: 30, canal: deVolta }).comissaoPercentual, 14);
+  assert.deepEqual(deVolta.comissao_propria, { classico: 0, premium: 12 }, 'nada se perde na troca');
+});

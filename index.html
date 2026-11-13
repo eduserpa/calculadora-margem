@@ -8,14 +8,41 @@
   <link rel="apple-touch-icon" href="assets/calculeo-icone-180.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&family=Grandstander:wght@900&display=swap">
+  <!-- Fontes sem travar a primeira pintura: o texto aparece na fonte do sistema e troca quando a fonte chega (display=swap). -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&family=Grandstander:wght@900&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&family=Grandstander:wght@900&display=swap"></noscript>
   <link rel="stylesheet" href="css/estilo.css">
+  <!-- O login precisa do supabase-js logo de início: começa a baixar junto com a página, em vez de esperar o app.js. -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/+esm" crossorigin>
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.115.0/+esm" crossorigin>
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.115.0/+esm" crossorigin>
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.115.0/+esm" crossorigin>
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.115.0/+esm" crossorigin>
+  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.115.0/+esm" crossorigin>
   <script type="module" src="src/app.js"></script>
 </head>
 <body>
+  <div class="abrindo" id="abrindo" role="status">
+    <picture>
+      <source media="(prefers-reduced-motion: reduce)" data-srcset="assets/mascote/carregando-parado.webp">
+      <img data-src="assets/mascote/carregando.webp" alt="" width="200" height="195" fetchpriority="high">
+    </picture>
+    <p>Abrindo o Calculéo…</p>
+  </div>
+  <script>
+    // O leão animado (253 KB) só é baixado quando o app vai mesmo abrir (há sessão ou link de login no endereço);
+    // sem sessão aparece o login na hora e esta imagem não disputa a banda com ele.
+    try {
+      if (Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)) || /access_token|[?&]code=|type=recovery/.test(location.href)) {
+        document.querySelectorAll('#abrindo [data-srcset]').forEach((s) => (s.srcset = s.dataset.srcset));
+        document.querySelectorAll('#abrindo [data-src]').forEach((i) => (i.src = i.dataset.src));
+      }
+    } catch {}
+  </script>
   <main class="login" id="login" hidden>
     <div class="login-cartao">
-      <img class="login-mascote" id="login-mascote" src="assets/mascote/login.webp" alt="" width="180" height="180">
+      <img class="login-mascote" id="login-mascote" src="assets/mascote/login.webp" alt="" width="420" height="375" fetchpriority="high">
       <h1>Calculéo</h1>
       <p class="login-frase" id="login-frase">Bora calcular essa margem?</p>
       <form id="login-form" novalidate>
@@ -23,7 +50,12 @@
         <label class="campo"><span>Senha</span><input type="password" id="login-senha" autocomplete="current-password" minlength="8" required></label>
         <button type="submit" class="botao principal" id="login-entrar">Entrar</button>
         <button type="button" class="link-botao" id="login-modo">Primeiro acesso? Crie sua senha</button>
+        <button type="button" class="link-botao" id="login-esqueci" hidden>Esqueci a senha</button>
         <button type="button" class="link-botao" id="login-link">Prefiro receber um link por e-mail</button>
+      </form>
+      <form id="nova-senha-form" novalidate hidden>
+        <label class="campo"><span>Nova senha</span><input type="password" id="nova-senha" autocomplete="new-password" minlength="8" required></label>
+        <button type="submit" class="botao principal">Salvar nova senha</button>
       </form>
       <p class="login-msg" id="login-msg" role="status"></p>
       <button type="button" class="botao" id="login-sair" hidden>Sair</button>
@@ -32,12 +64,12 @@
   <div class="app" hidden>
     <aside class="lateral" id="menu-lateral">
       <div class="lateral-topo">
-        <div class="marca"><img src="assets/calculeo-icone.webp" alt="" width="44" height="44" class="marca-logo"><span class="marca-txt">Calculéo<br><span>Calculadora de Margem</span></span></div>
+        <a href="#inicio" class="marca" title="Ir para o Início"><img src="assets/calculeo-icone.webp" alt="" width="44" height="44" class="marca-logo"><span class="marca-txt">Calculéo<br><span>Calculadora de Margem</span></span></a>
         <button type="button" class="lateral-alternar" id="lateral-fechar" aria-controls="menu-lateral" aria-expanded="true" aria-label="Ocultar menu lateral" title="Ocultar menu"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#chevrons-left"></use></svg></button>
       </div>
-      <div id="seletor-empresa" class="seletor-empresa" hidden></div>
       <nav class="menu" aria-label="Telas">
         <p class="menu-titulo">Principal</p>
+        <a href="#inicio" class="aba" data-aba="inicio"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#building-2"></use></svg>Início</a>
         <a href="#calculadora" class="aba" data-aba="calculadora"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#percent"></use></svg>Calculadora de Margem</a>
         <a href="#produtos" class="aba" data-aba="produtos"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#package"></use></svg>Meus Produtos</a>
         <p class="menu-titulo">Ajustes</p>
@@ -57,10 +89,22 @@
     <main class="conteudo">
       <button type="button" class="abrir-menu" id="lateral-abrir" aria-controls="menu-lateral" aria-expanded="true" aria-label="Mostrar menu lateral" title="Mostrar menu" hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#menu"></use></svg></button>
       <div id="barra-empresa" class="barra-empresa" data-nuvem hidden></div>
-      <p class="aviso" id="aviso-geral" role="status" hidden></p>
+      <div class="toast" id="toast">
+        <p class="aviso" id="aviso-geral" role="status" hidden></p>
+        <button type="button" class="toast-fechar" aria-label="Fechar aviso"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#x"></use></svg></button>
+      </div>
 
       <!-- Calculadora -->
-      <section id="tela-calculadora" class="tela" aria-labelledby="titulo-calculadora">
+      <!-- Início -->
+      <section id="tela-inicio" class="tela" aria-labelledby="titulo-inicio">
+        <header class="titulo-tela">
+          <h1 id="titulo-inicio">Início</h1>
+          <p>Suas margens, pelos preços salvos na Calculadora</p>
+        </header>
+        <div id="inicio-corpo"></div>
+      </section>
+
+      <section id="tela-calculadora" class="tela" aria-labelledby="titulo-calculadora" hidden>
         <header class="titulo-tela centro">
           <h1 id="titulo-calculadora"><span class="icone-titulo"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#percent"></use></svg></span>Calculadora de Margem</h1>
           <p>Selecione um produto e descubra sua margem real por canal</p>
@@ -69,7 +113,7 @@
 
         <div class="cartao produto-escolhido" id="c-produto-cartao">
           <div class="cartao-topo">
-            <h2 id="c-produto-titulo">Selecione o Produto</h2>
+            <h2 id="c-produto-titulo">Produto</h2>
             <a class="botao contorno pequeno" href="#produtos">Gerenciar Produtos</a>
           </div>
           <div class="seletor">
@@ -94,7 +138,7 @@
           <p class="nota">* calculado automaticamente pelo preço de venda</p>
         </div>
 
-        <p class="vazio-canal" id="c-sem-canal">Selecione um canal de venda para precificar</p>
+        <p class="dica-canal" id="c-sem-canal"><span class="seta" aria-hidden="true">↑</span> Clique num canal acima para ver o preço, a margem e o lucro</p>
         <div class="calc" id="c-calc">
           <div class="cartao com-faixa azul">
             <h2 class="faixa-titulo">Precificação</h2>
@@ -145,11 +189,15 @@
             <h1 id="titulo-produtos">Meus Produtos</h1>
             <p>Cadastre e gerencie os custos dos seus produtos</p>
           </div>
-          <div class="acoes-planilha">
-            <button type="button" class="botao" id="exportar-precos" title="Planilha com preço, margem, lucro e preço mínimo de cada produto em cada canal salvo"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#download"></use></svg> Exportar preços</button>
-            <button type="button" class="botao" id="importar-planilha"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#upload"></use></svg> Importar planilha</button>
-            <button type="button" class="botao principal" id="novo-produto"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#plus"></use></svg> Novo Produto</button>
-            <button type="button" class="botao" id="copiar-produtos" hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#copy"></use></svg> Copiar produtos de outra empresa</button>
+          <div class="acoes-produtos">
+            <div class="grupo">
+              <button type="button" class="botao principal" id="novo-produto"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#plus"></use></svg> Adicionar produto</button>
+              <button type="button" class="botao" id="copiar-produtos" hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#copy"></use></svg> Clonar de outra empresa</button>
+            </div>
+            <div class="grupo">
+              <button type="button" class="botao" id="exportar-precos" title="Planilha com preço, margem, lucro e preço mínimo de cada produto em cada canal salvo"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#download"></use></svg> Exportar preços</button>
+              <button type="button" class="botao" id="importar-planilha"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#upload"></use></svg> Importar planilha</button>
+            </div>
           </div>
         </header>
         <div class="filtros">
@@ -167,6 +215,10 @@
             <option value="cmv-menor">CMV (menor)</option>
             <option value="cmv-maior">CMV (maior)</option>
           </select>
+          <div class="alternar compacto vista" role="radiogroup" aria-label="Ver como">
+            <label title="Cartões"><input type="radio" name="vista" value="cartoes" aria-label="Cartões" checked><span><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#layout-grid"></use></svg></span></label>
+            <label title="Lista"><input type="radio" name="vista" value="lista" aria-label="Lista"><span><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#list"></use></svg></span></label>
+          </div>
         </div>
         <div id="lista-produtos"></div>
       </section>
@@ -175,15 +227,13 @@
       <section id="tela-configuracoes" class="tela" aria-labelledby="titulo-configuracoes" hidden>
         <header class="titulo-tela">
           <h1 id="titulo-configuracoes">Taxas dos Canais</h1>
-          <p>Quanto cada canal cobra, com a fonte de cada número. A calculadora usa estes valores. Também dá para ajustar pela engrenagem em cada canal da calculadora.</p>
+          <p>Quanto cada canal cobra. A Calculadora usa estes valores; "Editar" abre o mesmo ajuste da engrenagem da Calculadora.</p>
         </header>
         <div id="imposto-empresa" class="cartao imposto-empresa" data-nuvem hidden></div>
         <div class="barra-salvar">
           <span id="cfg-estado" class="sub"></span>
           <div class="direita">
-            <button type="button" class="botao discreto" id="cfg-padrao-tudo">Voltar tudo ao padrão</button>
-            <button type="button" class="botao" id="cfg-descartar" hidden>Descartar mudanças</button>
-            <button type="button" class="botao principal" id="cfg-salvar" disabled>Salvar taxas</button>
+            <button type="button" class="botao" id="cfg-padrao-tudo" hidden>Voltar tudo ao padrão</button>
           </div>
         </div>
         <div id="lista-canais" class="lista-canais"></div>
@@ -200,10 +250,10 @@
           <h2>Convidar pessoa</h2>
           <div class="linha-convite">
             <label class="campo"><span>E-mail</span><input type="email" id="convite-email" class="campo-texto" autocomplete="off" required placeholder="nome@empresa.com.br"></label>
-            <label class="campo"><span>Papel</span><select id="convite-papel" class="campo-texto"><option value="membro">Membro</option><option value="dono">Dono</option></select></label>
+            <div class="campo"><span id="convite-papel-rotulo">Papel</span><div class="alternar" role="radiogroup" aria-labelledby="convite-papel-rotulo"><label><input type="radio" name="convite-papel" value="membro" checked><span>Membro</span></label><label><input type="radio" name="convite-papel" value="dono"><span>Admin</span></label></div></div>
             <button type="submit" class="botao principal">Convidar</button>
           </div>
-          <p class="dica">Membro usa a calculadora e os produtos. Dono também convida e remove pessoas.</p>
+          <p class="dica">Membro usa a calculadora e os produtos. Admin também convida e remove pessoas.</p>
         </form>
         <p id="equipe-estado" class="dica" role="status" tabindex="-1"></p>
         <div id="equipe-lista" class="cartao"></div>
@@ -221,7 +271,7 @@
         <div id="historico-lista" class="cartao"></div>
       </section>
 
-      <p class="versao">Versão Alpha 1</p>
+      <p class="versao"><span class="versao-rotulo">Versão</span> <span class="versao-num" id="versao-num">Alpha 1.1.0</span></p>
     </main>
   </div>
 
@@ -230,5 +280,15 @@
   <dialog id="janela-importar" class="janela pequena" aria-labelledby="titulo-importar"></dialog>
   <dialog id="janela-planilha" class="janela pequena" aria-labelledby="titulo-planilha"></dialog>
   <dialog id="janela-copiar" class="janela pequena" aria-labelledby="titulo-copiar"></dialog>
+  <dialog id="janela-empresa" class="janela pequena" aria-labelledby="titulo-nova-empresa"></dialog>
+  <script>
+    // Sem sessão guardada (e sem link de login no endereço), o login aparece já, antes de o app terminar de carregar.
+    try {
+      if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)) && !/access_token|[?&]code=|type=recovery/.test(location.href)) {
+        document.getElementById('abrindo').hidden = true;
+        document.getElementById('login').hidden = false;
+      }
+    } catch {}
+  </script>
 </body>
 </html>

@@ -1,7 +1,9 @@
 // Custo e peso de um produto cadastrado (usa as funções de src/calculos).
 import { custoRevenda, custoFabricacao, custoKit } from './calculos/custo-produto.js';
 import { pesoParaFrete } from './calculos/peso.js';
-import { dados } from './dados.js';
+import { dados, canais } from './dados.js';
+import { calcularMargem } from './calculos/margem.js';
+import { precoPor } from './calculos/preco-de-por.js';
 
 export const porId = () => new Map(dados.produtos.map((p) => [p.id, p]));
 
@@ -22,6 +24,22 @@ export const kitIncompleto = (p, mapa = porId()) =>
   p.tipoCusto === 'kit' && (p.kit ?? []).some((i) => !mapa.has(i.produtoId));
 
 export const pesoDoProduto = (p) => pesoParaFrete(p.pesoG, p.comprimento, p.largura, p.altura);
+
+// Cada preço salvo na Calculadora (produto × canal) com a conta feita: { produto, canalId, canal, preco, cmv, pesoG, r }.
+// Usado pela Início e pela planilha de preços.
+export function precosSalvos() {
+  const mapa = porId();
+  return dados.produtos.flatMap((produto) => {
+    const cmv = custoDoProduto(produto, mapa);
+    const pesoG = pesoDoProduto(produto);
+    return Object.entries(dados.precificacoes?.[produto.id] ?? {}).flatMap(([canalId, salvo]) => {
+      const canal = canais()?.[canalId];
+      const preco = precoPor(salvo.de, salvo.desconto);
+      if (!canal || !(preco > 0)) return [];
+      return [{ produto, canalId, canal, preco, cmv, pesoG, r: calcularMargem({ preco, cmv, canal, pesoG }) }];
+    });
+  });
+}
 
 export const kitsQueUsam = (id) => dados.produtos.filter((p) => p.tipoCusto === 'kit' && (p.kit ?? []).some((i) => i.produtoId === id));
 

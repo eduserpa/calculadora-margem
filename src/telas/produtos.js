@@ -4,6 +4,7 @@ import { dados, salvar, novoId } from '../dados.js';
 import { porId, custoDoProduto, kitIncompleto, pesoDoProduto, kitsQueUsam, produtoVazio, exemplos } from '../produtos.js';
 import { lerNumero, reais, campo, campoReais, gramas, esc } from '../formato.js';
 import { capa, prepararFoto, MAX_FOTOS } from '../fotos.js';
+import { htmlVazio } from './mascote.js';
 
 const $ = (s, raiz = document) => raiz.querySelector(s);
 const janela = () => $('#janela-produto');
@@ -13,10 +14,27 @@ const ETIQUETA = { revenda: 'Revenda', fabricacao: 'Fabricante', kit: 'Kit' };
 let rasc = null; // produto sendo editado
 let unidadePeso = 'g';
 let confirmarExclusao = false;
+const CHAVE_VISTA = 'calculadora-margem.vista-produtos';
+let vista = 'cartoes'; // 'cartoes' | 'lista', lembrada no navegador
+try {
+  if (localStorage.getItem(CHAVE_VISTA) === 'lista') vista = 'lista';
+} catch {
+  // sem armazenamento: cartões
+}
 
 export function iniciarProdutos() {
   $('#novo-produto').addEventListener('click', () => abrir());
   ['#busca', '#filtro-tipo', '#ordem'].forEach((s) => $(s).addEventListener('input', desenharLista));
+  $(`.vista input[value="${vista}"]`).checked = true;
+  $('.vista').addEventListener('change', (e) => {
+    vista = e.target.value;
+    try {
+      localStorage.setItem(CHAVE_VISTA, vista);
+    } catch {
+      // sem armazenamento: vale só agora
+    }
+    desenharLista();
+  });
   $('#lista-produtos').addEventListener('click', (e) => {
     const editar = e.target.closest('[data-editar]');
     if (editar) abrir(editar.dataset.editar);
@@ -70,9 +88,8 @@ export function desenharLista() {
   if (!dados.produtos.length) {
     alvo.innerHTML = `
       <div class="vazio">
-        <img class="mascote" src="assets/calculeo-mascote.webp" alt="" width="180" height="163">
         <h2>Nenhum produto cadastrado ainda</h2>
-        <p>Cadastre o primeiro produto com o custo dele. Se quiser só testar, carregue três produtos de exemplo.</p>
+        ${htmlVazio('calculando', 'Bora cadastrar o primeiro?', 'Cadastre um produto com o custo dele. Se quiser só testar, carregue três produtos de exemplo.')}
         <div class="acoes">
           <button type="button" class="botao principal" id="primeiro-produto">Cadastrar Primeiro Produto</button>
           <button type="button" class="botao" id="carregar-exemplos">Carregar exemplos</button>
@@ -96,7 +113,27 @@ export function desenharLista() {
     .filter((p) => !termo || semAcento(p.nome).includes(termo) || semAcento(p.sku).includes(termo))
     .sort(ordens[$('#ordem').value]);
   if (!lista.length) {
-    alvo.innerHTML = '<div class="vazio"><p>Nenhum produto encontrado com esse filtro.</p></div>';
+    alvo.innerHTML = `<div class="vazio">${htmlVazio('404', 'Nenhum produto com esse filtro.', 'Confira o nome ou o SKU, ou mude o filtro.')}</div>`;
+    return;
+  }
+  const alerta = (p) => (kitIncompleto(p, mapa) ? '<span class="etiqueta alerta">item excluído</span>' : '');
+  const canais = (p) => (precificacoes(p.id) ? `<strong class="bom">${precificacoes(p.id)} canal(is)</strong>` : '<span>Nenhuma</span>');
+  const acoes = (p) => `<span class="acoes-cartao"><button type="button" class="botao pequeno" data-editar="${p.id}">Editar</button><button type="button" class="botao pequeno perigo" data-excluir="${p.id}" aria-label="Excluir ${esc(p.nome)}" title="Excluir">${icone('trash-2')}</button></span>`;
+  if (vista === 'lista') {
+    // No celular cada linha vira um bloco (CSS), com o rótulo de cada dado vindo do data-rotulo.
+    alvo.innerHTML = `<div class="cartao tabela-produtos"><table>
+      <thead><tr><th><span class="sr">Foto</span></th><th>Produto</th><th class="num">CMV</th><th class="num">Peso</th><th>Precificações</th><th>Atualizado em</th><th><span class="sr">Ações</span></th></tr></thead>
+      <tbody>${lista.map((p) => `
+        <tr>
+          <td class="tp-foto"><span class="miniatura">${capa(p)}</span></td>
+          <td class="tp-nome"><strong title="${esc(p.nome)}">${esc(p.nome)}</strong>${p.sku ? `<small class="ref">Ref: ${esc(p.sku)}</small>` : ''}</td>
+          <td class="num tp-cmv" data-rotulo="CMV">${reais(custo.get(p.id))}${alerta(p)}</td>
+          <td class="num tp-peso" data-rotulo="Peso">${gramas(Number(p.pesoG) || 0)}</td>
+          <td class="tp-canais" data-rotulo="Precificações">${canais(p)}</td>
+          <td class="tp-data" data-rotulo="Atualizado em">${dataCurta(p.atualizadoEm)}</td>
+          <td class="tp-acoes">${acoes(p)}</td>
+        </tr>`).join('')}
+      </tbody></table></div>`;
     return;
   }
   alvo.innerHTML = `<div class="lista-cartoes">${lista.map((p) => `
@@ -105,12 +142,12 @@ export function desenharLista() {
       <div class="produto-corpo">
         <h2 title="${esc(p.nome)}">${esc(p.nome)}</h2>
         ${p.sku ? `<p class="ref">Ref: ${esc(p.sku)}</p>` : ''}
-        <div class="linha-dado"><span>CMV:<span class="etiqueta ${p.tipoCusto}">${ETIQUETA[p.tipoCusto]}</span>${kitIncompleto(p, mapa) ? '<span class="etiqueta alerta">item excluído</span>' : ''}</span><strong>${reais(custo.get(p.id))}</strong></div>
+        <div class="linha-dado"><span>CMV:<span class="etiqueta ${p.tipoCusto}">${ETIQUETA[p.tipoCusto]}</span>${alerta(p)}</span><strong>${reais(custo.get(p.id))}</strong></div>
         <div class="linha-dado"><span>Peso:</span><strong>${gramas(Number(p.pesoG) || 0)}</strong></div>
-        <div class="linha-dado"><span>Precificações:</span>${precificacoes(p.id) ? `<strong class="bom">${precificacoes(p.id)} canal(is)</strong>` : '<span>Nenhuma</span>'}</div>
+        <div class="linha-dado"><span>Precificações:</span>${canais(p)}</div>
       </div>
       <div class="produto-base"><span>Atualizado em ${dataCurta(p.atualizadoEm)}</span>
-        <span class="acoes-cartao"><button type="button" class="botao pequeno" data-editar="${p.id}">Editar</button><button type="button" class="botao pequeno perigo" data-excluir="${p.id}" aria-label="Excluir ${esc(p.nome)}" title="Excluir">${icone('trash-2')}</button></span></div>
+        ${acoes(p)}</div>
     </article>`).join('')}</div>`;
 }
 

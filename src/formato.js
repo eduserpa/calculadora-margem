@@ -24,6 +24,8 @@ export const campoReais = (v) => (v ? numero(v, 2) : '');
 export const porcento = (v, casas = 1) => `${numero(v, casas)}%`;
 
 export const gramas = (g) => `${Math.round(g).toLocaleString('pt-BR')} g`;
+// Peso curto: em kg a partir de 1.000 g (1,8 kg), em g abaixo disso.
+export const peso = (g) => (g >= 1000 ? `${(g / 1000).toLocaleString('pt-BR', { maximumFractionDigits: 1 })} kg` : gramas(g));
 
 export const esc = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);

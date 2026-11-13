@@ -1,10 +1,9 @@
 // Planilhas em Meus Produtos: importar produtos (modelo, prévia, só grava ao confirmar) e exportar as precificações.
 import { icone } from '../icones.js';
-import { dados, salvar, novoId, canais } from '../dados.js';
+import { dados, salvar, novoId } from '../dados.js';
 import { modelo, decodificar, prepararImportacao, baixar, csvPrecificacoes } from '../planilha.js';
-import { custoDoProduto, pesoDoProduto } from '../produtos.js';
-import { calcularMargem, precoMinimo } from '../calculos/margem.js';
-import { precoPor } from '../calculos/preco-de-por.js';
+import { custoDoProduto, precosSalvos } from '../produtos.js';
+import { precoMinimo } from '../calculos/margem.js';
 import { esc, reais } from '../formato.js';
 import { imgMascote } from './mascote.js';
 import { aviso } from '../app.js';
@@ -49,7 +48,7 @@ function desenhar(p, erro = '') {
            ${quantos ? `<ul class="lista-previa">${[...p.novos.map((n) => `<li>Novo: ${nomeComSku(n)}</li>`), ...p.atualizados.map(linhaAtualizado)].slice(0, 50).join('')}</ul>${quantos > 50 ? `<p class="dica">e mais ${quantos - 50}.</p>` : ''}` : ''}
            ${p.erros.length ? `<ul class="lista-erros">${p.erros.slice(0, 50).map((e) => `<li>Linha ${e.linha}: ${esc(e.motivo)}</li>`).join('')}</ul>${p.erros.length > 50 ? `<p class="dica">e mais ${p.erros.length - 50}.</p>` : ''}` : ''}
            ${p.erros.length && quantos ? '<p class="dica">As linhas com erro ficam de fora.</p>' : ''}`
-        : `<div class="intro-mascote">${imgMascote('copiar', 72)}<p>Uma linha por produto. Se o SKU já existir, o produto é atualizado; célula vazia mantém o valor de hoje.</p></div>
+        : `<div class="intro-mascote">${imgMascote('planilha', 72)}<p>Uma linha por produto. Se o SKU já existir, o produto é atualizado; célula vazia mantém o valor de hoje.</p></div>
            <p class="dica">Colunas do modelo: nome, sku, tipo (revenda ou fabricante), custo (R$), peso_g, comprimento_cm, largura_cm, altura_cm e foto_url. Só nome e custo são obrigatórios. No Excel: Arquivo › Salvar como › CSV.</p>
            <div class="acoes-planilha">
              <button type="button" class="botao" data-acao="modelo">${icone('download')} Baixar modelo</button>
@@ -62,6 +61,8 @@ function desenhar(p, erro = '') {
       ${quantos ? `<button type="button" class="botao principal" data-acao="gravar">Importar ${quantos} produto(s)</button>` : ''}
     </div></div>`;
   if (!janela().open) janela().showModal();
+  const $j = (s) => janela().querySelector(s);
+  ($j('[data-acao="gravar"]') ?? $j('[data-acao="escolher"]') ?? $j('[data-acao="outro"]'))?.focus();
 }
 
 function gravar() {
@@ -90,17 +91,9 @@ function linhaAtualizado(p) {
 
 // Uma linha por produto x canal com preço salvo na Calculadora.
 function exportarPrecificacoes() {
-  const linhas = dados.produtos.flatMap((p) => {
-    const cmv = custoDoProduto(p);
-    const pesoG = pesoDoProduto(p);
-    return Object.entries(dados.precificacoes?.[p.id] ?? {}).flatMap(([idCanal, salvo]) => {
-      const canal = canais()[idCanal];
-      const preco = precoPor(salvo.de, salvo.desconto);
-      if (!canal || !(preco > 0)) return [];
-      const r = calcularMargem({ preco, cmv, canal, pesoG });
-      const minimo = precoMinimo({ cmv, canal, pesoG, margemDesejada: MARGEM_DESEJADA });
-      return [{ produto: p.nome, sku: p.sku, canal: canal.nome, preco, margem: r.margem, lucro: r.lucro, minimo: minimo || NaN }]; // NaN: margem inalcançável, célula vazia
-    });
+  const linhas = precosSalvos().map(({ produto, canal, preco, cmv, pesoG, r }) => {
+    const minimo = precoMinimo({ cmv, canal, pesoG, margemDesejada: MARGEM_DESEJADA });
+    return { produto: produto.nome, sku: produto.sku, canal: canal.nome, preco, margem: r.margem, lucro: r.lucro, minimo: minimo || NaN }; // NaN: margem inalcançável, célula vazia
   });
   baixar(`precificacoes-${new Date().toISOString().slice(0, 10)}.csv`, csvPrecificacoes(linhas));
 }

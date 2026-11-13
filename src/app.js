@@ -1,10 +1,12 @@
 import { carregar, aoMudar, paraArquivo, lerArquivo, substituirTudo, dados, usarGuardado, lerDoNavegador } from './dados.js';
 import * as nuvem from './nuvem.js';
+import { VERSAO, ESQUECI_SENHA } from './config.js';
 import { iniciarProdutos, desenharLista } from './telas/produtos.js';
 import { iniciarCalculadora, desenharTudo } from './telas/calculadora.js';
 import { iniciarConfiguracoes, aoMudarDados } from './telas/configuracoes.js';
 import { iniciarConfigurarCanal } from './telas/configurar-canal.js';
 import { iniciarPlanilhas } from './telas/planilhas.js';
+import { iniciarInicio } from './telas/inicio.js';
 import { iniciarNuvemTelas } from './telas/empresa.js'; // equipe, histórico e empresa: chamar depois do login e dos dados carregados
 
 const $ = (s) => document.querySelector(s);
@@ -13,6 +15,7 @@ function mostrarTela() {
   const telas = [...document.querySelectorAll('.tela')].map((t) => t.id.replace('tela-', ''));
   const atual = telas.includes(location.hash.slice(1)) ? location.hash.slice(1) : telas[0];
   telas.forEach((t) => ($(`#tela-${t}`).hidden = t !== atual));
+  scrollTo(0, 0); // tela nova sempre abre no topo (senão herdava a rolagem da anterior)
   document.querySelectorAll('.aba').forEach((a) =>
     a.dataset.aba === atual ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'),
   );
@@ -91,15 +94,21 @@ function janelaImportar(conteudo, erro) {
         ${erro ? '' : '<button type="submit" class="botao principal" value="substituir">Substituir tudo</button>'}
       </div></div>
     </form>`;
-  j.onclose = () => {
-    if (j.returnValue !== 'substituir' || !substituirTudo(conteudo)) return;
-    aviso('Dados importados. Enviando para a nuvem...', true);
-    nuvem.anotarImportacao(`Arquivo com ${conteudo.produtos.length} produto(s)`)
-      .then(() => aviso('Dados importados e salvos na nuvem.', true))
-      .catch((e) => aviso(e.message));
+  j.onclose = async () => {
+    if (j.returnValue !== 'substituir') return;
+    aviso('Gravando os produtos e os preços…', true);
+    try {
+      if (!(await nuvem.gravarImportacao(() => substituirTudo(conteudo)))) return;
+      await nuvem.anotarImportacao(`Arquivo com ${conteudo.produtos.length} produto(s)`);
+      aviso('Dados importados e salvos na nuvem.', true);
+      await levarFotosParaStorage(); // depois dos dados: mostra "N de M" e, se a aba fechar, continua na próxima abertura
+    } catch (e) {
+      aviso(e.message);
+    }
   };
   j.returnValue = '';
   j.showModal();
+  j.querySelector('[value="cancelar"]').focus(); // substituir tudo pede escolha, não Enter
 }
 
 async function importar(e) {
@@ -126,6 +135,7 @@ function ligar(nome, fn) {
 // ---------- login (só ele aparece até a pessoa entrar) ----------
 
 function mostrarLogin(texto = '', logada = false) {
+  $('#abrindo').hidden = true;
   $('#login').hidden = false;
   $('#login-form').hidden = logada;
   $('#login-sair').hidden = !logada;
@@ -155,6 +165,31 @@ function iniciarLogin() {
       $('#login-entrar').disabled = false;
     }
   });
+  $('#login-esqueci').hidden = !ESQUECI_SENHA;
+  $('#login-esqueci').addEventListener('click', async () => {
+    if (!$('#login-email').value.trim()) return msg('Digite o seu e-mail primeiro.');
+    msg('Mandando...');
+    try {
+      await nuvem.esqueciSenha($('#login-email').value);
+      $('#login-mascote').src = 'assets/mascote/email.webp';
+      $('#login-frase').textContent = 'Link enviado! Confira seu e-mail.';
+      msg('Abra o e-mail e clique no link para criar uma senha nova.');
+      $('#login-form').hidden = true;
+    } catch (erro) {
+      msg(erro.message);
+    }
+  });
+  $('#nova-senha-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg('Salvando...');
+    try {
+      await nuvem.trocarSenha($('#nova-senha').value);
+      history.replaceState(null, '', location.pathname);
+      location.reload();
+    } catch (erro) {
+      msg(erro.message);
+    }
+  });
   $('#login-link').addEventListener('click', async () => {
     if (!$('#login-email').value.trim()) return msg('Digite o seu e-mail primeiro.');
     msg('Mandando...');
@@ -170,10 +205,16 @@ function iniciarLogin() {
   });
 }
 
-// 1º login com a nuvem vazia e dados neste navegador: oferece levar.
+// 1º login com a nuvem vazia e dados neste navegador: oferece levar (a não ser que a pessoa tenha pedido para não ver mais).
+const CHAVE_NAO_LEVAR = 'calculadora-margem.nao-oferecer-levar';
 function oferecerLevarDados() {
   const local = lerDoNavegador();
   if (dados.produtos.length || !local?.produtos?.length) return;
+  try {
+    if (localStorage.getItem(CHAVE_NAO_LEVAR)) return;
+  } catch {
+    // sem armazenamento: oferece
+  }
   const j = $('#janela-importar');
   j.innerHTML = `
     <form method="dialog">
@@ -181,37 +222,82 @@ function oferecerLevarDados() {
       <div class="janela-corpo">
         <p>Este navegador tem <strong>${local.produtos.length} produto(s)</strong> guardados só nele. Levando para a nuvem, a equipe vê também.</p>
         <p class="dica">A cópia neste navegador continua guardada.</p>
+        <label class="ligar"><input type="checkbox" id="nao-oferecer-levar"><span>Não mostrar de novo neste navegador</span></label>
       </div>
       <div class="janela-base"><div class="direita">
         <button type="submit" class="botao" value="nao">Agora não</button>
         <button type="submit" class="botao principal" value="levar">Levar meus dados para a nuvem</button>
       </div></div>
     </form>`;
-  j.onclose = () => {
-    if (j.returnValue !== 'levar') return;
-    substituirTudo({ produtos: local.produtos, canais: local.canais ?? null, precificacoes: local.precificacoes ?? {}, empresa: local.empresa ?? null });
-    aviso('Levando para a nuvem...', true);
-    nuvem.anotarImportacao(`Dados do navegador: ${local.produtos.length} produto(s)`)
-      .then(() => aviso('Pronto: seus dados estão na nuvem.', true))
-      .catch((e) => aviso(e.message));
+  j.onclose = async () => {
+    if (j.returnValue !== 'levar') {
+      // "Agora não" (ou Esc) com a caixinha marcada: não oferece mais neste navegador; os dados locais ficam como estão.
+      if (j.querySelector('#nao-oferecer-levar').checked) {
+        try {
+          localStorage.setItem(CHAVE_NAO_LEVAR, '1');
+        } catch {
+          // sem armazenamento: volta a oferecer na próxima vez
+        }
+      }
+      return;
+    }
+    aviso('Levando para a nuvem…', true);
+    try {
+      await nuvem.gravarImportacao(() => substituirTudo({ produtos: local.produtos, canais: local.canais ?? null, precificacoes: local.precificacoes ?? {}, empresa: local.empresa ?? null }));
+      await nuvem.anotarImportacao(`Dados do navegador: ${local.produtos.length} produto(s)`);
+      aviso('Pronto: seus dados estão na nuvem.', true);
+      await levarFotosParaStorage();
+    } catch (e) {
+      aviso(e.message);
+    }
   };
   j.returnValue = '';
   j.showModal();
+  j.querySelector('[value="levar"]').focus();
+}
+
+// Fotos que ainda estão dentro do banco vão para o Storage (só o dono dispara; uma vez, depois some sozinho).
+async function levarFotosParaStorage() {
+  const pendentes = dados.produtos.filter((p) => (p.fotos ?? []).some((f) => String(f).startsWith('data:'))).length;
+  if (!pendentes) return;
+  const sobrou = await nuvem.migrarFotos((feitas, total) => aviso(`Guardando as fotos na nuvem: ${feitas} de ${total}…`, true));
+  if (sobrou) aviso(`${sobrou} foto(s) ainda não subiram. Elas continuam salvas; tento de novo na próxima vez que você abrir.`);
+  else aviso('Fotos guardadas na nuvem. Agora a lista de produtos abre mais rápido.', true);
+  desenharLista();
+}
+
+function temSessaoGuardada() {
+  try {
+    return Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k));
+  } catch {
+    return true; // sem acesso ao armazenamento: pergunta ao Supabase
+  }
 }
 
 async function iniciar() {
+  const recuperando = /type=recovery/.test(location.hash); // voltou pelo link de "Esqueci a senha" (antes do login limpar o endereço)
   // As telas trocam primeiro, para nunca aparecerem todas juntas.
   window.addEventListener('hashchange', mostrarTela);
   mostrarTela();
+  $('#versao-num').textContent = VERSAO; // a versão mora em src/config.js
   iniciarLogin();
+  // Sem sessão guardada e sem link de login no endereço: o login aparece na hora, sem esperar a biblioteca do Supabase.
+  if (!temSessaoGuardada() && !/access_token|[?&]code=|type=recovery/.test(location.href)) return mostrarLogin();
   try {
     if (!(await nuvem.pessoaLogada())) return mostrarLogin();
-    if (!(await nuvem.prepararEmpresa())) return mostrarLogin('Seu e-mail ainda não está em nenhuma empresa. Peça um convite ao dono.', true);
+    if (recuperando) {
+      mostrarLogin('Escolha a sua senha nova (pelo menos 8 caracteres).');
+      $('#login-form').hidden = true;
+      $('#nova-senha-form').hidden = false;
+      return $('#nova-senha').focus();
+    }
+    if (!(await nuvem.prepararEmpresa())) return mostrarLogin('Seu e-mail ainda não está em nenhuma empresa. Peça um convite ao admin.', true);
     usarGuardado(nuvem.guardadoNaNuvem);
     await carregar();
   } catch (erro) {
     return mostrarLogin(/canais\.json|JSON/.test(erro.message) ? 'Não deu para carregar as taxas dos canais. Recarregue a página.' : erro.message || 'Não deu para falar com o servidor. Confira a internet e recarregue.', Boolean(nuvem.emailAtual()));
   }
+  $('#abrindo').hidden = true;
   $('.app').hidden = false;
   nuvem.quandoFalhar((e) => aviso(`Não deu para salvar na nuvem (${e.message}). Confira a internet e faça a alteração de novo.`));
   aoMudar((ok) => {
@@ -225,6 +311,7 @@ async function iniciar() {
   ligar('produtos', iniciarProdutos);
   ligar('planilhas', iniciarPlanilhas);
   ligar('calculadora', iniciarCalculadora);
+  ligar('início', iniciarInicio);
   ligar('taxas dos canais', iniciarConfiguracoes);
   ligar('configurar canal', iniciarConfigurarCanal);
   ligar('exportar e importar', () => {
@@ -234,6 +321,7 @@ async function iniciar() {
   });
   ligar('equipe, histórico e empresa', iniciarNuvemTelas);
   oferecerLevarDados();
+  if (nuvem.souDono()) levarFotosParaStorage();
 }
 
 iniciar();

@@ -1,5 +1,7 @@
 // Como cada canal aparece na tela: resumo do cartão, quadro da regra e nomes dos custos.
 import { esc } from './formato.js';
+import { icone } from './icones.js';
+import { comissaoPropria } from './calculos/canal.js';
 
 export const pct = (v) => `${(Number(v) || 0).toLocaleString('pt-BR', { maximumFractionDigits: 2 })}%`;
 const real = (v) =>
@@ -19,12 +21,34 @@ export const TITULO_DO_GRUPO = { marketplace: 'Taxa Marketplace', loja: 'Custos 
 const SIGLA = { shopee: ['S', '#e8563a'], mercadolivre: ['ML', '#3a4a9c'], shein: ['SH', '#2b2b2b'], tiktokshop: ['TT', '#1f1f1f'], lojapropria: ['LP', '#7a4fe0'], atacado: ['AT', '#6b7280'], lojafisica: ['LF', '#2f7d70'] };
 export const sigla = (id, c) => SIGLA[id] ?? [c.nome.slice(0, 2).toUpperCase(), '#6b6880'];
 
+// Ícone de cada canal (assets/canais). Canal sem ícone (um criado depois) fica com as letras.
+const ICONE_CANAL = {
+  shopee: 'shopee', mercadolivre: 'mercado-livre', shein: 'shein', tiktokshop: 'tiktok',
+  lojapropria: 'loja-propria', atacado: 'atacado', lojafisica: 'loja-fisica',
+};
+// Ícone do canal (cartões da Calculadora e de Taxas dos Canais): a imagem, ou as letras se não houver.
+export function iconeDoCanal(id, c) {
+  if (ICONE_CANAL[id]) return `<img class="canal-icone" src="assets/canais/${ICONE_CANAL[id]}.webp" alt="" width="46" height="46">`;
+  const [letras, cor] = sigla(id, c);
+  return `<span class="canal-sigla" style="--cor:${cor}" aria-hidden="true">${letras}</span>`;
+}
+
 function extras(c) {
   return (Number(c.frete_absorvido) || 0) + (Number(c.embalagem) || 0) + (Number(c.outros) || 0);
 }
 
 // Linhas do cartão do canal na calculadora (html).
-export function linhasDoCanal(c) {
+// comIcones (tela Taxas dos Canais, Eduardo 13/11): cada linha ganha o ícone do seu tipo, sempre o mesmo em todos os cartões
+const ICONE_LINHA = { Comissão: 'percent', 'Taxa fixa': 'coins', Impostos: 'receipt', Frete: 'truck', Vendedora: 'user', 'Taxa fin.': 'credit-card',
+  'Taxa fin./plat.': 'credit-card', 'Custos extras': 'circle-plus', 'Vendedor CPF': 'user', Cupom: 'ticket', Afiliado: 'users' };
+const comIcone = (html) => html.replace(/<span([^>]*)>([^:<]+?)(:|<\/span>)/g, (m, attrs, rotulo, fim) => `<span${attrs}>${icone(ICONE_LINHA[rotulo.trim()] ?? 'info')}${rotulo}${fim}`);
+
+export function linhasDoCanal(c, comIcones = false) {
+  const html = linhasDoCanalTexto(c);
+  return comIcones ? comIcone(html) : html;
+}
+
+function linhasDoCanalTexto(c) {
   const imp = `<span class="t-roxo">Impostos: ${pct(c.impostos)}</span>`;
   const linhas = [];
   const venda = tipoDeVenda(c);
@@ -32,7 +56,7 @@ export function linhasDoCanal(c) {
     linhas.push('<span class="t-laranja">Comissão: Variável*</span>', '<span class="t-laranja">Taxa fixa: Variável*</span>', imp);
     if (c.frete_percentual) linhas.push(`<span class="t-suave">Frete: ${pct(c.frete_percentual)} (até ${real(c.frete_teto)})</span>`);
   } else if (c.tipo === 'mercadolivre') {
-    const propria = Number(c.comissao_propria);
+    const propria = comissaoPropria(c);
     const tipo = c.tipo_anuncio === 'premium' ? 'premium' : 'classico';
     linhas.push(
       propria > 0
@@ -60,7 +84,7 @@ export function resumoDoCanal(c) {
   let cobra;
   if (c.tipo === 'faixas') cobra = 'por faixa de preço';
   else if (c.tipo === 'mercadolivre') {
-    const propria = Number(c.comissao_propria);
+    const propria = comissaoPropria(c);
     cobra = `${propria > 0 ? pct(propria) : c.tipo_anuncio === 'premium' ? 'Premium' : 'Clássico'} + frete`;
   } else if (Number(c.comissao) || Number(c.taxa_fixa)) cobra = `${pct(c.comissao)}${Number(c.taxa_fixa) ? ` + ${reaisCheio(c.taxa_fixa)}` : ''}`;
   else cobra = 'sem comissão';
@@ -85,12 +109,12 @@ function faixaDoFrete(frete, abaixoDe79) {
 }
 
 // Quadro com a regra do canal, no topo da janela "Configurar".
-export function quadroDaRegra(id, c) {
+export function quadroDaRegra(id, c, extraTitulo = '', botao = '') {
   if (c.tipo === 'faixas') {
     const linhas = faixasEmTexto(c.faixas).map((f) => `<tr><td>${f.valor}</td><td>${f.comissao}</td></tr>`).join('');
     return `
       <div class="regra laranja">
-        <strong>Comissão por faixa de preço${id === 'shopee' ? ' (CNPJ)' : ''}</strong>
+        <div class="regra-topo"><strong>Comissão por faixa de preço${id === 'shopee' ? ' (CNPJ)' : ''} ${extraTitulo}</strong>${botao}</div>
         <table><thead><tr><th>Valor do item</th><th>Comissão</th></tr></thead><tbody>${linhas}</tbody></table>
         <p class="pe">Calculada automaticamente pelo preço de venda.${id === 'shopee' ? ' Inclui taxa de transação.' : ''}${c.faixas_vigente_desde ? ` Tabela vigente desde ${data(c.faixas_vigente_desde)}.` : ''}</p>
         ${c.frete_percentual ? `<p class="pe">Mais a taxa de frete: ${pct(c.frete_percentual)} do preço, no máximo ${reaisCheio(c.frete_teto)} por produto.</p>` : ''}
@@ -114,7 +138,7 @@ export function quadroDaRegra(id, c) {
 
 // Nota do Mercado Livre embaixo de Clássico/Premium.
 export function notaDoMercadoLivre(c) {
-  const propria = Number(c.comissao_propria);
+  const propria = comissaoPropria(c);
   const r = c.faixa_reduzida;
   const faixa = `de ${reaisCheio(r.de)} a ${reaisCheio(r.ate)}`;
   if (propria > 0) return `Com comissão própria, vale ${pct(propria)} em qualquer preço, sem o desconto ${faixa}.`;

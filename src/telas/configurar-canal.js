@@ -3,6 +3,7 @@ import { icone } from '../icones.js';
 import { dados, salvar, canais, canaisDePadrao } from '../dados.js';
 import { quadroDaRegra, notaDoMercadoLivre, tipoDeVenda, faixasEmTexto, data } from '../canais-texto.js';
 import { lerNumero, campo, campoReais, esc } from '../formato.js';
+import { comissoesProprias } from '../calculos/canal.js';
 
 const $ = (s, raiz = document) => raiz.querySelector(s);
 const janela = () => $('#janela-canal');
@@ -30,6 +31,7 @@ export function iniciarConfigurarCanal() {
 export async function abrirConfigurarCanal(idCanal) {
   id = idCanal;
   rasc = structuredClone(canais()[id]);
+  if (rasc.tipo === 'mercadolivre') rasc.comissao_propria = comissoesProprias(rasc); // um valor por tipo de anúncio
   if (rasc.tipo_vendedor) rasc.tipo_vendedor = 'cnpj'; // a empresa vende como CNPJ
   editando = false;
   if (rasc.tipo === 'mercadolivre' && !categorias) {
@@ -41,6 +43,8 @@ export async function abrirConfigurarCanal(idCanal) {
   }
   desenhar();
   janela().showModal();
+  // 1º campo da janela (no ML, a escolha marcada de Clássico/Premium, lá em cima)
+  janela().querySelector('.janela-corpo input:checked[type="radio"], .janela-corpo input:not([type="radio"]):not([type="checkbox"]), .janela-corpo select')?.focus();
 }
 
 // ---------- pedaços de formulário ----------
@@ -67,11 +71,11 @@ function info(...fontes) {
 const fixo = (rotulo, texto) => `<div class="campo"><span>${rotulo}</span><strong class="fixo">${texto}</strong></div>`;
 const pctFixo = (v) => `${campo(v) || '0'}%`;
 
-// Barra da regra: lápis para editar; editando, "Voltar ao padrão" e "Pronto".
-const barraDaRegra = (...fontes) => `
-  <div class="barra-regra">${info(...fontes)}${editando
-    ? `<button type="button" class="botao pequeno" data-acao="padrao">Voltar ao padrão</button><button type="button" class="botao pequeno" data-acao="pronto">${icone('check')} Pronto</button>`
-    : `<button type="button" class="botao pequeno" data-acao="editar">${icone('pencil')} Editar</button>`}</div>`;
+// A regra fica fixa; o lápis (só ícone, ao lado do título do quadro) libera para editar. Editando, a barra mostra
+// "Voltar ao padrão" e "Pronto". O "i" da fonte fica no rótulo que ele explica.
+const lapis = (rotulo) => `<button type="button" class="engrenagem" data-acao="editar" title="${rotulo}" aria-label="${rotulo}">${icone('pencil')}</button>`;
+const barraDaRegra = () => (editando ? `
+  <div class="barra-regra"><button type="button" class="botao pequeno" data-acao="padrao">Voltar ao padrão</button><button type="button" class="botao pequeno" data-acao="pronto">${icone('check')} Pronto</button></div>` : '');
 
 function valor(caminho) {
   return caminho.split('.').reduce((o, p) => (o == null ? undefined : o[p]), rasc);
@@ -85,17 +89,17 @@ function definir(caminho, v) {
 
 function faixas() {
   const fontes = [[rasc.faixas_fonte, rasc.faixas_conferido_em], [rasc.frete_fonte, rasc.frete_conferido_em]];
-  if (!editando) return `${barraDaRegra(...fontes)}${quadroDaRegra(id, rasc)}`;
+  if (!editando) return quadroDaRegra(id, rasc, info(...fontes), lapis('Editar faixas'));
   const frete = rasc.frete_percentual != null ? `<div class="grade">${porcento('Taxa de frete (% do preço)', 'frete_percentual')}${dinheiro('Teto da taxa de frete (R$)', 'frete_teto')}</div>` : '';
-  return `${barraDaRegra(...fontes)}${faixasEditaveis()}${frete}`;
+  return `${barraDaRegra()}${faixasEditaveis(info(...fontes))}${frete}`;
 }
 
-function faixasEditaveis() {
+function faixasEditaveis(infoFonte = '') {
   const ultima = rasc.faixas.length - 1;
   const textos = faixasEmTexto(rasc.faixas);
   return `
     <div class="regra laranja">
-      <strong>Comissão por faixa de preço</strong>
+      <strong>Comissão por faixa de preço ${infoFonte}</strong>
       <table class="faixas editaveis">
         <thead><tr><th>Valor do item</th><th>Até (R$)</th><th>Comissão (%)</th><th>Taxa fixa (R$)</th><th><span hidden>Tirar</span></th></tr></thead>
         <tbody>${rasc.faixas.map((f, i) => `
@@ -114,6 +118,7 @@ function faixasEditaveis() {
 
 function opcoesMercadoLivre() {
   const tipo = rasc.tipo_anuncio === 'premium' ? 'premium' : 'classico';
+  const nome = tipo === 'premium' ? 'Premium' : 'Clássico';
   const r = rasc.faixa_reduzida;
   const rep = rasc.reputacao || 'verde';
   const semTabela = !['verde', 'sem'].includes(rep) && !rasc.frete_por_reputacao?.[rep];
@@ -125,24 +130,21 @@ function opcoesMercadoLivre() {
       </div>
       <p class="dica" id="nota-ml">${esc(notaDoMercadoLivre(rasc))}</p>
     </div>
-    ${barraDaRegra([rasc.comissao_fonte, rasc.comissao_conferido_em], [rasc.faixa_reduzida_fonte, rasc.faixa_reduzida_conferido_em])}
+    ${barraDaRegra()}
     <div class="secao">
-      <p class="secao-titulo">Comissão da categoria</p>
-      <div class="grade">${editando
-        ? `${porcento('Clássico (%)', 'comissao.classico')}${porcento('Premium (%)', 'comissao.premium')}`
-        : `${fixo('Clássico', pctFixo(rasc.comissao.classico))}${fixo('Premium', pctFixo(rasc.comissao.premium))}`}</div>
+      <div class="regra-topo"><p class="secao-titulo">Comissão da categoria (${nome}) ${info([rasc.comissao_fonte, rasc.comissao_conferido_em])}</p>${editando ? '' : lapis('Editar comissões')}</div>
+      <div class="grade">${editando ? porcento(`${nome} (%)`, `comissao.${tipo}`) : fixo(nome, pctFixo(rasc.comissao[tipo]))}</div>
     </div>
-    ${porcento('Comissão própria (opcional)', 'comissao_propria', 'Se preencher, vale no lugar das comissões acima.')}
+    ${porcento(`Comissão própria do ${nome} (opcional)`, `comissao_propria.${tipo}`, 'Se preencher, vale no lugar da comissão da categoria.')}
     <div class="secao">
-      <p class="secao-titulo">Comissão menor de R$ ${campoReais(r.de)} a R$ ${campoReais(r.ate)}</p>
+      <p class="secao-titulo">Comissão menor de R$ ${campoReais(r.de)} a R$ ${campoReais(r.ate)} ${info([rasc.faixa_reduzida_fonte, rasc.faixa_reduzida_conferido_em])}</p>
       <label class="campo"><span>Categoria do produto</span>
         <input type="text" list="lista-categorias-ml" id="categoria-ml" value="${esc(rasc.categoria)}" placeholder="Digite para buscar na lista oficial..." autocomplete="off">
         <datalist id="lista-categorias-ml"><option value="Outra categoria (sem redução)"></option>${(categorias ?? []).map((c) => `<option value="${esc(c[0])}"></option>`).join('')}</datalist>
       </label>
       <div class="grade">${editando
-        ? `${dinheiro('De (R$)', 'faixa_reduzida.de')}${dinheiro('Até (R$)', 'faixa_reduzida.ate')}
-           ${porcento('Redução Clássico (pontos)', 'faixa_reduzida.reducao.classico')}${porcento('Redução Premium (pontos)', 'faixa_reduzida.reducao.premium')}`
-        : `${fixo('Redução Clássico', pctFixo(r.reducao.classico))}${fixo('Redução Premium', pctFixo(r.reducao.premium))}`}</div>
+        ? `${dinheiro('De (R$)', 'faixa_reduzida.de')}${dinheiro('Até (R$)', 'faixa_reduzida.ate')}${porcento(`Redução ${nome} (pontos)`, `faixa_reduzida.reducao.${tipo}`)}`
+        : fixo(`Redução ${nome}`, pctFixo(r.reducao[tipo]))}</div>
     </div>
     <label class="campo"><span>Reputação da conta</span>
       <select data-c="reputacao">${Object.entries(REPUTACOES).map(([v, t]) => `<option value="${v}" ${v === rep ? 'selected' : ''}>${t}</option>`).join('')}</select>

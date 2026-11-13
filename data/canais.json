@@ -69,7 +69,7 @@
       },
       "faixa_reduzida_fonte": "https://www.mercadolivre.com.br/ajuda/51251 : a comissão menor de R$ 150 a R$ 700 vale só para as categorias da lista (data/ml-categorias.json), cada uma com seus pontos. Sem categoria escolhida, ficam os pontos 2 (Clássico) e 4 (Premium) do app de referência: conferir escolhendo a categoria.",
       "faixa_reduzida_conferido_em": "2026-11-12",
-      "comissao_propria": 0,
+      "comissao_propria": { "classico": 0, "premium": 0 },
       "frete": {
         "precos_a_partir_de": [0, 19, 49, 79, 100, 120, 150, 200],
         "pesos_ate_g": [

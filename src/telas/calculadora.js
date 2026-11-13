@@ -5,14 +5,15 @@ import { dados, canais, salvar } from '../dados.js';
 import { porId, custoDoProduto, pesoDoProduto } from '../produtos.js';
 import { calcularMargem, precoMinimo } from '../calculos/margem.js';
 import { precoPor, descontoPeloPor, descontoMaximo } from '../calculos/preco-de-por.js';
-import { lerNumero, reais, numero, campo, campoReais, gramas, esc } from '../formato.js';
-import { linhasDoCanal, sigla, tipoDeVenda, TITULO_DO_GRUPO, pct } from '../canais-texto.js';
+import { lerNumero, reais, numero, campo, campoReais, gramas, peso, esc } from '../formato.js';
+import { linhasDoCanal, iconeDoCanal, tipoDeVenda, TITULO_DO_GRUPO, pct } from '../canais-texto.js';
 import { abrirConfigurarCanal } from './configurar-canal.js';
 import { capa } from '../fotos.js';
 
 const $ = (s) => document.querySelector(s);
 const CHAVE = 'calculadora-margem.tela';
 const AVULSO = '__avulso';
+const DICA_CAIXA = 'O Mercado Livre cobra o frete pelo maior entre o peso real e o peso da caixa (comprimento × largura × altura ÷ 6.000). Nesta peça, a caixa pesa mais.';
 const MARGEM_LIQUIDACAO = 5;
 const semAcento = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const comReais = (v) => (v ? `R$ ${campoReais(v)}` : '');
@@ -130,9 +131,8 @@ export function iniciarCalculadora() {
   $('#c-usar-minimo').addEventListener('click', () => {
     const minimo = Number($('#c-usar-minimo').dataset.preco);
     if (!minimo) return;
-    const p = precoDoCanal();
-    if (!(p.de > 0) || minimo > p.de) Object.assign(p, { de: minimo, desconto: 0 });
-    else p.desconto = descontoPeloPor(p.de, minimo);
+    // vira o preço de venda, sem desconto (antes mantinha o DE e inventava um desconto até o mínimo)
+    Object.assign(precoDoCanal(), { de: minimo, desconto: 0 });
     preencherPrecos();
     atualizar();
   });
@@ -154,11 +154,19 @@ export function desenharTudo() {
   atualizar();
 }
 
+// Para outras telas (Início): abre a Calculadora já no produto e no canal.
+export function abrirNaCalculadora(produtoId, canal) {
+  location.hash = 'calculadora';
+  escolherProduto(produtoId);
+  if (canal && canais()[canal]) escolherCanal(canal);
+}
+
 function escolherProduto(id) {
   estado.produtoId = id;
-  estado.canal = '';
-  // Começa com os preços já salvos deste produto em cada canal.
+  // Começa com os preços já salvos deste produto em cada canal; com um canal só, já abre nele.
   estado.precos = structuredClone(id && id !== AVULSO ? salvas(id) : {});
+  const comPreco = Object.keys(estado.precos).filter((c) => canais()[c]);
+  estado.canal = comPreco.length === 1 ? comPreco[0] : '';
   desenharProdutos();
   desenharCanais();
   preencherPrecos();
@@ -262,14 +270,13 @@ function desenharCanais() {
   const primeiro = Object.keys(canais())[0];
   $('#c-canais').innerHTML = Object.entries(canais())
     .map(([id, c]) => {
-      const [letras, cor] = sigla(id, c);
       const s = produtoSalvo[id];
       const preco = s ? precoPor(s.de, s.desconto) : 0;
       const resumo = s && preco > 0 && cmv > 0 ? calcularMargem({ preco, cmv, canal: c, pesoG }) : null;
       return `
         <div class="canal-caixa">
           <button type="button" class="canal" role="radio" aria-checked="${id === estado.canal}" tabindex="${id === (estado.canal || primeiro) ? 0 : -1}" data-canal="${id}">
-            <span class="canal-sigla" style="--cor:${cor}" aria-hidden="true">${letras}</span>
+            ${iconeDoCanal(id, c)}
             <span class="canal-nome">${esc(c.nome)}</span>
             <span class="canal-linhas">${linhasDoCanal(c)}</span>
             ${resumo ? `<span class="canal-salvo">Preço: ${reais(preco)} · Margem: ${numero(resumo.margem, 1)}%</span>` : ''}
@@ -357,15 +364,23 @@ function htmlResultado(r, canal, pesoG) {
     </div>`;
 }
 
-// Mascote só nas pontas: margem excelente (comemora) e prejuízo (bolsos vazios). A entrada só anima quando ele aparece ou troca,
+// Um leão por faixa da margem, embaixo da barra, com uma dica curta. A entrada só anima quando a faixa muda,
 // não a cada tecla (o cartão é redesenhado a cada número digitado).
 let mascoteAntes = null;
+const LEAO_DA_FAIXA = {
+  'Prejuízo': ['prejuizo', 445, 420, 'Assim o leão passa fome! Suba o preço ou corte custos.'],
+  'Margem crítica': ['margem-critica', 382, 420, 'Tá roendo as unhas: qualquer frete extra vira prejuízo.'],
+  'Margem baixa': ['margem-baixa', 360, 350, 'Cada moedinha conta. Fuja de cupom neste preço.'],
+  'Margem razoável': ['margem-razoavel', 300, 360, 'Dá pro gasto, mas dá pra melhorar.'],
+  'Margem boa': ['margem-boa', 360, 338, 'Bom negócio! Dá pra crescer com segurança.'],
+  'Margem muito boa': ['margem-muito-boa', 360, 287, 'Margem de leão: sobra espaço para anúncio.'],
+  'Margem excelente': ['sucesso', 387, 420, 'Rugido de campeão! Só confira se o cliente aceita esse preço.'],
+};
 function mascoteDaAnalise(f) {
-  const m = f.rotulo === 'Margem excelente' ? ['sucesso', 'Margem de leão! Esse preço rende bem.', 130]
-    : f.rotulo === 'Prejuízo' ? ['prejuizo', 'Assim o leão passa fome!', 131] : null;
-  const entra = m && m[0] !== mascoteAntes;
-  mascoteAntes = m?.[0] ?? null;
-  return m ? `<div class="mascote-analise"><img src="assets/mascote/${m[0]}.webp" alt="" width="120" height="${m[2]}" class="mascote-img${entra ? ' mascote-entra' : ''}" decoding="async"><p>${m[1]}</p></div>` : '';
+  const [img, largura, altura, dica] = LEAO_DA_FAIXA[f.rotulo];
+  const entra = img !== mascoteAntes;
+  mascoteAntes = img;
+  return `<div class="mascote-analise"><img src="assets/mascote/${img}.webp" alt="" width="${largura}" height="${altura}" class="mascote-img${entra ? ' mascote-entra' : ''}" decoding="async"><p>${dica}</p></div>`;
 }
 
 function htmlAnalise(margem) {
@@ -374,10 +389,10 @@ function htmlAnalise(margem) {
   return `
     <div class="analise-topo"><h2>Análise da margem</h2><span>${f.faixa}</span></div>
     <h3 class="${f.classe}">${f.frase}</h3>
-    ${mascoteDaAnalise(f)}
     <div class="marcador" style="margin-top:28px" data-alvo="${posicao}"><b style="left:${posicaoMarcador ?? posicao}%">${numero(margem, 1)}%</b><i style="left:${posicaoMarcador ?? posicao}%"></i></div>
     <div class="barra-faixas" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-    <div class="escala">${[-10, 0, 10, 20, 25, 40, 50].map((v) => `<span style="left:${((v + 10) / 60) * 100}%">${v}%${v === 50 ? '+' : ''}</span>`).join('')}</div>`;
+    <div class="escala">${[-10, 0, 10, 20, 25, 40, 50].map((v) => `<span style="left:${((v + 10) / 60) * 100}%">${v}%${v === 50 ? '+' : ''}</span>`).join('')}</div>
+    ${mascoteDaAnalise(f)}`;
 }
 
 function atualizar() {
@@ -389,11 +404,11 @@ function atualizar() {
   $('#c-seletor-foto').hidden = !produto;
   $('#c-seletor-foto').innerHTML = produto ? capa(produto) : '';
   $('#c-seletor').classList.toggle('com-foto', Boolean(produto));
-  $('#c-produto-titulo').innerHTML = produto ? `<span class="miniatura">${capa(produto)}</span>${esc(produto.nome)}${produto.sku ? ` <span class="sub">(${esc(produto.sku)})</span>` : ''}` : 'Selecione o Produto';
   $('#c-avulso').hidden = estado.produtoId !== AVULSO;
   const pelaCaixa = produto && pesoG > (Number(produto.pesoG) || 0);
   $('#c-info-produto').innerHTML = produto
-    ? `<span>CMV: <strong>${reais(cmv)}</strong></span><span>Peso: <strong>${gramas(Number(produto.pesoG) || 0)}</strong></span>${pelaCaixa ? `<span>Frete do ML calculado como <strong>${gramas(pesoG)}</strong> (caixa grande)</span>` : ''}`
+    ? `<span class="pilula">CMV <strong>${reais(cmv)}</strong></span><span class="pilula">Peso <strong>${peso(Number(produto.pesoG) || 0)}</strong></span>${pelaCaixa
+      ? `<span class="pilula">Frete ML: <strong>${peso(pesoG)}</strong> pela caixa <span class="info-pilula" tabindex="0" role="img" aria-label="${DICA_CAIXA}" title="${DICA_CAIXA}">${icone('info')}</span></span>` : ''}`
     : '';
   $('#c-exemplo').hidden = true;
   $('#c-sem-canal').hidden = Boolean(estado.canal);

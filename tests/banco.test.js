@@ -159,8 +159,8 @@ test('banco: histórico gravado pelo banco, só leitura para a empresa', async (
   assert.deepEqual(await linhas(db, 'authenticated', CAIO, 'select quem, acao, detalhe from historico order by id'), [
     { quem: 'caio@a.com', acao: 'Produto criado', detalhe: 'Pia (P-1)' },
     { quem: 'caio@a.com', acao: 'Produto alterado', detalhe: 'Pia (P-1)' },
-    { quem: 'ana@a.com', acao: 'Preço salvo', detalhe: 'Pia · shopee · R$ 120.00 com 10% de desconto' },
-    { quem: 'ana@a.com', acao: 'Taxa do canal alterada', detalhe: 'shopee' },
+    { quem: 'ana@a.com', acao: 'Preço salvo', detalhe: 'Pia · Shopee · R$ 120,00 com 10% de desconto' },
+    { quem: 'ana@a.com', acao: 'Taxa do canal alterada', detalhe: 'Shopee' },
     { quem: 'ana@a.com', acao: 'Imposto da empresa alterado', detalhe: '12%' },
     { quem: 'ana@a.com', acao: 'Importação', detalhe: '3 produtos' },
     { quem: 'caio@a.com', acao: 'Produto excluído', detalhe: 'Pia (P-1)' },
@@ -182,7 +182,7 @@ test('banco: copiar produtos entre empresas leva cadastro, não leva preços nem
     delete from historico;
   `);
   await assert.rejects(como(db, 'authenticated', ANA, `select copiar_produtos('${A}', '${B}')`), /duas empresas suas/, 'só quem está nas duas');
-  assert.deepEqual(await linhas(db, 'authenticated', DUDA, `select * from previa_copia('${A}', '${B}')`), [{ nome: 'Banco', sku: '1058', situacao: 'atualizado' }]);
+  assert.deepEqual(await linhas(db, 'authenticated', DUDA, `select id, nome, sku, foto, situacao from previa_copia('${A}', '${B}')`), [{ id: BANCO_A, nome: 'Banco', sku: '1058', foto: 'data:image/webp;base64,AAA', situacao: 'atualizado' }]);
   assert.deepEqual((await linhas(db, 'authenticated', DUDA, `select copiar_produtos('${A}', '${B}') r`))[0].r, { novos: 0, atualizados: 1 });
 
   const b = (await db.query(`select * from produtos where empresa_id = '${B}' and sku = '1058'`)).rows[0];
@@ -224,6 +224,7 @@ test('banco: copiar com SKU repetido cria novo em vez de sobrescrever', async ()
 
 test('banco: a correção 01 roda por cima de um banco já criado', async () => {
   const db = await bancoComDados();
+  await db.exec('drop function previa_copia(uuid, uuid); drop function copiar_produtos(uuid, uuid, uuid[]);'); // como era o banco antes da 05
   await db.exec(ler('../supabase/correcao-01-copiar.sql'));
   await db.exec(ler('../supabase/correcao-01-copiar.sql')); // rodar 2 vezes não quebra
   await db.exec(`insert into produtos (empresa_id, nome, sku, tipo_custo) values ('${A}', 'Outro banco', '1058', 'revenda')`);
@@ -255,8 +256,103 @@ test('banco: a correção 02 roda por cima de um banco já criado', async () => 
   assert.equal((await como(db, 'authenticated', CAIO, `update empresas set nome = 'x' where id = '${A}'`)).affectedRows, 0);
 });
 
+test('banco: dono muda o papel; a empresa nunca fica sem dono', async () => {
+  const db = await bancoComDados();
+  const papel = async (u, e = A) => (await db.query(`select papel from membros where usuario_id = '${u}' and empresa_id = '${e}'`)).rows[0].papel;
+  await assert.rejects(como(db, 'anon', null, `select mudar_papel('${A}', '${CAIO}', 'dono')`), /permission denied/);
+  await assert.rejects(como(db, 'authenticated', CAIO, `select mudar_papel('${A}', '${CAIO}', 'dono')`), /só o dono/, 'membro não se promove');
+  await assert.rejects(como(db, 'authenticated', BIA, `select mudar_papel('${A}', '${CAIO}', 'dono')`), /só o dono/, 'dono de outra empresa não mexe');
+  await assert.rejects(como(db, 'authenticated', ANA, `select mudar_papel('${A}', '${CAIO}', 'chefe')`), /papel inválido/);
+  await assert.rejects(como(db, 'authenticated', ANA, `select mudar_papel('${A}', '${BIA}', 'dono')`), /não está na empresa/);
+  await assert.rejects(como(db, 'authenticated', ANA, `select mudar_papel('${A}', '${ANA}', 'membro')`), /pelo menos um dono/, 'único dono não se rebaixa');
+  await como(db, 'authenticated', ANA, `select mudar_papel('${A}', '${CAIO}', 'dono')`);
+  assert.equal(await papel(CAIO), 'dono');
+  await como(db, 'authenticated', CAIO, `select mudar_papel('${A}', '${ANA}', 'membro')`); // agora há 2 donos: pode rebaixar um
+  assert.equal(await papel(ANA), 'membro');
+  await assert.rejects(como(db, 'authenticated', CAIO, `select mudar_papel('${A}', '${CAIO}', 'membro')`), /pelo menos um dono/, 'o último dono não cai');
+  assert.equal(await papel(DUDA, B), 'membro', 'a outra empresa não muda');
+  assert.deepEqual(await linhas(db, 'authenticated', ANA, `select quem, detalhe from historico where acao = 'Papel alterado' order by id`), [
+    { quem: 'ana@a.com', detalhe: 'Papel de caio@a.com: membro → dono' },
+    { quem: 'caio@a.com', detalhe: 'Papel de ana@a.com: dono → membro' },
+  ]);
+  assert.equal((await linhas(db, 'authenticated', BIA, `select * from historico where acao = 'Papel alterado'`)).length, 0);
+});
+
+test('banco: a correção 03 roda por cima de um banco já criado', async () => {
+  const db = await bancoComDados();
+  await db.exec(ler('../supabase/correcao-03-papel.sql'));
+  await db.exec(ler('../supabase/correcao-03-papel.sql'));
+  await como(db, 'authenticated', ANA, `select mudar_papel('${A}', '${CAIO}', 'dono')`);
+  await assert.rejects(como(db, 'anon', null, `select mudar_papel('${A}', '${CAIO}', 'membro')`), /permission denied/);
+});
+
+test('banco: correção 04 deixa o bucket de fotos com leitura pública e roda 2 vezes', async () => {
+  const db = await bancoComDados();
+  await db.exec(`update storage.buckets set public = false where id = 'fotos'`); // como estava antes
+  await db.exec(ler('../supabase/correcao-04-fotos.sql'));
+  await db.exec(ler('../supabase/correcao-04-fotos.sql'));
+  assert.deepEqual((await db.query(`select public from storage.buckets where id = 'fotos'`)).rows, [{ public: true }]);
+  await assert.rejects(como(db, 'authenticated', ANA, `insert into storage.objects values ('fotos', '${B}/x.webp')`), /row-level security/, 'gravar continua só na própria pasta');
+});
+
+test('banco: clonar só os produtos escolhidos (null = todos)', async () => {
+  const db = await bancoComDados();
+  const [p1, p2] = ['00000000-0000-0000-0000-0000000000e1', '00000000-0000-0000-0000-0000000000e2'];
+  await db.exec(`insert into produtos (id, empresa_id, nome, sku, tipo_custo) values ('${p1}', '${A}', 'Pia', 'P-1', 'revenda'), ('${p2}', '${A}', 'Ralo', 'R-1', 'revenda')`);
+  const nomesB = async () => (await db.query(`select nome from produtos where empresa_id = '${B}' order by nome`)).rows.map((r) => r.nome);
+  assert.deepEqual((await linhas(db, 'authenticated', DUDA, `select copiar_produtos('${A}', '${B}', array['${p1}']::uuid[]) r`))[0].r, { novos: 1, atualizados: 0 });
+  assert.deepEqual(await nomesB(), ['Pia', 'Suporte'], 'só a escolhida');
+  assert.deepEqual((await linhas(db, 'authenticated', DUDA, `select copiar_produtos('${A}', '${B}', array[]::uuid[]) r`))[0].r, { novos: 0, atualizados: 0 }, 'nenhuma escolhida, nada');
+  assert.deepEqual((await linhas(db, 'authenticated', DUDA, `select copiar_produtos('${A}', '${B}', null) r`))[0].r, { novos: 2, atualizados: 1 }, 'null: todas (Pia de novo entra pelo SKU)');
+  assert.deepEqual(await nomesB(), ['Banco', 'Pia', 'Ralo', 'Suporte']);
+  await assert.rejects(como(db, 'authenticated', ANA, `select copiar_produtos('${A}', '${B}', array['${p1}']::uuid[])`), /duas empresas suas/, 'quem não é das 2 não clona');
+  await assert.rejects(como(db, 'authenticated', DUDA, `select copiar_produtos('${A}', '${A}', null)`), /duas empresas suas/);
+  // um id de outra empresa na lista não vaza nada: só se copia o que é da origem
+  assert.deepEqual((await linhas(db, 'authenticated', DUDA, `select copiar_produtos('${A}', '${B}', array['00000000-0000-0000-0000-0000000000f2']::uuid[]) r`))[0].r, { novos: 0, atualizados: 0 });
+});
+
+test('banco: a correção 05 roda por cima de um banco já criado (sem versão antiga sobrando)', async () => {
+  const db = await bancoComDados();
+  await db.exec('drop function previa_copia(uuid, uuid); drop function copiar_produtos(uuid, uuid, uuid[]);'); // como era o banco antes da 05
+  await db.exec(ler('../supabase/correcao-01-copiar.sql')); // e a 01 por cima, como estava antes
+  await db.exec(ler('../supabase/correcao-05-clonar.sql'));
+  await db.exec(ler('../supabase/correcao-05-clonar.sql'));
+  const versoes = (await db.query(`select pg_get_function_identity_arguments(oid) a from pg_proc where proname = 'copiar_produtos'`)).rows.map((r) => r.a);
+  assert.deepEqual(versoes, ['origem uuid, destino uuid, ids uuid[]']);
+  assert.deepEqual((await linhas(db, 'authenticated', DUDA, `select copiar_produtos('${A}', '${B}') r`))[0].r, { novos: 1, atualizados: 0 }, 'sem ids = todos');
+  await assert.rejects(como(db, 'anon', null, `select copiar_produtos('${A}', '${B}')`), /permission denied/);
+});
+
+test('banco: membro (não dono) vê a Início e apaga foto órfã só da própria empresa', async () => {
+  const db = await bancoComDados();
+  // Início do membro: produtos, preços e histórico da empresa dele; nada da outra
+  assert.equal((await linhas(db, 'authenticated', CAIO, 'select * from produtos')).length, 1);
+  assert.equal((await linhas(db, 'authenticated', CAIO, 'select * from precificacoes')).length, 1);
+  assert.equal((await linhas(db, 'authenticated', CAIO, `select * from produtos where empresa_id = '${B}'`)).length, 0);
+  // foto: o envio do app apaga a órfã com o papel de quem salvou, que pode ser membro
+  await db.exec(`insert into storage.objects values ('fotos', '${A}/p1/aaa.webp'), ('fotos', '${B}/p2/bbb.webp')`);
+  assert.equal((await como(db, 'authenticated', CAIO, `delete from storage.objects where name = '${A}/p1/aaa.webp'`)).affectedRows, 1, 'membro apaga na própria pasta');
+  assert.equal((await como(db, 'authenticated', CAIO, `delete from storage.objects where name = '${B}/p2/bbb.webp'`)).affectedRows, 0, 'não apaga na pasta de outra empresa');
+  assert.equal((await como(db, 'anon', null, `delete from storage.objects where name = '${B}/p2/bbb.webp'`)).affectedRows, 0, 'sem login não apaga');
+  assert.equal((await db.query('select count(*)::int n from storage.objects')).rows[0].n, 1);
+});
+
+test('banco: foto_em_uso enxerga clone em empresa que a pessoa não vê (e a correção 07 roda 2x)', async () => {
+  const db = await bancoComDados();
+  const url = `https://x/storage/v1/object/public/fotos/${A}/p1/aaa.webp`;
+  await db.exec(`update produtos set fotos = array['${url}'] where empresa_id = '${B}'`); // o clone na B usa a foto da A
+  assert.equal((await linhas(db, 'authenticated', CAIO, `select * from produtos where empresa_id = '${B}'`)).length, 0, 'o Caio não vê a B');
+  assert.deepEqual(await linhas(db, 'authenticated', CAIO, `select foto_em_uso('${url}') r`), [{ r: true }], 'mas a foto conta como em uso');
+  assert.deepEqual(await linhas(db, 'authenticated', CAIO, `select foto_em_uso('${url}x') r`), [{ r: false }]);
+  await assert.rejects(como(db, 'anon', null, `select foto_em_uso('${url}')`), /permission denied/);
+  await db.exec(ler('../supabase/correcao-07-foto-em-uso.sql'));
+  await db.exec(ler('../supabase/correcao-07-foto-em-uso.sql'));
+  assert.deepEqual(await linhas(db, 'authenticated', CAIO, `select foto_em_uso('${url}') r`), [{ r: true }]);
+});
+
 test('banco: fotos no Storage só na pasta da própria empresa', async () => {
   const db = await bancoComDados();
+  assert.deepEqual((await db.query(`select public from storage.buckets where id = 'fotos'`)).rows, [{ public: true }], 'leitura pública (cache)');
   await como(db, 'authenticated', ANA, `insert into storage.objects values ('fotos', '${A}/banco.webp')`);
   await assert.rejects(como(db, 'authenticated', ANA, `insert into storage.objects values ('fotos', '${B}/x.webp')`), /row-level security/);
   await assert.rejects(como(db, 'authenticated', ANA, `insert into storage.objects values ('fotos', 'solta.webp')`), /row-level security/);

@@ -1,6 +1,6 @@
 // Mascote do Calculéo (o leão vendedor): sempre decorativo (alt vazio) e pequeno; o texto ao lado diz o que importa.
 // A entrada leve (.mascote-entra) só anima sem reduced motion (estilo.css).
-const TAMANHO = { calculando: [393, 420], copiar: [377, 420], equipe: [420, 390], historico: [371, 420], erro: [367, 420], salvo: [300, 282], sucesso: [387, 420], prejuizo: [385, 420] };
+const TAMANHO = { login: [420, 375], '404': [420, 409], calculando: [393, 420], copiar: [377, 420], planilha: [420, 414], equipe: [420, 390], historico: [371, 420], erro: [367, 420], salvo: [300, 282], sucesso: [387, 420], prejuizo: [445, 420] };
 
 export const imgMascote = (pose, largura = 120, entra = true) => {
   const [w, h] = TAMANHO[pose];

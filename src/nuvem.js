@@ -2,20 +2,25 @@
 // As telas não mudam: continuam lendo `dados` e chamando `salvar()`. Aqui cada gravação vira só o que mudou.
 //
 // Para as telas de equipe, histórico e empresa (todas lançam Error com mensagem em pt-BR):
-//   minhasEmpresas()            -> [{ id, nome, papel }]
+//   minhasEmpresas()            -> [{ id, nome, papel, foto }] (foto: endereço do logo ou null)
 //   empresaAtual()              -> id da empresa em uso
 //   trocarEmpresa(id)           -> guarda a escolha e recarrega a página
 //   criarEmpresa(nome)          -> cria com você como dono e já troca para ela (recarrega)
 //   renomearEmpresa(nome)       -> renomeia a empresa em uso (só o dono)
+//   trocarFotoEmpresa(dataUrl)  -> endereço do logo novo da empresa em uso (só o dono; dataUrl já reduzida pela tela)
+//   tirarFotoEmpresa()          -> tira o logo da empresa em uso (só o dono)
 //   equipe()                    -> { membros: [{ usuarioId, email, papel, entrouEm }], convites: [{ email, papel, convidadoEm }], souDono }
 //   convidar(email, papel), cancelarConvite(email), removerMembro(usuarioId)
+//   mudarPapel(usuarioId, papel) -> 'dono' | 'membro'; só o dono; a empresa nunca fica sem dono
 //   historico({ quem })         -> [{ quando, quem, acao, detalhe }], os últimos 200 (quem: e-mail, opcional)
-//   previaCopia(origemId)       -> { novos, atualizados, repetidos }, cada um [{ nome, sku }]
+//   previaCopia(origemId)       -> { itens: [{ id, nome, sku, foto, situacao }], novos, atualizados, repetidos } (estes [{ nome, sku }])
 //                                  repetidos: SKU repetido numa das empresas; entram como novos, sem sobrescrever nada
-//   copiarProdutos(origemId)    -> { novos, atualizados }   (novos inclui os repetidos; depois, recarregar os dados)
+//   copiarProdutos(origemId, ids) -> { novos, atualizados } (ids: só os escolhidos; null = todos. Novos inclui os repetidos)
 //   anotarImportacao(detalhe)   -> uma linha "Importação" no histórico
+//   souDono()                   -> se quem está logado é dono da empresa em uso
 import { SUPABASE } from './config.js';
 import { produtoVazio } from './produtos.js';
+import { dados } from './dados.js';
 
 const BIBLIOTECA = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/+esm';
 const CHAVE_EMPRESA = 'calculadora-margem.empresa';
@@ -53,7 +58,7 @@ export async function mandarLink(email) {
   });
   if (!error) return;
   throw new Error(/não foi convidado|signups? not allowed|not found|otp_disabled|hook/i.test(error.message)
-    ? 'Este e-mail não tem acesso. Peça um convite a quem é dono da empresa no Calculéo.'
+    ? 'Este e-mail não tem acesso. Peça um convite a quem é admin da empresa no Calculéo.'
     : /rate|seconds|security purposes/i.test(error.message)
       ? 'Já mandamos um link há pouco. Espere 1 minuto e tente de novo.'
       : 'Não deu para mandar o link agora. Confira o e-mail e tente de novo.');
@@ -67,13 +72,26 @@ export async function entrarComSenha(email, senha, criar = false) {
   const { data, error } = criar ? await auth.signUp(dados) : await auth.signInWithPassword(dados);
   if (!error && data.session) return;
   const m = error?.message ?? '';
-  throw new Error(/não foi convidado|hook|signups? not allowed/i.test(m) ? 'Este e-mail não tem acesso. Peça um convite a quem é dono da empresa no Calculéo.'
+  throw new Error(/não foi convidado|hook|signups? not allowed/i.test(m) ? 'Este e-mail não tem acesso. Peça um convite a quem é admin da empresa no Calculéo.'
     : /already registered|already exists/i.test(m) ? 'Este e-mail já tem conta. Entre com a sua senha ou peça o link por e-mail.'
       : /invalid login|invalid credentials/i.test(m) ? 'E-mail ou senha errados.'
         : /password/i.test(m) ? 'Senha fraca. Use pelo menos 8 caracteres, misturando letras e números.'
           : /rate|seconds/i.test(m) ? 'Muitas tentativas. Espere 1 minuto e tente de novo.'
-            : !error ? 'A conta foi criada, mas precisa ser confirmada por e-mail. Avise o dono da empresa.'
+            : !error ? 'A conta foi criada, mas precisa ser confirmada por e-mail. Avise o admin da empresa.'
               : 'Não deu para entrar agora. Confira a internet e tente de novo.');
+}
+
+// Esqueci a senha: manda o link para criar uma nova (precisa de SMTP próprio no Supabase; ver config.ESQUECI_SENHA).
+export async function esqueciSenha(email) {
+  const { error } = await (await supa()).auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: location.origin + location.pathname });
+  if (error) throw new Error(/rate|seconds/i.test(error.message) ? 'Já mandamos um link há pouco. Espere 1 minuto e tente de novo.' : 'Não deu para mandar o link agora. Confira o e-mail e tente de novo.');
+}
+
+// Quem voltou pelo link de "Esqueci a senha" já está logado e escolhe a senha nova.
+export async function trocarSenha(senha) {
+  if (String(senha).length < 8) throw new Error('A senha precisa ter pelo menos 8 caracteres.');
+  const { error } = await (await supa()).auth.updateUser({ password: senha });
+  if (error) throw new Error(/different|same/i.test(error.message) ? 'Use uma senha diferente da antiga.' : 'Não deu para salvar a senha nova. Peça outro link e tente de novo.');
 }
 
 export async function sair() {
@@ -99,12 +117,13 @@ export async function prepararEmpresa() {
 }
 
 export async function minhasEmpresas() {
-  const r = await (await supa()).from('membros').select('papel, empresa_id, empresas(nome)').eq('usuario_id', pessoa.id);
+  const r = await (await supa()).from('membros').select('papel, empresa_id, empresas(*)').eq('usuario_id', pessoa.id);
   falhou('Não deu para ler suas empresas.')(r);
-  return r.data.map((m) => ({ id: m.empresa_id, nome: m.empresas?.nome ?? '', papel: m.papel })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  return r.data.map((m) => ({ id: m.empresa_id, nome: m.empresas?.nome ?? '', papel: m.papel, foto: m.empresas?.foto ?? null })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
 export const empresaAtual = () => empresaId;
+export const souDono = () => empresas.find((e) => e.id === empresaId)?.papel === 'dono';
 export const emailAtual = () => pessoa?.email ?? '';
 
 // Cria uma empresa com quem está logado como dono e já passa a usar a nova.
@@ -120,10 +139,37 @@ export async function renomearEmpresa(nome) {
   if (!String(nome).trim()) throw new Error('Dê um nome à empresa.');
   const r = await (await supa()).from('empresas').update({ nome: String(nome).trim() }).eq('id', empresaId).select();
   falhou('Não deu para renomear agora.')(r);
-  if (!r.data.length) throw new Error('Só o dono pode renomear a empresa.');
+  if (!r.data.length) throw new Error('Só o admin pode renomear a empresa.');
   const e = empresas.find((x) => x.id === empresaId);
   if (e) e.nome = r.data[0].nome;
 }
+
+// Logo da empresa em uso: sobe para fotos/<empresa>/empresa/<hash>, grava empresas.foto (só o dono, pela RLS) e apaga o
+// anterior se ninguém mais usa (foto_em_uso olha também empresas.foto, correcao-09).
+async function gravarFotoEmpresa(s, foto) {
+  const r = await s.from('empresas').update({ foto }).eq('id', empresaId).select();
+  falhou('Não deu para gravar a foto agora.')(r);
+  if (!r.data.length) {
+    if (foto) await apagarFotosOrfas(s, [foto], empresaId);
+    throw new Error('Só o admin pode trocar a foto da empresa.');
+  }
+  const e = empresas.find((x) => x.id === empresaId);
+  const antes = e?.foto;
+  if (e) e.foto = foto;
+  if (antes && antes !== foto) await apagarFotosOrfas(s, [antes], empresaId);
+}
+
+export async function trocarFotoEmpresa(dataUrl) {
+  const s = await supa();
+  const url = await subirFoto(s, 'empresa', dataUrl).catch((erro) => {
+    console.warn(erro);
+    throw new Error('Não deu para subir a foto agora. Confira a internet e tente de novo.');
+  });
+  await gravarFotoEmpresa(s, url);
+  return url;
+}
+
+export const tirarFotoEmpresa = async () => gravarFotoEmpresa(await supa(), null);
 
 export function trocarEmpresa(id) {
   try {
@@ -156,25 +202,41 @@ export async function convidar(email, papel = 'membro') {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(limpo)) throw new Error('Digite um e-mail válido.');
   const { error } = await (await supa()).from('convites').insert({ empresa_id: empresaId, email: limpo, papel });
   if (!error) return;
-  throw new Error(error.code === '23505' ? 'Este e-mail já foi convidado.' : /row-level security/i.test(error.message) ? 'Só o dono da empresa pode convidar.' : 'Não deu para convidar agora.');
+  throw new Error(error.code === '23505' ? 'Este e-mail já foi convidado.' : /row-level security/i.test(error.message) ? 'Só o admin da empresa pode convidar.' : 'Não deu para convidar agora.');
 }
 
 export async function cancelarConvite(email) {
   const r = await (await supa()).from('convites').delete().match({ empresa_id: empresaId, email }).select();
   falhou('Não deu para cancelar o convite.')(r);
-  if (!r.data.length) throw new Error('Só o dono da empresa pode cancelar convites.');
+  if (!r.data.length) throw new Error('Só o admin da empresa pode cancelar convites.');
+}
+
+// Dono muda o papel de quem já está na empresa ('dono' ou 'membro'). O banco não deixa a empresa sem dono.
+export async function mudarPapel(usuarioId, papel) {
+  const { error } = await (await supa()).rpc('mudar_papel', { empresa: empresaId, usuario: usuarioId, novo_papel: papel });
+  if (error) {
+    throw new Error(/pelo menos um dono/.test(error.message) ? 'A empresa precisa ter pelo menos um admin.'
+      : /só o dono/.test(error.message) ? 'Só o admin pode mudar papéis.'
+        : /não está na empresa/.test(error.message) ? 'Essa pessoa não está mais na empresa.'
+          : 'Não deu para mudar o papel agora.');
+  }
+  if (usuarioId === pessoa?.id) {
+    const e = empresas.find((x) => x.id === empresaId);
+    if (e) e.papel = papel; // quem se rebaixou deixa de ver os botões de dono
+  }
 }
 
 export async function removerMembro(usuarioId) {
   const r = await (await supa()).from('membros').delete().match({ empresa_id: empresaId, usuario_id: usuarioId }).select();
   falhou('Não deu para remover agora.')(r);
-  if (!r.data.length) throw new Error('Só o dono pode remover pessoas (e não a si mesmo).');
+  if (!r.data.length) throw new Error('Só o admin pode remover pessoas (e não a si mesmo).');
 }
 
 // ---------- histórico ----------
 
 export async function historico({ quem } = {}) {
-  let q = (await supa()).from('historico').select('quando, quem, acao, detalhe').eq('empresa_id', empresaId).order('quando', { ascending: false }).limit(200);
+  // '*': funciona antes e depois de a coluna mudancas existir (correcao-08)
+  let q = (await supa()).from('historico').select('*').eq('empresa_id', empresaId).order('quando', { ascending: false }).limit(200);
   if (quem) q = q.eq('quem', quem);
   const r = await q;
   falhou('Não deu para ler o histórico.')(r);
@@ -192,12 +254,12 @@ export async function previaCopia(origemId) {
   const r = await (await supa()).rpc('previa_copia', { origem: origemId, destino: empresaId });
   falhou('Não deu para ver os produtos da outra empresa.')(r);
   const pega = (s) => r.data.filter((x) => x.situacao === s).map(({ nome, sku }) => ({ nome, sku }));
-  return { novos: pega('novo'), atualizados: pega('atualizado'), repetidos: pega('repetido') };
+  return { itens: r.data, novos: pega('novo'), atualizados: pega('atualizado'), repetidos: pega('repetido') };
 }
 
-export async function copiarProdutos(origemId) {
+export async function copiarProdutos(origemId, ids = null) {
   await esperarEnvio();
-  const r = await (await supa()).rpc('copiar_produtos', { origem: origemId, destino: empresaId });
+  const r = await (await supa()).rpc('copiar_produtos', { origem: origemId, destino: empresaId, ids });
   falhou('Não deu para copiar. Você precisa estar nas duas empresas.')(r);
   return r.data;
 }
@@ -292,10 +354,20 @@ let fila = Promise.resolve();
 let aoFalhar = () => {};
 export const quandoFalhar = (fn) => (aoFalhar = fn);
 export const esperarEnvio = () => fila;
+export const pendentesDeEnvio = (d, empresa = empresaId) => diferenca(enviadas, paraLinhas(d, empresa)); // para os testes e para conferir
 
 const lembrar = (linhas) => {
   enviadas = Object.fromEntries(Object.entries(CHAVES).map(([t, chave]) => [t, new Map(linhas[t].map((l) => [chave(l), JSON.stringify(l)]))]));
 };
+
+// Depois de ler, guarda a versão que o próprio app gera desses dados (e não a linha crua do banco): o Postgres reordena as
+// chaves do jsonb (custo), e a comparação crua acharia "mudou" em tudo, reenviando todos os produtos no 1º salvar e
+// enchendo o histórico de "Produto alterado".
+export function lembrarDoBanco(t, empresa = empresaId) {
+  const d = deLinhas(t);
+  lembrar(paraLinhas(d, empresa));
+  return d;
+}
 
 async function ler() {
   const s = await supa();
@@ -304,8 +376,63 @@ async function ler() {
   const respostas = await Promise.all(tabelas.map((t) => s.from(t).select('*').eq('empresa_id', empresaId)));
   if (respostas.some((r) => r.error)) throw new Error('Não deu para ler os dados da nuvem. Confira a internet e recarregue a página.');
   const t = Object.fromEntries(tabelas.map((nome, i) => [nome, respostas[i].data]));
-  lembrar(t);
-  return deLinhas(t);
+  return lembrarDoBanco(t);
+}
+
+// ---------- fotos no Storage ----------
+// Foto nova (data URL) sobe para fotos/<empresa>/<produto>/<hash>.<ext> e o produto guarda só o endereço público.
+// O nome é o próprio conteúdo (hash): o endereço nunca muda, então o navegador guarda em cache por 1 ano.
+// Só troca depois de subir: se falhar, a foto fica como estava e o próximo envio tenta de novo.
+const ehDataUrl = (f) => typeof f === 'string' && f.startsWith('data:');
+let aoAvancarFotos = null;
+let adiarFotos = false;
+
+// Importação: grava produtos e preços primeiro, com as fotos como vieram; quem chama sobe as fotos depois (migrarFotos).
+// Assim nada se perde se a aba fechar ou uma foto falhar no meio.
+export async function gravarImportacao(gravar) {
+  adiarFotos = true;
+  try {
+    if (!gravar()) return false;
+    await esperarEnvio();
+  } finally {
+    adiarFotos = false;
+  }
+  return true;
+}
+
+async function subirFoto(s, produtoId, dataUrl) {
+  const blob = await (await fetch(dataUrl)).blob();
+  const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', await blob.arrayBuffer()))].slice(0, 12).map((b) => b.toString(16).padStart(2, '0')).join('');
+  const caminho = `${empresaId}/${produtoId}/${hash}.${(blob.type.split('/')[1] || 'webp').replace('jpeg', 'jpg')}`;
+  const { error } = await s.storage.from('fotos').upload(caminho, blob, { upsert: true, contentType: blob.type, cacheControl: '31536000' });
+  if (error) throw new Error(`foto não subiu (${error.message})`);
+  const url = s.storage.from('fotos').getPublicUrl(caminho).data.publicUrl;
+  // Só troca se o endereço abre de verdade (bucket público: correcao-04). Senão a foto ficaria quebrada.
+  const teste = await fetch(url, { method: 'HEAD' }).catch(() => null);
+  if (!teste?.ok) throw new Error('foto subiu, mas o endereço público não abre (rode supabase/correcao-04-fotos.sql)');
+  return url;
+}
+
+export async function fotosParaStorage(s, linhasProdutos) {
+  const comFoto = linhasProdutos.filter((l) => l.fotos.some(ehDataUrl));
+  for (const [i, l] of comFoto.entries()) {
+    l.fotos = await Promise.all(l.fotos.map((f) => (ehDataUrl(f) ? subirFoto(s, l.id, f) : f)));
+    const p = dados.produtos.find((x) => x.id === l.id);
+    if (p) p.fotos = [...l.fotos]; // a tela e o próximo envio já usam o endereço
+    aoAvancarFotos?.(i + 1, comFoto.length);
+  }
+}
+
+// Leva para o Storage as fotos que ainda estão dentro do banco. Devolve quantos produtos ficaram com foto pendente.
+export async function migrarFotos(aoAvancar) {
+  const ids = dados.produtos.filter((p) => (p.fotos ?? []).some(ehDataUrl)).map((p) => p.id);
+  if (!ids.length || !enviadas) return 0;
+  ids.forEach((id) => enviadas.produtos.delete(id)); // força reenviar estes produtos (o upsert troca a linha)
+  aoAvancarFotos = aoAvancar;
+  guardadoNaNuvem.gravar(dados);
+  await esperarEnvio();
+  aoAvancarFotos = null;
+  return dados.produtos.filter((p) => (p.fotos ?? []).some(ehDataUrl)).length;
 }
 
 const em = (lista, n) => Array.from({ length: Math.ceil(lista.length / n) }, (_, i) => lista.slice(i * n, i * n + n));
@@ -313,6 +440,7 @@ const em = (lista, n) => Array.from({ length: Math.ceil(lista.length / n) }, (_,
 async function enviar(linhas) {
   const s = await supa();
   const d = diferenca(enviadas, linhas);
+  const fotosAntes = new Set([...enviadas.produtos.values()].flatMap((j) => JSON.parse(j).fotos ?? []));
   const conferir = ({ error }) => {
     if (error) throw new Error(error.message);
   };
@@ -329,6 +457,7 @@ async function enviar(linhas) {
       enviadas[tabela].delete(k);
     }
   };
+  if (!adiarFotos) await fotosParaStorage(s, d.produtos.mandar);
   // Ordem: produto antes do que aponta para ele; ao apagar, o contrário.
   await mandar('produtos');
   await mandar('itens_kit');
@@ -338,6 +467,32 @@ async function enviar(linhas) {
   await apagar('precificacoes', ['produto_id', 'canal']);
   await apagar('produtos', ['id']);
   await apagar('config_canais', ['canal']);
+  // Fotos que saíram (produto excluído, foto trocada ou tirada): apaga o arquivo se ninguém mais usa. Falha aqui só é ignorada.
+  const fotosAgora = new Set(linhas.produtos.flatMap((l) => l.fotos));
+  await apagarFotosOrfas(s, [...fotosAntes].filter((f) => !fotosAgora.has(f)), empresaId);
+}
+
+// Caminho dentro do bucket "fotos" de um endereço público do Storage (ou null, se a foto não é de lá).
+export const caminhoDaFoto = (url) => (String(url).match(/\/storage\/v1\/object\/public\/fotos\/([^?#]+)/)?.[1] ?? null);
+
+// Apaga do Storage as fotos da pasta da empresa que nenhum produto (de nenhuma empresa) usa mais. Um "Clonar" copia o
+// endereço, então a mesma foto pode estar em produto de outra empresa: o banco confere em todas (foto_em_uso).
+// Nunca lança erro: no pior caso, fica um arquivo sobrando.
+export async function apagarFotosOrfas(s, urls, empresa) {
+  try {
+    const caminhos = [];
+    for (const url of new Set(urls)) {
+      const caminho = caminhoDaFoto(url);
+      if (!caminho || !caminho.startsWith(`${empresa}/`)) continue;
+      const { data: emUso, error } = await s.rpc('foto_em_uso', { url }); // confere em todas as empresas (correcao-07)
+      if (!error && emUso === false) caminhos.push(caminho); // na dúvida (erro), não apaga
+    }
+    if (caminhos.length) await s.storage.from('fotos').remove(caminhos);
+    return caminhos;
+  } catch (erro) {
+    console.warn('fotos órfãs ficaram no Storage', erro);
+    return [];
+  }
 }
 
 export const guardadoNaNuvem = {

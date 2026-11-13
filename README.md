@@ -44,4 +44,6 @@ O `npm install` (uma vez) baixa o Postgres de teste usado em `tests/banco.test.j
 
 ## Créditos
 
+Marcas e logotipos pertencem aos seus donos; usados só para identificar os canais.
+
 Ícones: [Lucide](https://lucide.dev) v0.460.0, licença ISC (texto em `assets/icones-LICENSE.txt`). Só os ícones usados estão em `assets/icones.svg`, sem carregar nada de fora.

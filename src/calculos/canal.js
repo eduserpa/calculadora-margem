@@ -1,14 +1,24 @@
 // Função 8: como cada canal cobra. O formato do canal é o de data/canais.json.
 
+// Mercado Livre: cada tipo de anúncio guarda a sua comissão própria ({ classico, premium }).
+// Config antiga (um número só) vale para o tipo que estava escolhido: é a migração, sem mudar a conta.
+export const tipoDoAnuncio = (canal) => (canal.tipo_anuncio === 'premium' ? 'premium' : 'classico');
+export function comissoesProprias(canal) {
+  const p = canal.comissao_propria;
+  if (p && typeof p === 'object') return { classico: Number(p.classico) || 0, premium: Number(p.premium) || 0 };
+  return { classico: 0, premium: 0, [tipoDoAnuncio(canal)]: Number(p) || 0 };
+}
+export const comissaoPropria = (canal) => comissoesProprias(canal)[tipoDoAnuncio(canal)];
+
 export function comissaoETaxaFixa(canal, preco) {
   if (canal.tipo === 'faixas') {
     const faixa = canal.faixas.find((f) => f.ate == null || preco <= f.ate) ?? canal.faixas.at(-1);
     return { comissao: faixa.comissao, taxaFixa: faixa.taxa_fixa };
   }
   if (canal.tipo === 'mercadolivre') {
-    const propria = Number(canal.comissao_propria);
+    const propria = comissaoPropria(canal);
     if (propria > 0) return { comissao: propria, taxaFixa: 0 };
-    const tipo = canal.tipo_anuncio === 'premium' ? 'premium' : 'classico';
+    const tipo = tipoDoAnuncio(canal);
     const r = canal.faixa_reduzida;
     const reducao = r && preco >= r.de && preco <= r.ate ? r.reducao[tipo] : 0;
     return { comissao: canal.comissao[tipo] - reducao, taxaFixa: 0 };

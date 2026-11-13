@@ -13,6 +13,17 @@ export async function iniciarHistorico() {
   await desenhar(true);
 }
 
+// Linha com o que mudou (correção 08 do banco): <details> nativo, abre com clique, Enter ou Espaço e mostra "Campo: antes → depois".
+// Linha antiga (sem detalhe) fica como era, sem setinha.
+function linhaDoHistorico(l) {
+  const titulo = `<strong>${esc(l.acao)}</strong>${l.detalhe ? `: ${esc(l.detalhe)}` : ''}`;
+  const mudancas = Array.isArray(l.mudancas) ? l.mudancas : [];
+  if (!mudancas.length) return `<span>${titulo}</span>`;
+  // <dl> e não <ul>: o li da lista do histórico tem grade e borda próprias (estilo.css)
+  const item = (m) => `<div><dt>${esc(m.campo)}</dt>${'antes' in m || 'depois' in m ? `<dd>${esc(m.antes ?? '—')} → ${esc(m.depois ?? '—')}</dd>` : ''}</div>`;
+  return `<details class="historico-detalhe"><summary>${titulo}</summary><dl class="historico-mudancas">${mudancas.map(item).join('')}</dl></details>`;
+}
+
 // todas = true também refaz a lista de pessoas do filtro (a partir do histórico sem filtro)
 async function desenhar(todas = false) {
   const filtro = $('#historico-pessoa');
@@ -36,7 +47,7 @@ async function desenhar(todas = false) {
   lista.innerHTML = linhas.length
     ? `<ol class="lista-historico">${linhas.map((l) => `
         <li><time datetime="${esc(l.quando)}">${quando(l.quando)}</time>
-          <span><strong>${esc(l.acao)}</strong>${l.detalhe ? `: ${esc(l.detalhe)}` : ''}</span>
+          ${linhaDoHistorico(l)}
           <small class="dica">${esc(l.quem)}</small></li>`).join('')}</ol>`
     : htmlVazio('historico', filtro.value ? 'Nada desta pessoa por aqui.' : 'Nada registrado ainda.', 'Cada produto, preço ou taxa salvo aparece aqui. O leão anota tudo.');
 }
