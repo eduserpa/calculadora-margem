@@ -111,10 +111,17 @@ export function iniciarCalculadora() {
     if (config) return abrirConfigurarCanal(config.dataset.config);
     const b = e.target.closest('[data-canal]');
     if (!b) return;
-    estado.canal = b.dataset.canal;
-    desenharCanais();
-    preencherPrecos();
-    atualizar();
+    escolherCanal(b.dataset.canal);
+  });
+  // Setas andam pelos canais e já escolhem (padrão de grupo de rádio).
+  $('#c-canais').addEventListener('keydown', (e) => {
+    const passo = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+    if (!passo || !e.target.matches('.canal')) return;
+    e.preventDefault();
+    const ids = Object.keys(canais());
+    const id = ids[(ids.indexOf(e.target.dataset.canal) + passo + ids.length) % ids.length];
+    escolherCanal(id);
+    $(`#c-canais [data-canal="${id}"]`).focus();
   });
   $('#tela-calculadora').addEventListener('input', aoDigitar);
   $('#tela-calculadora').addEventListener('focusout', (e) => {
@@ -164,7 +171,7 @@ const opcoes = () => [...document.querySelectorAll('#c-opcoes [data-produto]')];
 function nomeEscolhido() {
   if (estado.produtoId === AVULSO) return 'Sem cadastro: digitar o custo';
   const p = porId().get(estado.produtoId);
-  return p ? `${p.nome}${p.sku ? ` (${p.sku})` : ''}` : '';
+  return p ? p.nome : '';
 }
 
 function abrirLista(abrir) {
@@ -241,9 +248,17 @@ function desenharProdutos(busca) {
   if (!$('#c-seletor-lista').hidden) marcar(termo || indiceEscolhido < 0 ? 0 : indiceEscolhido);
 }
 
+function escolherCanal(id) {
+  estado.canal = id;
+  desenharCanais();
+  preencherPrecos();
+  atualizar();
+}
+
 function desenharCanais() {
   const produtoSalvo = estado.produtoId && estado.produtoId !== AVULSO ? salvas(estado.produtoId) : {};
   const { cmv, pesoG } = custoEPeso();
+  const primeiro = Object.keys(canais())[0];
   $('#c-canais').innerHTML = Object.entries(canais())
     .map(([id, c]) => {
       const [letras, cor] = sigla(id, c);
@@ -252,7 +267,7 @@ function desenharCanais() {
       const resumo = s && preco > 0 && cmv > 0 ? calcularMargem({ preco, cmv, canal: c, pesoG }) : null;
       return `
         <div class="canal-caixa">
-          <button type="button" class="canal" role="radio" aria-checked="${id === estado.canal}" data-canal="${id}">
+          <button type="button" class="canal" role="radio" aria-checked="${id === estado.canal}" tabindex="${id === (estado.canal || primeiro) ? 0 : -1}" data-canal="${id}">
             <span class="canal-sigla" style="--cor:${cor}" aria-hidden="true">${letras}</span>
             <span class="canal-nome">${esc(c.nome)}</span>
             <span class="canal-linhas">${linhasDoCanal(c)}</span>

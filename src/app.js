@@ -58,7 +58,7 @@ function iniciarLateral() {
   });
 }
 
-function aviso(texto, ok = false) {
+export function aviso(texto, ok = false) {
   const el = $('#aviso-geral');
   el.textContent = texto;
   el.classList.toggle('ok', ok);
@@ -140,6 +140,7 @@ async function iniciar() {
   ligar('exportar e importar', () => {
     $('#exportar').addEventListener('click', exportar);
     $('#importar').addEventListener('change', importar);
+    $('#importar-botao').addEventListener('click', () => $('#importar').click());
   });
 }
 

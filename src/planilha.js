@@ -10,14 +10,14 @@ const celula = (v) => (/[";\n\r]/.test(String(v)) ? `"${String(v).replace(/"/g, 
 const decimal = (v, casas = 2) => (Number.isFinite(v) ? v.toFixed(casas).replace('.', ',') : '');
 
 // Texto CSV pronto para o Excel (com BOM para os acentos abrirem certos).
-export const paraCsv = (linhas) => `﻿${linhas.map((l) => l.map(celula).join(';')).join('\r\n')}\r\n`;
+export const paraCsv = (linhas) => `\uFEFF${linhas.map((l) => l.map(celula).join(';')).join('\r\n')}\r\n`;
 
-export const modelo = () =>
-  paraCsv([COLUNAS, ['Garrafa térmica 500 ml', 'GT-500', 'revenda', '32,90', '450', '25', '8', '8', 'https://exemplo.com/foto.jpg']]);
+// Só o cabeçalho: uma linha de exemplo viraria produto se ninguém apagasse. A explicação fica na janela.
+export const modelo = () => paraCsv([COLUNAS]);
 
 // Lê CSV com ";" ou "," (o que aparecer mais na 1ª linha), com campos entre aspas.
 export function lerCsv(texto) {
-  texto = texto.replace(/^﻿/, '');
+  texto = texto.replace(/^\uFEFF/, '');
   const primeira = texto.split(/\r?\n/, 1)[0];
   const sep = (primeira.match(/;/g) || []).length >= (primeira.match(/,/g) || []).length ? ';' : ',';
   const linhas = [];
@@ -106,7 +106,7 @@ export function prepararImportacao(texto, produtos, novoId, agora = new Date().t
 // Uma linha por produto x canal com preço salvo.
 export function csvPrecificacoes(linhas) {
   return paraCsv([
-    ['produto', 'sku', 'canal', 'preco', 'margem_%', 'lucro_r$', 'preco_minimo'],
+    ['produto', 'sku', 'canal', 'preco', 'margem_%', 'lucro_r$', 'preco_minimo_20%'], // mínimo para 20%, a margem com que a Calculadora abre
     ...linhas.map((l) => [l.produto, l.sku ?? '', l.canal, decimal(l.preco), decimal(l.margem, 1), decimal(l.lucro), decimal(l.minimo)]),
   ]);
 }

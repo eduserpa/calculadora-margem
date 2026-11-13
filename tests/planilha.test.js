@@ -9,7 +9,7 @@ const novoId = () => `id${++n}`;
 const existente = { id: 'a1', nome: 'Banco 45x70', sku: '1058', tipoCusto: 'revenda', revenda: { custoCompra: 300, freteFornecedor: 5, embalagem: 0, outros: 0 }, pesoG: 4000, comprimento: 45, largura: 70, altura: 40, fotos: ['https://x/1.jpg'] };
 
 test('lê CSV com ; ou , e campos entre aspas', () => {
-  assert.deepEqual(lerCsv('﻿a;b\r\n"x;1";"di""z"\r\n\r\n'), [['a', 'b'], ['x;1', 'di"z']]);
+  assert.deepEqual(lerCsv('\uFEFFa;b\r\n"x;1";"di""z"\r\n\r\n'), [['a', 'b'], ['x;1', 'di"z']]);
   assert.deepEqual(lerCsv('a,b\n1,2'), [['a', 'b'], ['1', '2']]);
 });
 
@@ -18,10 +18,15 @@ test('acentos do Excel antigo (windows-1252) e UTF-8', () => {
   assert.equal(decodificar(new TextEncoder().encode('Lâmina')), 'Lâmina');
 });
 
-test('o modelo importa sem erro', () => {
+test('o modelo só tem o cabeçalho: nada vira produto sem querer', () => {
+  assert.equal(modelo(), '\uFEFFnome;sku;tipo;custo;peso_g;comprimento_cm;largura_cm;altura_cm;foto_url\r\n');
   const r = prepararImportacao(modelo(), [], novoId);
+  assert.deepEqual([r.novos.length, r.atualizados.length, r.erros.length], [0, 0, 0]);
+});
+
+test('linha completa vira produto com tudo preenchido', () => {
+  const r = prepararImportacao(`${modelo()}Garrafa térmica 500 ml;GT-500;revenda;32,90;450;25;8;8;https://exemplo.com/foto.jpg`, [], novoId);
   assert.equal(r.erros.length, 0);
-  assert.equal(r.novos.length, 1);
   const p = r.novos[0];
   assert.equal(p.nome, 'Garrafa térmica 500 ml');
   assert.equal(custoRevenda(p.revenda), 32.9);
@@ -62,5 +67,5 @@ test('planilha sem as colunas obrigatórias', () => {
 
 test('exporta precificações com ; e vírgula decimal', () => {
   const csv = csvPrecificacoes([{ produto: 'Banco; inox', sku: '1058', canal: 'Shopee', preco: 735.2, margem: 14.94, lucro: 109.8, minimo: 801 }]);
-  assert.equal(csv, '﻿produto;sku;canal;preco;margem_%;lucro_r$;preco_minimo\r\n"Banco; inox";1058;Shopee;735,20;14,9;109,80;801,00\r\n');
+  assert.equal(csv, '\uFEFFproduto;sku;canal;preco;margem_%;lucro_r$;preco_minimo_20%\r\n"Banco; inox";1058;Shopee;735,20;14,9;109,80;801,00\r\n');
 });

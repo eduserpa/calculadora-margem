@@ -71,7 +71,7 @@ export function desenharLista() {
     alvo.innerHTML = `
       <div class="vazio">
         <img class="mascote" src="assets/calculeo-mascote.webp" alt="" width="180" height="163">
-        <h3>Nenhum produto cadastrado ainda</h3>
+        <h2>Nenhum produto cadastrado ainda</h2>
         <p>Cadastre o primeiro produto com o custo dele. Se quiser só testar, carregue três produtos de exemplo.</p>
         <div class="acoes">
           <button type="button" class="botao principal" id="primeiro-produto">Cadastrar Primeiro Produto</button>
@@ -103,7 +103,7 @@ export function desenharLista() {
     <article class="cartao produto">
       <div class="produto-imagem">${capa(p)}</div>
       <div class="produto-corpo">
-        <h3 title="${esc(p.nome)}">${esc(p.nome)}</h3>
+        <h2 title="${esc(p.nome)}">${esc(p.nome)}</h2>
         ${p.sku ? `<p class="ref">Ref: ${esc(p.sku)}</p>` : ''}
         <div class="linha-dado"><span>CMV:<span class="etiqueta ${p.tipoCusto}">${ETIQUETA[p.tipoCusto]}</span>${kitIncompleto(p, mapa) ? '<span class="etiqueta alerta">item excluído</span>' : ''}</span><strong>${reais(custo.get(p.id))}</strong></div>
         <div class="linha-dado"><span>Peso:</span><strong>${gramas(Number(p.pesoG) || 0)}</strong></div>
@@ -152,7 +152,7 @@ function desenharJanela() {
           </div>
         </div>
         <div class="grade">
-          <label class="campo"><span>${kit ? 'Nome do Kit' : 'Nome do produto'}</span><input type="text" data-c="nome" value="${esc(rasc.nome)}" placeholder="${kit ? 'Ex: Kit 2 garrafas' : 'Ex: Garrafa térmica 500 ml'}" autocomplete="off"></label>
+          <label class="campo"><span>${kit ? 'Nome do Kit' : 'Nome do produto'}</span><input type="text" data-c="nome" value="${esc(rasc.nome)}" placeholder="${kit ? 'Ex: Kit 2 garrafas' : 'Ex: Garrafa 500 ml'}" autocomplete="off"></label>
           <label class="campo"><span>Referência / SKU</span><input type="text" data-c="sku" value="${esc(rasc.sku)}" placeholder="Ex: GT-500" autocomplete="off"></label>
           <label class="campo"><span>Grade</span><input type="text" data-c="grade" value="${esc(rasc.grade ?? '')}" placeholder="Ex: P-GG" autocomplete="off"></label>
         </div>
@@ -204,7 +204,7 @@ function blocoFotos() {
     ${fotos.map((f, i) => `<div class="foto"><img src="${esc(f)}" alt="Foto ${i + 1}"><button type="button" class="fechar" data-acao="tirar-foto" data-i="${i}" aria-label="Tirar foto ${i + 1}">${icone('x')}</button></div>`).join('')}
   </div>
   ${cheio ? '' : `<div class="linha-foto">
-    <label class="botao pequeno">${icone('upload')} Escolher arquivo<input type="file" id="foto-arquivo" accept="image/*" multiple hidden></label>
+    <button type="button" class="botao pequeno" data-acao="foto-escolher">${icone('upload')} Escolher arquivo</button><input type="file" id="foto-arquivo" accept="image/*" multiple hidden>
     <input type="url" id="foto-url" class="campo-texto" placeholder="ou cole o endereço da imagem (https://...)" aria-label="Endereço da imagem">
     <button type="button" class="botao pequeno" data-acao="foto-url">${icone('plus')} Adicionar</button>
   </div>`}`;
@@ -362,6 +362,7 @@ function aoClicar(e) {
   const acao = botao.dataset.acao;
   if (acao === 'cancelar') return janela().close();
   if (acao === 'excluir') return excluir(botao);
+  if (acao === 'foto-escolher') return $('#foto-arquivo', janela()).click();
   if (acao === 'foto-url') {
     const url = $('#foto-url', janela()).value.trim();
     return url && adicionarFotos([url]);

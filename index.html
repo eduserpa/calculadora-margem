@@ -28,7 +28,7 @@
       </nav>
       <div class="lateral-base">
         <button type="button" class="lateral-botao" id="exportar" title="Os dados ficam só neste navegador. Exporte para guardar uma cópia ou levar para outro computador."><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#download"></use></svg> Exportar dados</button>
-        <label class="lateral-botao" for="importar"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#upload"></use></svg> Importar dados</label>
+        <button type="button" class="lateral-botao" id="importar-botao"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#upload"></use></svg> Importar dados</button>
         <input type="file" id="importar" accept=".json,application/json" hidden>
         <a class="credito" href="https://lucerpy.com.br" target="_blank" rel="noopener"><span>Feito por</span><img src="assets/lucerpy-wordmark-white-lime-dot-transparent-preloader.avif" alt="Lucerpy" width="110" height="32"></a>
       </div>
@@ -130,7 +130,7 @@
           </div>
         </header>
         <div class="filtros">
-          <input type="search" id="busca" class="campo-texto" placeholder="Buscar por nome ou referência..." aria-label="Buscar produto">
+          <input type="search" id="busca" class="campo-texto" placeholder="Buscar nome ou SKU" aria-label="Buscar produto">
           <select id="filtro-tipo" class="campo-texto" aria-label="Filtrar por tipo">
             <option value="todos">Todos</option>
             <option value="revenda">Revenda</option>
@@ -165,10 +165,10 @@
         <div id="lista-canais" class="lista-canais"></div>
       </section>
 
+      <p class="versao">Versão Alpha 1</p>
     </main>
   </div>
 
-  <p class="versao" role="note" aria-label="Versão Alpha 1">Versão Alpha 1</p>
   <dialog id="janela-produto" class="janela" aria-labelledby="titulo-janela"></dialog>
   <dialog id="janela-canal" class="janela media" aria-labelledby="titulo-canal"></dialog>
   <dialog id="janela-importar" class="janela pequena" aria-labelledby="titulo-importar"></dialog>

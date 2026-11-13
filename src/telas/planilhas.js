@@ -5,7 +5,8 @@ import { modelo, decodificar, prepararImportacao, baixar, csvPrecificacoes } fro
 import { custoDoProduto, pesoDoProduto } from '../produtos.js';
 import { calcularMargem, precoMinimo } from '../calculos/margem.js';
 import { precoPor } from '../calculos/preco-de-por.js';
-import { esc } from '../formato.js';
+import { esc, reais } from '../formato.js';
+import { aviso } from '../app.js';
 
 const janela = () => document.getElementById('janela-planilha');
 let previa = null;
@@ -20,6 +21,7 @@ export function iniciarPlanilhas() {
     const acao = e.target.closest('[data-acao]')?.dataset.acao;
     if (acao === 'fechar') j.close();
     if (acao === 'modelo') baixar('modelo-produtos.csv', modelo());
+    if (acao === 'escolher') j.querySelector('input[type=file]').click();
     if (acao === 'outro') desenhar(null);
     if (acao === 'gravar') gravar();
   });
@@ -33,7 +35,7 @@ export function iniciarPlanilhas() {
 
 function desenhar(p, erro = '') {
   previa = p;
-  const total = p ? p.novos.length + p.atualizados.length : 0;
+  const quantos = p ? total(p) : 0;
   janela().innerHTML = `
     <div class="janela-topo">
       <h3 id="titulo-planilha">Importar planilha</h3>
@@ -41,20 +43,21 @@ function desenhar(p, erro = '') {
     </div>
     <div class="janela-corpo">
       ${p
-        ? `<p><strong>${p.novos.length}</strong> novo(s) · <strong>${p.atualizados.length}</strong> atualizado(s) pelo SKU · <strong>${p.erros.length}</strong> linha(s) com erro</p>
+        ? `<p role="status"><strong>${p.novos.length}</strong> novo(s) · <strong>${p.atualizados.length}</strong> atualizado(s) pelo SKU · <strong>${p.erros.length}</strong> linha(s) com erro</p>
+           ${quantos ? `<ul class="lista-previa">${[...p.novos.map((n) => `<li>Novo: ${nomeComSku(n)}</li>`), ...p.atualizados.map(linhaAtualizado)].slice(0, 50).join('')}</ul>${quantos > 50 ? `<p class="dica">e mais ${quantos - 50}.</p>` : ''}` : ''}
            ${p.erros.length ? `<ul class="lista-erros">${p.erros.slice(0, 50).map((e) => `<li>Linha ${e.linha}: ${esc(e.motivo)}</li>`).join('')}</ul>${p.erros.length > 50 ? `<p class="dica">e mais ${p.erros.length - 50}.</p>` : ''}` : ''}
-           ${p.erros.length && total ? '<p class="dica">As linhas com erro ficam de fora.</p>' : ''}`
+           ${p.erros.length && quantos ? '<p class="dica">As linhas com erro ficam de fora.</p>' : ''}`
         : `<p>Uma linha por produto. Se o SKU já existir, o produto é atualizado; célula vazia mantém o valor de hoje.</p>
-           <p class="dica">No Excel: Arquivo › Salvar como › CSV.</p>
+           <p class="dica">Colunas do modelo: nome, sku, tipo (revenda ou fabricante), custo (R$), peso_g, comprimento_cm, largura_cm, altura_cm e foto_url. Só nome e custo são obrigatórios. No Excel: Arquivo › Salvar como › CSV.</p>
            <div class="acoes-planilha">
              <button type="button" class="botao" data-acao="modelo">${icone('download')} Baixar modelo</button>
-             <label class="botao principal">${icone('upload')} Escolher arquivo CSV<input type="file" accept=".csv,text/csv" hidden></label>
+             <button type="button" class="botao principal" data-acao="escolher">${icone('upload')} Escolher arquivo CSV</button><input type="file" accept=".csv,text/csv" hidden>
            </div>`}
       ${erro ? `<p class="erro" role="alert">${esc(erro)}</p>` : ''}
     </div>
     <div class="janela-base"><div class="direita">
       ${p ? '<button type="button" class="botao" data-acao="outro">Outro arquivo</button>' : ''}
-      ${total ? `<button type="button" class="botao principal" data-acao="gravar">Importar ${total} produto(s)</button>` : ''}
+      ${quantos ? `<button type="button" class="botao principal" data-acao="gravar">Importar ${quantos} produto(s)</button>` : ''}
     </div></div>`;
   if (!janela().open) janela().showModal();
 }
@@ -69,6 +72,16 @@ function gravar() {
     return desenhar(previa, 'O espaço do navegador acabou. Nada foi gravado. Exporte os dados e apague produtos antigos.');
   }
   janela().close();
+  aviso(`${total(previa)} produto(s) importado(s): ${previa.novos.length} novo(s), ${previa.atualizados.length} atualizado(s).`, true);
+}
+
+const total = (p) => p.novos.length + p.atualizados.length;
+const nomeComSku = (p) => `${esc(p.nome)}${p.sku ? ` (${esc(p.sku)})` : ''}`;
+// Atualizado: mostra o custo de antes e o de agora quando mudou.
+function linhaAtualizado(p) {
+  const antes = custoDoProduto(dados.produtos.find((x) => x.id === p.id));
+  const depois = custoDoProduto(p);
+  return `<li>Atualizado: ${nomeComSku(p)}${Math.abs(antes - depois) >= 0.005 ? `, custo ${reais(antes)} → ${reais(depois)}` : ''}</li>`;
 }
 
 // Uma linha por produto x canal com preço salvo na Calculadora.
