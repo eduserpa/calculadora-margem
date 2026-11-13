@@ -17,14 +17,14 @@ const MARGEM_LIQUIDACAO = 5;
 const semAcento = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const comReais = (v) => (v ? `R$ ${campoReais(v)}` : '');
 
-// Estado da tela. Só a margem desejada e o custo avulso ficam lembrados neste navegador.
+// Estado da tela. Só o custo avulso fica lembrado neste navegador; a margem desejada abre sempre em 20%.
 const estado = { produtoId: '', custoAvulso: 0, pesoAvulso: 300, canal: '', precos: {}, margemDesejada: 20 };
 let pronta = false;
 
 function lembrar() {
   try {
-    const { custoAvulso, pesoAvulso, margemDesejada } = estado;
-    localStorage.setItem(CHAVE, JSON.stringify({ custoAvulso, pesoAvulso, margemDesejada }));
+    const { custoAvulso, pesoAvulso } = estado;
+    localStorage.setItem(CHAVE, JSON.stringify({ custoAvulso, pesoAvulso }));
   } catch {
     // sem armazenamento: só não lembra
   }
@@ -74,7 +74,7 @@ export function iniciarCalculadora() {
   pronta = true;
   try {
     const lembrado = JSON.parse(localStorage.getItem(CHAVE) || '{}');
-    for (const k of ['custoAvulso', 'pesoAvulso', 'margemDesejada']) if (lembrado[k] != null) estado[k] = lembrado[k];
+    for (const k of ['custoAvulso', 'pesoAvulso']) if (lembrado[k] != null) estado[k] = lembrado[k];
   } catch {
     // ignora
   }

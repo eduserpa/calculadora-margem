@@ -3,6 +3,7 @@ import { iniciarProdutos, desenharLista } from './telas/produtos.js';
 import { iniciarCalculadora, desenharTudo } from './telas/calculadora.js';
 import { iniciarConfiguracoes, aoMudarDados } from './telas/configuracoes.js';
 import { iniciarConfigurarCanal } from './telas/configurar-canal.js';
+import { iniciarPlanilhas } from './telas/planilhas.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -132,6 +133,7 @@ async function iniciar() {
   });
   ligar('menu lateral', iniciarLateral);
   ligar('produtos', iniciarProdutos);
+  ligar('planilhas', iniciarPlanilhas);
   ligar('calculadora', iniciarCalculadora);
   ligar('taxas dos canais', iniciarConfiguracoes);
   ligar('configurar canal', iniciarConfigurarCanal);

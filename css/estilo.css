@@ -318,6 +318,8 @@ input[type="range"] { width: 100%; accent-color: var(--roxo); }
 
 /* Produtos */
 .acoes-cartao { display: inline-flex; gap: 4px; }
+.acoes-planilha { display: flex; flex-wrap: wrap; gap: 10px; }
+.lista-erros { max-height: 220px; overflow-y: auto; margin: 0; padding-left: 18px; color: var(--vermelho); font-size: 13px; }
 .linha-peso { display: flex; align-items: end; gap: 8px; }
 .linha-peso .campo { flex: 1; }
 .filtros { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr) auto auto; }

@@ -123,7 +123,11 @@
             <h1 id="titulo-produtos">Meus Produtos</h1>
             <p>Cadastre e gerencie os custos dos seus produtos</p>
           </div>
-          <button type="button" class="botao principal" id="novo-produto"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#plus"></use></svg> Novo Produto</button>
+          <div class="acoes-planilha">
+            <button type="button" class="botao" id="exportar-precos" title="Planilha com preço, margem, lucro e preço mínimo de cada produto em cada canal salvo"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#download"></use></svg> Exportar preços</button>
+            <button type="button" class="botao" id="importar-planilha"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#upload"></use></svg> Importar planilha</button>
+            <button type="button" class="botao principal" id="novo-produto"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#plus"></use></svg> Novo Produto</button>
+          </div>
         </header>
         <div class="filtros">
           <input type="search" id="busca" class="campo-texto" placeholder="Buscar por nome ou referência..." aria-label="Buscar produto">
@@ -168,5 +172,6 @@
   <dialog id="janela-produto" class="janela" aria-labelledby="titulo-janela"></dialog>
   <dialog id="janela-canal" class="janela media" aria-labelledby="titulo-canal"></dialog>
   <dialog id="janela-importar" class="janela pequena" aria-labelledby="titulo-importar"></dialog>
+  <dialog id="janela-planilha" class="janela pequena" aria-labelledby="titulo-planilha"></dialog>
 </body>
 </html>
