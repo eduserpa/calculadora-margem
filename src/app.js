@@ -132,22 +132,40 @@ function mostrarLogin(texto = '', logada = false) {
 }
 
 function iniciarLogin() {
+  let criar = false; // primeiro acesso: cria a senha
+  const msg = (texto) => ($('#login-msg').textContent = texto);
   $('#login-sair').addEventListener('click', nuvem.sair);
+  $('#login-modo').addEventListener('click', () => {
+    criar = !criar;
+    $('#login-entrar').textContent = criar ? 'Criar senha e entrar' : 'Entrar';
+    $('#login-modo').textContent = criar ? 'Já tenho senha' : 'Primeiro acesso? Crie sua senha';
+    $('#login-senha').autocomplete = criar ? 'new-password' : 'current-password';
+    msg(criar ? 'Use o e-mail em que você foi convidado e uma senha com pelo menos 8 caracteres.' : '');
+  });
   $('#login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const botao = e.target.querySelector('button');
-    botao.disabled = true;
-    $('#login-msg').textContent = 'Mandando...';
+    $('#login-entrar').disabled = true;
+    msg(criar ? 'Criando sua senha...' : 'Entrando...');
+    try {
+      await nuvem.entrarComSenha($('#login-email').value, $('#login-senha').value, criar);
+      location.reload();
+    } catch (erro) {
+      msg(erro.message);
+      $('#login-entrar').disabled = false;
+    }
+  });
+  $('#login-link').addEventListener('click', async () => {
+    if (!$('#login-email').value.trim()) return msg('Digite o seu e-mail primeiro.');
+    msg('Mandando...');
     try {
       await nuvem.mandarLink($('#login-email').value);
       $('#login-mascote').src = 'assets/mascote/email.webp';
       $('#login-frase').textContent = 'Link enviado! Confira seu e-mail.';
-      $('#login-msg').textContent = 'Abra o e-mail neste aparelho e clique no link para entrar.';
+      msg('Abra o e-mail neste aparelho e clique no link para entrar.');
       $('#login-form').hidden = true;
     } catch (erro) {
-      $('#login-msg').textContent = erro.message;
+      msg(erro.message);
     }
-    botao.disabled = false;
   });
 }
 

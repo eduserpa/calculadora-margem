@@ -20,7 +20,10 @@
       <p class="login-frase" id="login-frase">Bora calcular essa margem?</p>
       <form id="login-form" novalidate>
         <label class="campo"><span>Seu e-mail</span><input type="email" id="login-email" autocomplete="email" required></label>
-        <button type="submit" class="botao principal">Mandar link de acesso</button>
+        <label class="campo"><span>Senha</span><input type="password" id="login-senha" autocomplete="current-password" minlength="8" required></label>
+        <button type="submit" class="botao principal" id="login-entrar">Entrar</button>
+        <button type="button" class="link-botao" id="login-modo">Primeiro acesso? Crie sua senha</button>
+        <button type="button" class="link-botao" id="login-link">Prefiro receber um link por e-mail</button>
       </form>
       <p class="login-msg" id="login-msg" role="status"></p>
       <button type="button" class="botao" id="login-sair" hidden>Sair</button>

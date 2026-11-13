@@ -519,6 +519,7 @@ table.faixas input { width: 96px; min-height: 34px; padding: 0 8px; border: 1px 
 .login-cartao form { display: grid; gap: 12px; width: 100%; text-align: left; }
 .login-cartao form[hidden] { display: none; }
 .login-msg { margin: 0; font-size: 14px; }
+.link-botao { justify-self: center; min-height: 44px; padding: 4px 8px; border: 0; background: none; color: var(--roxo); font-size: 13px; text-decoration: underline; cursor: pointer; }
 .login-msg:empty { display: none; }
 @media (max-width: 600px) { .login-mascote { width: 120px; } }
 @media (prefers-reduced-motion: no-preference) { .login-mascote { animation: aparecer 300ms ease-out; } }

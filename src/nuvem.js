@@ -56,6 +56,23 @@ export async function mandarLink(email) {
       : 'Não deu para mandar o link agora. Confira o e-mail e tente de novo.');
 }
 
+// Entrar com e-mail e senha. criar = primeiro acesso (cria a senha; o hook do banco recusa quem não tem convite).
+export async function entrarComSenha(email, senha, criar = false) {
+  if (String(senha).length < 8) throw new Error('A senha precisa ter pelo menos 8 caracteres.');
+  const auth = (await supa()).auth;
+  const dados = { email: email.trim().toLowerCase(), password: senha };
+  const { data, error } = criar ? await auth.signUp(dados) : await auth.signInWithPassword(dados);
+  if (!error && data.session) return;
+  const m = error?.message ?? '';
+  throw new Error(/não foi convidado|hook|signups? not allowed/i.test(m) ? 'Este e-mail não tem acesso. Peça um convite a quem é dono da empresa no Calculéo.'
+    : /already registered|already exists/i.test(m) ? 'Este e-mail já tem conta. Entre com a sua senha ou peça o link por e-mail.'
+      : /invalid login|invalid credentials/i.test(m) ? 'E-mail ou senha errados.'
+        : /password/i.test(m) ? 'Senha fraca. Use pelo menos 8 caracteres, misturando letras e números.'
+          : /rate|seconds/i.test(m) ? 'Muitas tentativas. Espere 1 minuto e tente de novo.'
+            : !error ? 'A conta foi criada, mas precisa ser confirmada por e-mail. Avise o dono da empresa.'
+              : 'Não deu para entrar agora. Confira a internet e tente de novo.');
+}
+
 export async function sair() {
   await (await supa()).auth.signOut();
   location.reload();
