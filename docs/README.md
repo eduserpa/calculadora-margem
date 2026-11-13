@@ -12,6 +12,8 @@ Os exemplos usam números fictícios.
 | 7 | [Peso para o frete](07-peso-para-frete.md) | Produtos |
 | 8 | [Taxas de cada canal](08-taxas-dos-canais.md) | Configurações |
 
+Banco de dados (preparado, ainda sem conta): [banco.md](banco.md).
+
 ## Palavras usadas
 
 - **CMV (custo do produto):** quanto a peça custa para a empresa, antes de vender.

@@ -20,6 +20,7 @@ Os dados ficam no navegador de quem usa (localStorage) nesta fase de testes. Use
 - `data/canais.json`: taxas de cada canal, com fonte e data da conferência.
 - `src/calculos/`: as contas, uma função por conta.
 - `src/telas/`: as telas.
+- `supabase/schema.sql`: o banco preparado para a próxima fase (ver `docs/banco.md`).
 - `tests/`: casos de teste com números fictícios.
 
 ## Abrir no computador
@@ -35,8 +36,11 @@ Depois abra http://127.0.0.1:8787
 ## Testes
 
 ```
+npm install
 npm test
 ```
+
+O `npm install` (uma vez) baixa o Postgres de teste usado em `tests/banco.test.js`. O site em si não depende de nada.
 
 ## Créditos
 

@@ -1,7 +1,17 @@
-// Onde os dados ficam: no navegador (localStorage), nesta fase de testes.
+// Camada de dados única: as telas só usam `dados`, `salvar()` e `aoMudar()`; não sabem onde os dados ficam.
+// Hoje ficam no navegador (localStorage). Para o banco (Supabase), troca-se só o `guardado` abaixo
+// por um que leia e grave nas tabelas de supabase/schema.sql (ver docs/banco.md).
 // Exportar/importar um arquivo .json serve de cópia de segurança e para levar a outro computador.
 
 const CHAVE = 'calculadora-margem.v1';
+
+// Onde os dados ficam. ler() devolve { produtos, canais, precificacoes } ou null; gravar() lança erro se não conseguir.
+const noNavegador = {
+  ler: () => JSON.parse(localStorage.getItem(CHAVE) || 'null'),
+  gravar: (d) => localStorage.setItem(CHAVE, JSON.stringify(d)),
+};
+let guardado = noNavegador;
+export const usarGuardado = (outro) => (guardado = outro);
 
 export const dados = { produtos: [], canais: null, precificacoes: {} };
 let canaisPadrao = null;
@@ -13,7 +23,7 @@ export function aoMudar(fn) {
 
 export async function carregar() {
   try {
-    const salvo = JSON.parse(localStorage.getItem(CHAVE) || 'null');
+    const salvo = await guardado.ler();
     if (salvo) Object.assign(dados, { produtos: salvo.produtos ?? [], canais: salvo.canais ?? null, precificacoes: salvo.precificacoes ?? {} });
   } catch {
     // navegador sem acesso ao armazenamento: segue só na memória
@@ -25,7 +35,7 @@ export async function carregar() {
 export function salvar() {
   let ok = true;
   try {
-    localStorage.setItem(CHAVE, JSON.stringify(dados));
+    guardado.gravar(dados);
   } catch {
     ok = false;
   }
