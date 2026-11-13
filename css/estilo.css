@@ -513,7 +513,7 @@ table.faixas input { width: 96px; min-height: 34px; padding: 0 8px; border: 1px 
 /* Login (Hermione): só ele aparece até a pessoa entrar */
 .login { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
 .login-cartao { width: min(380px, 100%); display: grid; gap: 14px; justify-items: center; text-align: center; padding: 28px 24px; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--superficie); box-shadow: var(--sombra); }
-.login-cartao h1 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; } /* o nome já está no mascote */
+.login-cartao h1 { margin: -4px 0 0; font-family: "Grandstander", var(--fonte-titulo); font-weight: 900; font-size: 40px; line-height: 1; color: #0c0d11; }  /* mesma letra do nome na lateral */
 .login-frase { margin: -6px 0 0; color: var(--suave); }
 .login-mascote { width: 180px; height: auto; }
 .login-cartao form { display: grid; gap: 12px; width: 100%; text-align: left; }
