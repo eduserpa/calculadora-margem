@@ -2,6 +2,7 @@
 import { historico } from '../nuvem.js';
 import { esc } from '../formato.js';
 import { mostrarErro } from './erro.js';
+import { htmlVazio, htmlCarregando } from './mascote.js';
 
 const $ = (s) => document.querySelector(s);
 const quando = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -17,6 +18,7 @@ async function desenhar(todas = false) {
   const filtro = $('#historico-pessoa');
   const lista = $('#historico-lista');
   let linhas;
+  if (!lista.children.length) lista.innerHTML = htmlCarregando('Procurando os registros…');
   try {
     linhas = await historico({ quem: todas ? undefined : filtro.value || undefined });
   } catch (erro) {
@@ -36,5 +38,5 @@ async function desenhar(todas = false) {
         <li><time datetime="${esc(l.quando)}">${quando(l.quando)}</time>
           <span><strong>${esc(l.acao)}</strong>${l.detalhe ? `: ${esc(l.detalhe)}` : ''}</span>
           <small class="dica">${esc(l.quem)}</small></li>`).join('')}</ol>`
-    : '<p class="dica">Nada registrado ainda. Cada produto, preço ou taxa salvo aparece aqui.</p>';
+    : htmlVazio('historico', filtro.value ? 'Nada desta pessoa por aqui.' : 'Nada registrado ainda.', 'Cada produto, preço ou taxa salvo aparece aqui. O leão anota tudo.');
 }

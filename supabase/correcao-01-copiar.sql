@@ -1,20 +1,25 @@
--- Correção 01 (13/11): a cópia entre empresas não sobrescreve produto quando o SKU é repetido.
+-- Correção 01 (13/11): a cópia entre empresas não sobrescreve produto quando o SKU é repetido,
+-- e a prévia avisa esses casos ('repetido': revise antes; entram como produto novo).
 -- Para quem JÁ rodou o schema.sql: cole este arquivo inteiro no SQL Editor e clique em Run. Pode rodar mais de uma vez.
 -- Quem ainda não rodou o schema.sql não precisa deste arquivo (a correção já está lá).
 
--- Casa pelo SKU só quando ele aparece uma vez na origem e uma vez no destino; SKU vazio ou repetido vira produto novo.
+-- Casa pelo SKU só quando ele aparece uma vez na origem e uma vez no destino. SKU vazio vira produto novo;
+-- SKU repetido (numa das duas) também vira novo, sem sobrescrever nada, e a prévia avisa: 'repetido'.
 create or replace function sku_unico(_empresa uuid, _sku text) returns boolean
 language sql stable security definer set search_path = public
 as $$ select nullif(trim(_sku), '') is not null
   and (select count(*) from produtos p where p.empresa_id = _empresa and lower(trim(p.sku)) = lower(trim(_sku))) = 1 $$;
 
-drop function if exists previa_copia(uuid, uuid);
-create function previa_copia(origem uuid, destino uuid)
+create or replace function previa_copia(origem uuid, destino uuid)
 returns table (nome text, sku text, situacao text)
 language sql stable security definer set search_path = public
 as $$
   select o.nome, o.sku,
-    case when sku_unico(origem, o.sku) and sku_unico(destino, o.sku) then 'atualizado' else 'novo' end
+    case when nullif(trim(o.sku), '') is null then 'novo'
+      when sku_unico(origem, o.sku) and sku_unico(destino, o.sku) then 'atualizado'
+      when exists (select 1 from produtos d where d.empresa_id = destino and lower(trim(d.sku)) = lower(trim(o.sku)))
+        or not sku_unico(origem, o.sku) then 'repetido'
+      else 'novo' end
   from produtos o
   where o.empresa_id = origem and o.tipo_custo <> 'kit'
     and origem in (select minhas_empresas()) and destino in (select minhas_empresas())
@@ -49,6 +54,5 @@ begin
   return jsonb_build_object('novos', novos, 'atualizados', atualizados);
 end $$;
 
-revoke execute on function sku_unico(uuid, text) from anon, public;
-revoke execute on function previa_copia(uuid, uuid) from anon, public;
+revoke execute on function sku_unico(uuid, text), previa_copia(uuid, uuid), copiar_produtos(uuid, uuid) from anon, public;
 grant execute on function previa_copia(uuid, uuid), copiar_produtos(uuid, uuid) to authenticated;

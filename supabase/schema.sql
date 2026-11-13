@@ -184,7 +184,8 @@ end $$;
 -- Só para quem é membro das duas. Copia nome, SKU, custo, peso, medidas e fotos; casa pelo SKU único (atualiza) ou cria.
 -- Preços salvos e taxas NÃO vão: cada empresa tem a sua tributação. Kits ficam de fora (os itens são de cada empresa).
 
--- Casa pelo SKU só quando ele aparece uma vez na origem e uma vez no destino; SKU vazio ou repetido vira produto novo.
+-- Casa pelo SKU só quando ele aparece uma vez na origem e uma vez no destino. SKU vazio vira produto novo;
+-- SKU repetido (numa das duas) também vira novo, sem sobrescrever nada, e a prévia avisa: 'repetido'.
 create function sku_unico(_empresa uuid, _sku text) returns boolean
 language sql stable security definer set search_path = public
 as $$ select nullif(trim(_sku), '') is not null
@@ -195,7 +196,11 @@ returns table (nome text, sku text, situacao text)
 language sql stable security definer set search_path = public
 as $$
   select o.nome, o.sku,
-    case when sku_unico(origem, o.sku) and sku_unico(destino, o.sku) then 'atualizado' else 'novo' end
+    case when nullif(trim(o.sku), '') is null then 'novo'
+      when sku_unico(origem, o.sku) and sku_unico(destino, o.sku) then 'atualizado'
+      when exists (select 1 from produtos d where d.empresa_id = destino and lower(trim(d.sku)) = lower(trim(o.sku)))
+        or not sku_unico(origem, o.sku) then 'repetido'
+      else 'novo' end
   from produtos o
   where o.empresa_id = origem and o.tipo_custo <> 'kit'
     and origem in (select minhas_empresas()) and destino in (select minhas_empresas())

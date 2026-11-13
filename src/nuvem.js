@@ -8,8 +8,9 @@
 //   equipe()                    -> { membros: [{ usuarioId, email, papel, entrouEm }], convites: [{ email, papel, convidadoEm }], souDono }
 //   convidar(email, papel), cancelarConvite(email), removerMembro(usuarioId)
 //   historico({ quem })         -> [{ quando, quem, acao, detalhe }], os últimos 200 (quem: e-mail, opcional)
-//   previaCopia(origemId)       -> { novos: [{ nome, sku }], atualizados: [{ nome, sku }] }
-//   copiarProdutos(origemId)    -> { novos, atualizados }   (depois, recarregar os dados)
+//   previaCopia(origemId)       -> { novos, atualizados, repetidos }, cada um [{ nome, sku }]
+//                                  repetidos: SKU repetido numa das empresas; entram como novos, sem sobrescrever nada
+//   copiarProdutos(origemId)    -> { novos, atualizados }   (novos inclui os repetidos; depois, recarregar os dados)
 //   anotarImportacao(detalhe)   -> uma linha "Importação" no histórico
 import { SUPABASE } from './config.js';
 import { produtoVazio } from './produtos.js';
@@ -171,7 +172,7 @@ export async function previaCopia(origemId) {
   const r = await (await supa()).rpc('previa_copia', { origem: origemId, destino: empresaId });
   falhou('Não deu para ver os produtos da outra empresa.')(r);
   const pega = (s) => r.data.filter((x) => x.situacao === s).map(({ nome, sku }) => ({ nome, sku }));
-  return { novos: pega('novo'), atualizados: pega('atualizado') };
+  return { novos: pega('novo'), atualizados: pega('atualizado'), repetidos: pega('repetido') };
 }
 
 export async function copiarProdutos(origemId) {

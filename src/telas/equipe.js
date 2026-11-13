@@ -3,6 +3,7 @@
 import { equipe, convidar, cancelarConvite, removerMembro, pessoaLogada } from '../nuvem.js';
 import { esc } from '../formato.js';
 import { mostrarErro } from './erro.js';
+import { htmlVazio, htmlCarregando } from './mascote.js';
 
 const $ = (s) => document.querySelector(s);
 const PAPEL = { dono: 'Dono', membro: 'Membro' };
@@ -27,6 +28,7 @@ function estado(texto, erro = false) {
 async function desenhar() {
   const lista = $('#equipe-lista');
   let e;
+  if (!lista.children.length) lista.innerHTML = htmlCarregando('Chamando a equipe…');
   try {
     e = await equipe();
   } catch (erro) {
@@ -50,6 +52,7 @@ async function desenhar() {
     <h2>Pessoas (${e.membros.length})</h2>
     <ul class="lista-pessoas">${e.membros.map(pessoa).join('')}</ul>
     ${e.souDono && e.convites.length ? `<h2>Convites pendentes (${e.convites.length})</h2><ul class="lista-pessoas">${e.convites.map(convite).join('')}</ul>` : ''}
+    ${e.membros.length === 1 && !e.convites.length ? htmlVazio('equipe', 'Por enquanto é só você.', e.souDono ? 'Convide alguém acima para dividir a juba.' : '') : ''}
     ${e.souDono ? '' : '<p class="dica">Só o dono da empresa convida e remove pessoas.</p>'}`;
 }
 

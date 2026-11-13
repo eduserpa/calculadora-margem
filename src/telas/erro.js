@@ -1,13 +1,14 @@
 // Estado de erro reaproveitável (falha ao salvar ou carregar, sem internet): o leão com a calculadora soltando fumaça,
 // o que aconteceu em uma frase e "Tentar de novo". O mascote é decorativo (alt vazio); o texto diz o que importa.
 import { esc } from '../formato.js';
+import { imgMascote } from './mascote.js';
 
 export const SEM_INTERNET = 'Sem internet. O leão espera a conexão voltar.';
 
 export function htmlErro(texto, titulo = 'A calculadora engasgou') {
   return `
     <div class="estado-erro" role="alert">
-      <img src="assets/mascote/erro.webp" alt="" width="120" height="137" class="mascote-img mascote-entra" decoding="async">
+      ${imgMascote('erro')}
       <div>
         <h2>${esc(titulo)}</h2>
         <p>${esc(texto)}</p>

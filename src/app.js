@@ -64,6 +64,7 @@ export function aviso(texto, ok = false) {
   const el = $('#aviso-geral');
   el.textContent = texto;
   el.classList.toggle('ok', ok);
+  el.dataset.mascote = !ok ? 'erro' : /(\.\.\.|…)$/.test(texto) ? 'calculando' : 'salvo'; // "Levando para a nuvem..." ainda está fazendo as contas
   el.hidden = !texto;
 }
 

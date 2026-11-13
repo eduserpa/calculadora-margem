@@ -4,6 +4,7 @@ import { minhasEmpresas, empresaAtual, trocarEmpresa, previaCopia, copiarProduto
 import { dados, salvar, carregar, aoMudar } from '../dados.js';
 import { lerNumero, campo, esc } from '../formato.js';
 import { icone } from '../icones.js';
+import { imgMascote, htmlCarregando } from './mascote.js';
 import { iniciarEquipe } from './equipe.js';
 import { iniciarHistorico } from './historico.js';
 
@@ -77,7 +78,7 @@ function janelaCopiar(outras) {
       <label class="campo"><span>Copiar de</span>
         <select id="copiar-origem" class="campo-texto">${outras.map((e) => `<option value="${esc(e.id)}">${esc(e.nome)}</option>`).join('')}</select>
       </label>
-      <p class="dica">Produto com o mesmo SKU é atualizado; os outros entram como novos. Preços, taxas e kits não são copiados.</p>
+      <div class="intro-mascote">${imgMascote('copiar', 72)}<p class="dica">Produto com o mesmo SKU é atualizado; os outros entram como novos. Preços, taxas e kits não são copiados.</p></div>
       <div id="copiar-previa" role="status"></div>
     </div>
     <div class="janela-base"><div class="direita">
@@ -104,12 +105,16 @@ const listar = (titulo, itens) => (itens.length
 async function mostrarPrevia() {
   const caixa = $('#copiar-previa');
   const botao = $('[data-acao=copiar]');
-  caixa.innerHTML = '<p class="dica">Conferindo…</p>';
+  caixa.innerHTML = htmlCarregando('Conferindo os produtos…');
   try {
     const p = await previaCopia($('#copiar-origem').value);
-    const total = p.novos.length + p.atualizados.length;
+    const repetidos = p.repetidos ?? [];
+    const total = p.novos.length + p.atualizados.length + repetidos.length;
+    // SKU repetido (numa das duas empresas) entra como produto novo, sem sobrescrever nada: a pessoa revisa depois
     caixa.innerHTML = total
-      ? `<p><strong>${p.novos.length}</strong> novo(s) · <strong>${p.atualizados.length}</strong> atualizado(s) pelo SKU</p>${listar('Novos', p.novos)}${listar('Atualizados', p.atualizados)}`
+      ? `<p><strong>${p.novos.length}</strong> novo(s) · <strong>${p.atualizados.length}</strong> atualizado(s) pelo SKU${repetidos.length ? ` · <strong>${repetidos.length}</strong> com SKU repetido` : ''}</p>
+         ${listar('Novos', p.novos)}${listar('Atualizados', p.atualizados)}
+         ${repetidos.length ? `<div class="aviso-repetido">${listar('SKU repetido, revise antes', repetidos)}<p class="dica">Entram como produtos novos, sem mudar os que já existem. Confira e ajuste o SKU depois.</p></div>` : ''}`
       : '<p>Essa empresa não tem produtos para copiar (kits ficam de fora).</p>';
     botao.textContent = `Copiar ${total} produto(s)`;
     botao.hidden = !total;
@@ -130,6 +135,7 @@ async function copiar() {
     const aviso = $('#aviso-geral');
     aviso.textContent = `Produtos copiados: ${r.novos} novo(s), ${r.atualizados} atualizado(s).`;
     aviso.classList.add('ok');
+    aviso.dataset.mascote = 'salvo';
     aviso.hidden = false;
   } catch (erro) {
     $('#copiar-previa').innerHTML = `<p class="erro">${esc(erro.message)}</p>`;
