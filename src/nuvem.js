@@ -5,6 +5,8 @@
 //   minhasEmpresas()            -> [{ id, nome, papel }]
 //   empresaAtual()              -> id da empresa em uso
 //   trocarEmpresa(id)           -> guarda a escolha e recarrega a página
+//   criarEmpresa(nome)          -> cria com você como dono e já troca para ela (recarrega)
+//   renomearEmpresa(nome)       -> renomeia a empresa em uso (só o dono)
 //   equipe()                    -> { membros: [{ usuarioId, email, papel, entrouEm }], convites: [{ email, papel, convidadoEm }], souDono }
 //   convidar(email, papel), cancelarConvite(email), removerMembro(usuarioId)
 //   historico({ quem })         -> [{ quando, quem, acao, detalhe }], os últimos 200 (quem: e-mail, opcional)
@@ -104,6 +106,24 @@ export async function minhasEmpresas() {
 
 export const empresaAtual = () => empresaId;
 export const emailAtual = () => pessoa?.email ?? '';
+
+// Cria uma empresa com quem está logado como dono e já passa a usar a nova.
+export async function criarEmpresa(nome) {
+  if (!String(nome).trim()) throw new Error('Dê um nome à empresa.');
+  const r = await (await supa()).rpc('criar_empresa', { nome_empresa: String(nome).trim() });
+  falhou('Não deu para criar a empresa agora.')(r);
+  trocarEmpresa(r.data);
+}
+
+// Renomeia a empresa em uso (só o dono).
+export async function renomearEmpresa(nome) {
+  if (!String(nome).trim()) throw new Error('Dê um nome à empresa.');
+  const r = await (await supa()).from('empresas').update({ nome: String(nome).trim() }).eq('id', empresaId).select();
+  falhou('Não deu para renomear agora.')(r);
+  if (!r.data.length) throw new Error('Só o dono pode renomear a empresa.');
+  const e = empresas.find((x) => x.id === empresaId);
+  if (e) e.nome = r.data[0].nome;
+}
 
 export function trocarEmpresa(id) {
   try {

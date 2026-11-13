@@ -44,6 +44,19 @@ create function meu_email() returns text
 language sql stable security definer set search_path = public
 as $$ select lower(email) from auth.users where id = auth.uid() $$;
 
+-- Criar empresa pela tela: qualquer pessoa logada cria a sua e entra como dono (não vê as dos outros).
+create function criar_empresa(nome_empresa text) returns uuid
+language plpgsql security definer set search_path = public
+as $$
+declare nova uuid;
+begin
+  if auth.uid() is null then raise exception 'entre no Calculéo primeiro'; end if;
+  if nullif(trim(nome_empresa), '') is null then raise exception 'dê um nome à empresa'; end if;
+  insert into empresas (nome) values (trim(nome_empresa)) returning id into nova;
+  insert into membros (empresa_id, usuario_id, email, papel) values (nova, auth.uid(), meu_email(), 'dono');
+  return nova;
+end $$;
+
 -- Chamado pelo app logo após o login: aceita os convites pendentes deste e-mail.
 create function aceitar_convites() returns setof uuid
 language plpgsql security definer set search_path = public
@@ -242,9 +255,10 @@ revoke all on all tables in schema public from anon;
 alter default privileges in schema public revoke all on tables from anon;
 revoke execute on all functions in schema public from anon, public;
 grant usage on schema public to authenticated;
-grant execute on function minhas_empresas(), sou_dono(uuid), meu_email(), aceitar_convites(),
+grant execute on function minhas_empresas(), sou_dono(uuid), meu_email(), aceitar_convites(), criar_empresa(text),
   anotar_importacao(uuid, text), previa_copia(uuid, uuid), copiar_produtos(uuid, uuid) to authenticated;
 grant select on empresas, historico to authenticated;
+grant update (nome) on empresas to authenticated; -- renomear: só o dono (RLS abaixo)
 grant select, delete on membros to authenticated;
 grant select, insert, delete on convites to authenticated;
 grant select, insert, update, delete on produtos, itens_kit, precificacoes, config_canais to authenticated;
@@ -265,6 +279,8 @@ alter table historico enable row level security;
 
 create policy ver_minhas_empresas on empresas for select to authenticated
   using (id in (select minhas_empresas()));
+create policy dono_renomeia on empresas for update to authenticated
+  using (sou_dono(id)) with check (sou_dono(id));
 
 -- Equipe: todos da empresa se veem; só o dono tira alguém (e não tira a si mesmo).
 create policy ver_equipe on membros for select to authenticated

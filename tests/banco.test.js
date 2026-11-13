@@ -105,7 +105,7 @@ test('banco: membro usa o app (lê, grava, muda e apaga na própria empresa)', a
   await como(db, 'authenticated', CAIO, `insert into config_canais (empresa_id, canal, config) values ('${A}', 'empresa', '{"impostos": 12}')`);
   assert.equal((await como(db, 'authenticated', CAIO, `update produtos set nome = 'Pia inox' where id = '${novo}'`)).affectedRows, 1);
   assert.equal((await como(db, 'authenticated', CAIO, `delete from produtos where id = '${novo}'`)).affectedRows, 1);
-  await assert.rejects(como(db, 'authenticated', CAIO, `update empresas set nome = 'x'`), /permission denied/);
+  assert.equal((await como(db, 'authenticated', CAIO, `update empresas set nome = 'x'`)).affectedRows, 0, 'membro não renomeia');
 });
 
 test('banco: dono convida e remove; membro não', async () => {
@@ -229,6 +229,30 @@ test('banco: a correção 01 roda por cima de um banco já criado', async () => 
   await db.exec(`insert into produtos (empresa_id, nome, sku, tipo_custo) values ('${A}', 'Outro banco', '1058', 'revenda')`);
   assert.deepEqual((await linhas(db, 'authenticated', DUDA, `select situacao from previa_copia('${A}', '${B}') where sku = '1058'`)).map((r) => r.situacao), ['repetido', 'repetido']);
   await assert.rejects(como(db, 'anon', null, `select previa_copia('${A}', '${B}')`), /permission denied/);
+});
+
+test('banco: qualquer pessoa logada cria a sua empresa; só o dono renomeia', async () => {
+  const db = await bancoComDados();
+  await assert.rejects(como(db, 'anon', null, `select criar_empresa('X')`), /permission denied/);
+  await assert.rejects(como(db, 'authenticated', SEM_EMPRESA, `select criar_empresa('  ')`), /nome/);
+  const [{ nova }] = await linhas(db, 'authenticated', SEM_EMPRESA, `select criar_empresa(' Loja do Zé ') nova`);
+  assert.deepEqual(await linhas(db, 'authenticated', SEM_EMPRESA, 'select e.nome, m.papel from empresas e join membros m on m.empresa_id = e.id'), [{ nome: 'Loja do Zé', papel: 'dono' }]);
+  assert.equal((await linhas(db, 'authenticated', SEM_EMPRESA, 'select * from produtos')).length, 0, 'empresa nova não vê as outras');
+  assert.equal((await linhas(db, 'authenticated', ANA, `select * from empresas where id = '${nova}'`)).length, 0, 'as outras não veem a nova');
+  // renomear: o dono sim; membro e gente de fora não
+  assert.equal((await como(db, 'authenticated', ANA, `update empresas set nome = 'Empresa A2' where id = '${A}'`)).affectedRows, 1);
+  assert.equal((await como(db, 'authenticated', CAIO, `update empresas set nome = 'x' where id = '${A}'`)).affectedRows, 0);
+  assert.equal((await como(db, 'authenticated', BIA, `update empresas set nome = 'x' where id = '${A}'`)).affectedRows, 0);
+  await assert.rejects(como(db, 'authenticated', ANA, `update empresas set id = gen_random_uuid() where id = '${A}'`), /permission denied/, 'só o nome muda');
+  assert.equal((await db.query(`select nome from empresas where id = '${A}'`)).rows[0].nome, 'Empresa A2');
+});
+
+test('banco: a correção 02 roda por cima de um banco já criado', async () => {
+  const db = await bancoComDados();
+  await db.exec(ler('../supabase/correcao-02-empresas.sql'));
+  await db.exec(ler('../supabase/correcao-02-empresas.sql'));
+  assert.equal((await linhas(db, 'authenticated', SEM_EMPRESA, `select criar_empresa('Nova') e`)).length, 1);
+  assert.equal((await como(db, 'authenticated', CAIO, `update empresas set nome = 'x' where id = '${A}'`)).affectedRows, 0);
 });
 
 test('banco: fotos no Storage só na pasta da própria empresa', async () => {
