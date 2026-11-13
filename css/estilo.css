@@ -504,7 +504,7 @@ table.faixas input { width: 96px; min-height: 34px; padding: 0 8px; border: 1px 
 /* logo do Calculéo (leão com focinho de %) ao lado do nome */
 .marca { display: flex; align-items: center; gap: 10px; }
 .marca-logo { flex: none; display: block; }
-.marca .marca-txt { font-family: "Fredoka", var(--fonte-titulo); font-size: 27px; font-weight: 700; line-height: 1; letter-spacing: 0; color: #ccec7b; }  /* letra redonda, da família da palavra Calculéo do mascote */
+.marca .marca-txt { font-family: "Grandstander", var(--fonte-titulo); font-size: 27px; font-weight: 900; line-height: 1; letter-spacing: 0; color: #ccec7b; }  /* letra redonda, da família da palavra Calculéo do mascote */
 .marca .marca-txt span { display: inline-block; white-space: nowrap; margin-top: 4px; font-family: var(--fonte-texto); font-size: 12px; font-weight: 500; letter-spacing: 0; color: var(--lateral-suave); }
 .marca-logo { width: 44px; height: 44px; border-radius: 10px; }
 /* mascote (o leão vendedor) no estado vazio de Meus Produtos */
