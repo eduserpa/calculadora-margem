@@ -14,14 +14,23 @@
   <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&family=Grandstander:wght@900&display=swap"></noscript>
   <link rel="stylesheet" href="css/estilo.css">
   <!-- O login precisa do supabase-js logo de início: começa a baixar junto com a página, em vez de esperar o app.js. -->
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/+esm" crossorigin>
-  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/auth-js@2.115.0/+esm" crossorigin>
-  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/postgrest-js@2.115.0/+esm" crossorigin>
-  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/storage-js@2.115.0/+esm" crossorigin>
-  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/functions-js@2.115.0/+esm" crossorigin>
-  <link rel="modulepreload" href="https://cdn.jsdelivr.net/npm/@supabase/realtime-js@2.115.0/+esm" crossorigin>
-  <script type="module" src="src/app.js"></script>
+  <link rel="modulepreload" href="vendor/supabase-js-2.115.0.js">
+  <script>
+    // O "Abrindo" nunca fica parado: se um arquivo do app não carregar, se o app der erro ao abrir ou se passar de 15 s,
+    // ele mostra o erro com "Tentar de novo". Se o app abrir depois, o "Abrindo" some e nada disso aparece.
+    window.abrirFalhou = (texto) => {
+      const mostrar = () => {
+        const a = document.getElementById('abrindo');
+        if (a.hidden) return; // já abriu (ou foi para o login)
+        a.querySelector('.abrindo-texto').hidden = true;
+        if (texto) a.querySelector('.abrindo-falhou .aviso-tipo').textContent = texto;
+        a.querySelector('.abrindo-falhou').hidden = false;
+      };
+      document.readyState === 'loading' ? addEventListener('DOMContentLoaded', mostrar) : mostrar();
+    };
+    setTimeout(() => abrirFalhou('Está demorando mais que o normal. Confira a internet e tente de novo.'), 15000);
+  </script>
+  <script type="module" src="src/app.js" onerror="abrirFalhou()"></script>
 </head>
 <body>
   <div class="abrindo" id="abrindo" role="status">
@@ -29,7 +38,11 @@
       <source media="(prefers-reduced-motion: reduce)" data-srcset="assets/mascote/carregando-parado.webp">
       <img data-src="assets/mascote/carregando.webp" alt="" width="200" height="195" fetchpriority="high">
     </picture>
-    <p>Abrindo o Calculéo…</p>
+    <p class="abrindo-texto">Abrindo o Calculéo…</p>
+    <div class="abrindo-falhou" hidden>
+      <p class="aviso-tipo erro">Não deu para abrir o Calculéo. Confira a internet e tente de novo.</p>
+      <button type="button" class="botao principal" onclick="location.reload()">Tentar de novo</button>
+    </div>
   </div>
   <script>
     // O leão animado (253 KB) só é baixado quando o app vai mesmo abrir (há sessão ou link de login no endereço);
@@ -50,9 +63,8 @@
         <label class="campo"><span>Seu e-mail</span><input type="email" id="login-email" autocomplete="email" required></label>
         <label class="campo"><span>Senha</span><input type="password" id="login-senha" autocomplete="current-password" minlength="8" required></label>
         <button type="submit" class="botao principal" id="login-entrar">Entrar</button>
-        <button type="button" class="link-botao" id="login-modo">Primeiro acesso? Crie sua senha</button>
         <button type="button" class="link-botao" id="login-esqueci" hidden>Esqueci a senha</button>
-        <button type="button" class="link-botao" id="login-link">Prefiro receber um link por e-mail</button>
+        <button type="button" class="link-botao" id="login-link">Receber link por e-mail</button>
       </form>
       <form id="nova-senha-form" novalidate hidden>
         <label class="campo"><span>Nova senha</span><input type="password" id="nova-senha" autocomplete="new-password" minlength="8" required></label>
@@ -115,7 +127,7 @@
           <h1 id="titulo-calculadora"><span class="icone-titulo"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#percent"></use></svg></span>Calculadora de Margem</h1>
           <p>Selecione um produto e descubra sua margem real por canal</p>
         </header>
-        <p class="aviso ok" id="c-exemplo" hidden>Números de exemplo. Troque pelos seus ou selecione um produto.</p>
+        <p class="aviso-tipo info" id="c-exemplo" hidden>Números de exemplo. Troque pelos seus ou selecione um produto.</p>
 
         <div class="cartao produto-escolhido" id="c-produto-cartao">
           <div class="cartao-topo">
@@ -170,15 +182,15 @@
             <h2><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#target"></use></svg> Preço Mínimo Sugerido</h2>
             <strong class="minimo-valor" id="c-minimo-valor">—</strong>
             <p class="minimo-sub" id="c-minimo-sub"></p>
-            <p class="dica" id="c-minimo-aviso" hidden></p>
-            <button type="button" class="botao contorno pequeno" id="c-usar-minimo" hidden>Usar este preço</button>
+            <p class="aviso-tipo atencao" id="c-minimo-aviso" hidden></p>
+            <button type="button" class="botao principal pequeno" id="c-usar-minimo" hidden>Usar este preço</button>
             <label class="campo" for="c-margem"><span>Margem desejada</span></label>
             <div class="linha-barra">
               <input type="range" id="c-margem" min="5" max="50" step="1">
               <span class="passo-numero"><button type="button" class="passo-numero-btn" data-passo="-1" tabindex="-1" aria-label="Diminuir a margem">−</button><input type="text" inputmode="decimal" id="c-margem-num" data-min="1" data-max="90" aria-label="Margem desejada em porcentagem"><span class="passo-numero-un" aria-hidden="true">%</span><button type="button" class="passo-numero-btn" data-passo="1" tabindex="-1" aria-label="Aumentar a margem">+</button></span>
               <div class="limites"><span>5%</span><span>50%</span></div>
             </div>
-            <p class="dica-caixa"><strong>Dica:</strong> uma margem entre 20% e 25% costuma dar folga para promoções e anúncios.</p>
+            <div class="aviso-tipo info dica-caixa"><p class="aviso-texto"><strong>Dica:</strong> uma margem entre 20% e 25% costuma dar folga para promoções e anúncios.</p></div>
             <div class="liquidacao" id="c-liquidacao"></div>
           </div>
 
@@ -186,8 +198,8 @@
           <section class="cartao concorrentes" id="c-concorrentes" aria-labelledby="c-conc-titulo" hidden></section>
         </div>
         <div class="acoes-salvar" id="c-acoes">
-          <button type="button" class="botao principal" id="c-salvar">Salvar Precificação</button>
           <button type="button" class="botao" id="c-descartar" hidden>Descartar</button>
+          <button type="button" class="botao principal" id="c-salvar">Salvar Precificação</button>
           <span class="dica" id="c-salvo"></span>
         </div>
         </div>

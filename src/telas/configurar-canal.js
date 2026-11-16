@@ -174,8 +174,8 @@ function opcoesMercadoLivre() {
     </div>
     <label class="campo"><span>Reputação da conta</span>
       <select data-c="reputacao">${Object.entries(REPUTACOES).map(([v, t]) => `<option value="${v}" ${v === rep ? 'selected' : ''}>${t}</option>`).join('')}</select>
-      ${semTabela ? '<small class="alerta">A tabela de frete desta reputação não está publicada. A conta usa a tabela verde. Confira no simulador do Mercado Livre.</small>' : ''}
     </label>
+    ${semTabela ? '<p class="aviso-tipo atencao">A tabela de frete desta reputação não está publicada. A conta usa a tabela verde. Confira no simulador do Mercado Livre.</p>' : ''}
     ${quadroDaRegra(id, rasc)}`;
 }
 

@@ -387,7 +387,7 @@ function desenharImposto() {
     <label class="campo" for="imposto-valor"><span>Imposto da empresa (%)</span></label>
     <div class="linha-imposto">
       ${campoNumero(`<input type="text" inputmode="decimal" id="imposto-valor" data-min="0" data-max="100" value="${v == null ? '' : campo(v)}" placeholder="—" aria-describedby="imposto-dica">`, '%', 'o imposto da empresa')}
-      <span id="imposto-estado" class="dica" role="status"></span>
+      <span id="imposto-estado" class="aviso-tipo" role="status" hidden></span>
     </div>
     <p class="dica" id="imposto-dica">Vale para todos os canais. Um canal com imposto próprio (digitado nele) usa o dele. Deixe vazio para cada canal usar o seu.</p>`;
 }
@@ -397,7 +397,10 @@ function guardarImposto(e) {
   const texto = e.target.value.trim();
   dados.empresa = texto ? { impostos: lerNumero(texto) } : null;
   const ok = salvar();
-  $('#imposto-estado').textContent = ok ? (texto ? `Salvo: ${campo(dados.empresa.impostos)}% em todos os canais sem imposto próprio.` : 'Salvo: cada canal usa o próprio imposto.') : 'Não deu para salvar.';
+  const estado = $('#imposto-estado');
+  estado.className = `aviso-tipo ${ok ? 'sucesso' : 'erro'}`;
+  estado.hidden = false;
+  estado.textContent = ok ? (texto ? `Salvo: ${campo(dados.empresa.impostos)}% em todos os canais sem imposto próprio.` : 'Salvo: cada canal usa o próprio imposto.') : 'Não deu para salvar.';
 }
 
 // ---------- clonar produtos de outra empresa ----------
@@ -474,7 +477,7 @@ async function mostrarPrevia() {
     };
     caixa.innerHTML = `
       <p><strong>${p.novos.length}</strong> novo(s) · <strong>${p.atualizados.length}</strong> atualiza(m) pelo SKU${p.repetidos.length ? ` · <strong>${p.repetidos.length}</strong> com SKU repetido` : ''}</p>
-      ${p.repetidos.length ? '<p class="dica aviso-repetido">SKU repetido, revise antes: entram como produtos novos, sem mudar os que já existem.</p>' : ''}
+      ${p.repetidos.length ? '<p class="aviso-tipo atencao aviso-repetido">SKU repetido, revise antes: entram como produtos novos, sem mudar os que já existem.</p>' : ''}
       <label class="item-clonar todos"><input type="checkbox" id="copiar-todos" checked> <strong>Selecionar todos</strong></label>
       <ul class="lista-clonar">${previa.map(linha).join('')}</ul>`;
     botao.hidden = false;

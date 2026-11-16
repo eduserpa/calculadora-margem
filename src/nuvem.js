@@ -29,7 +29,7 @@ import { produtoVazio } from './produtos.js';
 import { dados } from './dados.js';
 import { candidatosDoApify } from './concorrentes.js';
 
-const BIBLIOTECA = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/+esm';
+const BIBLIOTECA = '../vendor/supabase-js-2.115.0.js'; // 1 arquivo servido pelo próprio site (como atualizar: no topo dele)
 const CHAVE_EMPRESA = 'calculadora-margem.empresa';
 let cliente = null;
 let pessoa = null;
@@ -42,6 +42,19 @@ async function supa() {
     cliente = createClient(SUPABASE.url, SUPABASE.chave);
   }
   return cliente;
+}
+
+// Lê tudo em blocos de 1000 (o máximo que o Supabase devolve por pedido) até acabar. consulta() monta o pedido de novo a
+// cada bloco e precisa de ordem fixa (chave única), senão uma linha pode repetir ou faltar entre os blocos.
+export const BLOCO = 1000;
+export async function tudo(consulta) {
+  const linhas = [];
+  for (let de = 0; ; de += BLOCO) {
+    const r = await consulta().range(de, de + BLOCO - 1);
+    if (r.error) return r;
+    linhas.push(...r.data);
+    if (r.data.length < BLOCO) return { data: linhas, error: null };
+  }
 }
 
 const falhou = (texto) => ({ error }) => {
@@ -71,18 +84,20 @@ export async function mandarLink(email) {
       : 'Não deu para mandar o link agora. Confira o e-mail e tente de novo.');
 }
 
-// Entrar com e-mail e senha. criar = primeiro acesso (cria a senha; o hook do banco recusa quem não tem convite).
-export async function entrarComSenha(email, senha, criar = false) {
+// Entrar com e-mail e senha. No 1º acesso a pessoa ainda não tem conta, então o login falha e tentamos criar a conta com o
+// mesmo e-mail e senha: o hook do banco só deixa quem tem convite. Se a conta já existe, é senha errada; a mensagem é a
+// mesma do login, para não contar quem tem conta. (auth só nos testes.)
+export async function entrarComSenha(email, senha, auth) {
   if (String(senha).length < 8) throw new Error('A senha precisa ter pelo menos 8 caracteres.');
-  const auth = (await supa()).auth;
+  auth ??= (await supa()).auth;
   const dados = { email: email.trim().toLowerCase(), password: senha };
-  const { data, error } = criar ? await auth.signUp(dados) : await auth.signInWithPassword(dados);
+  let { data, error } = await auth.signInWithPassword(dados);
+  if (/invalid login|invalid credentials/i.test(error?.message ?? '')) ({ data, error } = await auth.signUp(dados));
   if (!error && data.session) return;
   const m = error?.message ?? '';
-  throw new Error(/não foi convidado|hook|signups? not allowed/i.test(m) ? 'Este e-mail não tem acesso. Peça um convite a quem é admin da empresa no Calculéo.'
-    : /already registered|already exists/i.test(m) ? 'Este e-mail já tem conta. Entre com a sua senha ou peça o link por e-mail.'
-      : /invalid login|invalid credentials/i.test(m) ? 'E-mail ou senha errados.'
-        : /password/i.test(m) ? 'Senha fraca. Use pelo menos 8 caracteres, misturando letras e números.'
+  throw new Error(/não foi convidado|hook|signups? not allowed/i.test(m) ? 'Este e-mail não tem acesso. Peça um convite ao admin.'
+    : /already registered|already exists|invalid login|invalid credentials/i.test(m) ? 'E-mail ou senha incorretos.'
+      : /password/i.test(m) ? 'Senha fraca. Use pelo menos 8 caracteres, misturando letras e números.'
           : /rate|seconds/i.test(m) ? 'Muitas tentativas. Espere 1 minuto e tente de novo.'
             : !error ? 'A conta foi criada, mas precisa ser confirmada por e-mail. Avise o admin da empresa.'
               : 'Não deu para entrar agora. Confira a internet e tente de novo.');
@@ -188,11 +203,15 @@ export async function excluirEmpresa() {
   try {
     const pasta = s.storage.from('fotos');
     const listar = async (prefixo) => {
-      const { data, error } = await pasta.list(prefixo, { limit: 1000 });
-      if (error) throw error;
-      return data;
+      const itens = [];
+      for (let de = 0; ; de += BLOCO) {
+        const { data, error } = await pasta.list(prefixo, { limit: BLOCO, offset: de, sortBy: { column: 'name', order: 'asc' } });
+        if (error) throw error;
+        itens.push(...data);
+        if (data.length < BLOCO) return itens;
+      }
     };
-    const { data: fora, error } = await s.rpc('fotos_usadas_fora', { empresa: id });
+    const { data: fora, error } = await tudo(() => s.rpc('fotos_usadas_fora', { empresa: id }));
     if (error) throw error;
     const caminhos = [];
     for (const item of await listar(id)) {
@@ -281,7 +300,8 @@ export async function removerMembro(usuarioId) {
 const doBanco = (r) => ({ id: r.id, produtoId: r.produto_id, canal: r.canal, vendedor: r.vendedor, preco: Number(r.preco), link: r.link, criadoEm: r.criado_em, criadoPor: r.criado_por });
 
 export async function concorrentes() {
-  const r = await (await supa()).from('concorrentes').select('*').eq('empresa_id', empresaId).order('preco');
+  const s = await supa();
+  const r = await tudo(() => s.from('concorrentes').select('*').eq('empresa_id', empresaId).order('preco').order('id'));
   falhou('Não deu para ler os concorrentes.')(r);
   return r.data.map(doBanco);
 }
@@ -344,7 +364,8 @@ export async function ultimaBusca(produtoId) {
 
 // Todas as buscas guardadas da empresa (a Início compara com elas); [] se ainda não houver a correção 13
 export async function buscasGuardadas() {
-  const r = await (await supa()).from('buscas_concorrentes').select('*').eq('empresa_id', empresaId);
+  const s = await supa();
+  const r = await tudo(() => s.from('buscas_concorrentes').select('*').eq('empresa_id', empresaId).order('produto_id'));
   return r.error ? [] : r.data.map(daBusca);
 }
 
@@ -356,9 +377,10 @@ export async function salvarExcluidos(produtoId, excluidos) {
 
 // ---------- histórico ----------
 
-export async function historico({ quem } = {}) {
+// Os mais recentes (a tela mostra até 200 e diz isso; a Início, 5).
+export async function historico({ quem, limite = 200 } = {}) {
   // '*': funciona antes e depois de a coluna mudancas existir (correcao-08)
-  let q = (await supa()).from('historico').select('*').eq('empresa_id', empresaId).order('quando', { ascending: false }).limit(200);
+  let q = (await supa()).from('historico').select('*').eq('empresa_id', empresaId).order('quando', { ascending: false }).limit(limite);
   if (quem) q = q.eq('quem', quem);
   const r = await q;
   falhou('Não deu para ler o histórico.')(r);
@@ -373,7 +395,8 @@ export async function anotarImportacao(detalhe) {
 // ---------- copiar produtos de outra empresa ----------
 
 export async function previaCopia(origemId) {
-  const r = await (await supa()).rpc('previa_copia', { origem: origemId, destino: empresaId });
+  const s = await supa();
+  const r = await tudo(() => s.rpc('previa_copia', { origem: origemId, destino: empresaId }).order('nome').order('id'));
   falhou('Não deu para ver os produtos da outra empresa.')(r);
   const pega = (s) => r.data.filter((x) => x.situacao === s).map(({ nome, sku }) => ({ nome, sku }));
   return { itens: r.data, novos: pega('novo'), atualizados: pega('atualizado'), repetidos: pega('repetido') };
@@ -493,11 +516,13 @@ export function lembrarDoBanco(t, empresa = empresaId) {
   return d;
 }
 
-async function ler() {
-  const s = await supa();
-  // ponytail: lê até 1000 linhas por tabela (limite padrão do Supabase); paginar quando passar disso
+// Ordem fixa (a chave de cada tabela) para ler em blocos sem repetir nem pular linha.
+const ORDEM = { produtos: ['id'], itens_kit: ['kit_id', 'produto_id'], precificacoes: ['produto_id', 'canal'], config_canais: ['canal'] };
+
+async function ler(s) {
+  s ??= await supa(); // (s só nos testes)
   const tabelas = Object.keys(CHAVES);
-  const respostas = await Promise.all(tabelas.map((t) => s.from(t).select('*').eq('empresa_id', empresaId)));
+  const respostas = await Promise.all(tabelas.map((t) => tudo(() => ORDEM[t].reduce((q, c) => q.order(c), s.from(t).select('*').eq('empresa_id', empresaId)))));
   if (respostas.some((r) => r.error)) throw new Error('Não deu para ler os dados da nuvem. Confira a internet e recarregue a página.');
   const t = Object.fromEntries(tabelas.map((nome, i) => [nome, respostas[i].data]));
   return lembrarDoBanco(t);

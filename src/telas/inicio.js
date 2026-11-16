@@ -129,7 +129,7 @@ const cartaoNumero = (rotulo, valor, sub, classe = '') => `
 async function desenharHistorico() {
   const caixa = $('#inicio-historico');
   try {
-    const linhas = (await historico({})).slice(0, 5);
+    const linhas = await historico({ limite: 5 });
     caixa.innerHTML = linhas.length
       ? `<ul class="lista-simples">${linhas.map((l) => `<li><span><strong>${esc(l.acao)}</strong>${l.detalhe ? `: ${esc(l.detalhe)}` : ''} <small class="dica">${esc(l.quem)}</small></span><time datetime="${esc(l.quando)}">${quando(l.quando)}</time></li>`).join('')}</ul>`
       : '<p class="dica">Nada registrado ainda.</p>';

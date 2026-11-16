@@ -1,6 +1,6 @@
 // Imposto só de um produto NUM canal (correção 14; ex.: DIFAL no Mercado Livre): sem valor = o do canal/empresa; com valor,
 // vale para esse produto nesse canal, por cima dos outros. Conta (Resultado, preço mínimo, concorrentes, Início/planilha),
-// ida e volta da nuvem e o banco (mapa por canal 0–100, histórico "Imposto no Mercado Livre: padrão → 15%", clonar leva,
+// ida e volta da nuvem e o banco (mapa por canal 0–100, histórico "Imposto (Mercado Livre): padrão → 15%", clonar leva,
 // e a correcao-14 roda 2 vezes num banco da 1ª versão, que tinha produtos.imposto para todos os canais).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -91,6 +91,7 @@ async function banco(primeiraVersao) {
       alter table produtos disable trigger historico; update produtos set imposto = 12.5 where id = '${PIA}'; alter table produtos enable trigger historico;`);
     await db.exec(ler('../supabase/correcao-14-imposto-produto.sql'));
     await db.exec(ler('../supabase/correcao-14-imposto-produto.sql'));
+    await db.exec(ler('../supabase/correcao-15-historico-e-indices.sql')); // o caminho de quem já está no ar: 14 e depois 15
   }
   await db.exec('delete from historico');
   return db;
@@ -113,7 +114,7 @@ test('correcao-14 num banco da 1ª versão: o imposto único vai para todos os c
   assert.equal((await db.query(`select count(*)::int as n from information_schema.columns where table_name = 'produtos' and column_name = 'imposto'`)).rows[0].n, 0);
 });
 
-for (const [nome, primeiraVersao] of [['schema.sql novo', false], ['1ª versão + correcao-14 2 vezes', true]]) {
+for (const [nome, primeiraVersao] of [['schema.sql novo', false], ['1ª versão + correcao-14 2 vezes + correcao-15', true]]) {
   test(`imposto do produto por canal no banco: ${nome}`, async () => {
     const db = await banco(primeiraVersao);
     await como(db, `update produtos set impostos_canal = '{}' where id = '${PIA}'`);
@@ -123,9 +124,9 @@ for (const [nome, primeiraVersao] of [['schema.sql novo', false], ['1ª versão 
     await como(db, `update produtos set impostos_canal = '{"shopee": 4}' where id = '${PIA}'`);
     const h = (await db.query(`select mudancas from historico where empresa_id = '${A}' order by id`)).rows.map((r) => r.mudancas);
     assert.deepEqual(h, [
-      [{ campo: 'Imposto no Mercado Livre', antes: 'padrão', depois: '15%' }],
-      [{ campo: 'Imposto no Mercado Livre', antes: '15%', depois: '12%' }, { campo: 'Imposto no Shopee', antes: 'padrão', depois: '4%' }],
-      [{ campo: 'Imposto no Mercado Livre', antes: '12%', depois: 'padrão' }],
+      [{ campo: 'Imposto (Mercado Livre)', antes: 'padrão', depois: '15%' }],
+      [{ campo: 'Imposto (Mercado Livre)', antes: '15%', depois: '12%' }, { campo: 'Imposto (Shopee)', antes: 'padrão', depois: '4%' }],
+      [{ campo: 'Imposto (Mercado Livre)', antes: '12%', depois: 'padrão' }],
     ]);
     for (const ruim of ['{"mercadolivre": 101}', '{"mercadolivre": -1}', '{"mercadolivre": "15"}', '[15]'])
       await assert.rejects(como(db, `update produtos set impostos_canal = '${ruim}' where id = '${PIA}'`), /check/, ruim);

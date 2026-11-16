@@ -1,7 +1,7 @@
 // Ida e volta entre os dados das telas e as linhas das tabelas, e o "só o que mudou" do envio.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { paraLinhas, deLinhas, diferenca, CHAVES, fotosParaStorage, lembrarDoBanco, pendentesDeEnvio, apagarFotosOrfas, caminhoDaFoto } from '../src/nuvem.js';
+import { paraLinhas, deLinhas, diferenca, CHAVES, fotosParaStorage, lembrarDoBanco, pendentesDeEnvio, apagarFotosOrfas, caminhoDaFoto, guardadoNaNuvem, tudo } from '../src/nuvem.js';
 import { produtoVazio } from '../src/produtos.js';
 
 const E = 'empresa-1';
@@ -141,4 +141,49 @@ test('nuvem: sem como conferir o uso (correcao-07 não rodada), não apaga nada'
 test('nuvem: se apagar a foto falha, não trava nem lança erro', async () => {
   const apagadas = await apagarFotosOrfas(bancoFalso({}, { falharRemover: true }), [URL_FOTO('emp-a', 'aaa')], 'emp-a');
   assert.deepEqual(apagadas, []);
+});
+
+// Supabase de mentira como o de verdade: no máximo 1000 linhas por pedido, na ordem pedida.
+function bancoGrande(tabelas) {
+  const pedidos = [];
+  const consulta = (linhas) => {
+    const ordem = [];
+    const q = {
+      select: () => q,
+      eq: () => q,
+      order: (c) => (ordem.push(c), q),
+      range(de, ate) {
+        pedidos.push([de, ate]);
+        const chave = (r) => ordem.map((c) => String(r[c])).join('|');
+        const todas = [...linhas].sort((a, b) => chave(a).localeCompare(chave(b)));
+        return Promise.resolve({ data: todas.slice(de, Math.min(ate + 1, de + 1000)), error: null });
+      },
+    };
+    return q;
+  };
+  return { pedidos, from: (t) => consulta(tabelas[t] ?? []), rpc: (nome) => consulta(tabelas[nome] ?? []) };
+}
+
+test('nuvem: lê tudo em blocos de 1000 (1.200 produtos, 2.500 preços), sem repetir nem pular', async () => {
+  const produtos = Array.from({ length: 1200 }, (_, i) => ({ ...produtoVazio(), id: `p${String(i).padStart(4, '0')}`, nome: `Produto ${i}` }));
+  const canais = ['mercadolivre', 'shopee', 'shein', 'tiktokshop', 'atacado'];
+  const precificacoes = Object.fromEntries(produtos.slice(0, 500).map((p) => [p.id, Object.fromEntries(canais.map((c) => [c, { de: 100, desconto: 0, salvoEm: '2026-11-16T10:00:00Z' }]))]));
+  const l = paraLinhas({ produtos, precificacoes, canais: null, empresa: null }, E);
+  assert.equal(l.precificacoes.length, 2500);
+  const s = bancoGrande(l);
+  const volta = await guardadoNaNuvem.ler(s);
+  assert.equal(volta.produtos.length, 1200);
+  assert.equal(new Set(volta.produtos.map((p) => p.id)).size, 1200);
+  assert.equal(Object.values(volta.precificacoes).reduce((n, p) => n + Object.keys(p).length, 0), 2500);
+  assert.deepEqual(s.pedidos.filter(([de]) => de === 2000), [[2000, 2999]], 'só os preços chegam ao 3º bloco');
+});
+
+test('nuvem: tudo() junta os blocos de uma função do banco e para no erro', async () => {
+  const s = bancoGrande({ previa_copia: Array.from({ length: 2500 }, (_, i) => ({ id: `x${String(i).padStart(4, '0')}`, nome: 'Pia' })) });
+  const r = await tudo(() => s.rpc('previa_copia').order('nome').order('id'));
+  assert.equal(r.data.length, 2500);
+  assert.equal(new Set(r.data.map((x) => x.id)).size, 2500);
+  let n = 0;
+  const erro = await tudo(() => ({ range: async () => (++n === 2 ? { data: null, error: { message: 'caiu' } } : { data: Array(1000).fill({}), error: null }) }));
+  assert.equal(erro.error.message, 'caiu');
 });

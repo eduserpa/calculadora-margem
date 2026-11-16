@@ -146,22 +146,14 @@ function mostrarLogin(texto = '', logada = false) {
 }
 
 function iniciarLogin() {
-  let criar = false; // primeiro acesso: cria a senha
   const msg = (texto) => ($('#login-msg').textContent = texto);
   $('#login-sair').addEventListener('click', nuvem.sair);
-  $('#login-modo').addEventListener('click', () => {
-    criar = !criar;
-    $('#login-entrar').textContent = criar ? 'Criar senha e entrar' : 'Entrar';
-    $('#login-modo').textContent = criar ? 'Já tenho senha' : 'Primeiro acesso? Crie sua senha';
-    $('#login-senha').autocomplete = criar ? 'new-password' : 'current-password';
-    msg(criar ? 'Use o e-mail em que você foi convidado e uma senha com pelo menos 8 caracteres.' : '');
-  });
   $('#login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     $('#login-entrar').disabled = true;
-    msg(criar ? 'Criando sua senha...' : 'Entrando...');
+    msg('Entrando...');
     try {
-      await nuvem.entrarComSenha($('#login-email').value, $('#login-senha').value, criar);
+      await nuvem.entrarComSenha($('#login-email').value, $('#login-senha').value);
       location.reload();
     } catch (erro) {
       msg(erro.message);
@@ -343,4 +335,8 @@ async function iniciar() {
   if (nuvem.souDono()) levarFotosParaStorage();
 }
 
-iniciar();
+iniciar().catch((erro) => {
+  console.error('abrir', erro);
+  if ($('#abrindo').hidden) aviso('Uma parte da página não carregou. Recarregue a página; se continuar, exporte os dados e avise.');
+  else abrirFalhou();
+});

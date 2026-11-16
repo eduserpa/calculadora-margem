@@ -532,8 +532,8 @@ const PARTE = { freteCanal: (c) => `o frete do ${c.nome} fica`, taxaFixa: () => 
 function htmlPrecoMelhor(preco, cmv, canal, pesoG) {
   const m = precoMelhorAbaixo({ preco, cmv, canal, pesoG });
   if (!m) return '';
-  return `<p class="conc-aviso">${icone('info')} A ${reais(m.preco)} ${PARTE[m.motivo](canal)} ${reais(m.economia)} mais barato: margem ${margemPct(m.margem)} e lucro ${reais(m.lucro)}.
-    <button type="button" class="botao pequeno" data-acao="usar-melhor" data-preco="${m.preco}">Usar este preço</button></p>`;
+  return `<div class="aviso-tipo info conc-aviso"><p class="aviso-texto">A ${reais(m.preco)} ${PARTE[m.motivo](canal)} ${reais(m.economia)} mais barato: margem ${margemPct(m.margem)} e lucro ${reais(m.lucro)}.</p>
+    <button type="button" class="botao pequeno" data-acao="usar-melhor" data-preco="${m.preco}">Usar este preço</button></div>`;
 }
 
 // ---------- concorrentes (só com a nuvem; correções 12 e 13): busca no ML pelo Apify ou à mão ----------
@@ -561,8 +561,8 @@ function iniciarConcorrentes() {
     <h2 id="c-conc-titulo">Concorrentes neste canal</h2>
     <div id="c-conc-corpo"></div>
     <div class="conc-nome-fraco" hidden>
-      <p class="dica">O nome deste produto é curto ou tem só código, então os concorrentes podem vir menos precisos.
-        <button type="button" class="botao pequeno" data-acao="corrigir-nome">Corrigir nome</button></p>
+      <div class="aviso-tipo atencao"><p class="aviso-texto">O nome deste produto é curto ou tem só código, então os concorrentes podem vir menos precisos.</p>
+        <button type="button" class="botao pequeno" data-acao="corrigir-nome">Corrigir nome</button></div>
       <form class="conc-renomear" novalidate hidden>
         <label class="campo"><span>Nome do produto</span><input type="text" name="nome" autocomplete="off" required></label>
         <p class="erro" role="alert" hidden></p>

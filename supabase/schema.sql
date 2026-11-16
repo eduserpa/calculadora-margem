@@ -113,7 +113,7 @@ $$;
 create or replace function impostos_validos(m jsonb) returns boolean
 language sql immutable set search_path = public
 as $$ select jsonb_typeof(m) = 'object' and not exists (select 1 from jsonb_each(m) e
-  where jsonb_typeof(e.value) <> 'number' or (e.value #>> '{}')::numeric not between 0 and 100) $$;
+  where e.key !~ '^[a-z]{2,30}$' or jsonb_typeof(e.value) <> 'number' or (e.value #>> '{}')::numeric not between 0 and 100) $$;
 
 create table produtos (
   id uuid primary key default gen_random_uuid(),
@@ -228,6 +228,19 @@ create table historico (
   mudancas jsonb  -- o que mudou, campo a campo: [{campo, antes, depois}] (correção 08); linhas antigas sem
 );
 create index on historico (empresa_id, quando desc);
+-- ---------- índices (escala) ----------
+-- A RLS (minhas_empresas) procura as empresas de quem está logado a cada pedido: membros por usuario_id.
+create index membros_usuario on membros (usuario_id);
+-- O porteiro do cadastro e o aceitar_convites procuram o convite pelo e-mail.
+create index convites_email on convites (email);
+-- Ler a empresa (app) e as chaves estrangeiras (empresa, produto): apagar produto não varre a tabela.
+create index itens_kit_empresa_produto on itens_kit (empresa_id, produto_id);
+create index precificacoes_empresa_produto on precificacoes (empresa_id, produto_id);
+create index concorrentes_empresa_produto on concorrentes (empresa_id, produto_id);
+-- SKU repetido (importar, clonar, prévia): procura por empresa e SKU sem ler todos os produtos.
+create index produtos_empresa_sku on produtos (empresa_id, lower(trim(sku)));
+-- Foto ainda em uso (ao apagar foto ou excluir empresa).
+create index produtos_fotos on produtos using gin (fotos);
 
 create function anotar(empresa uuid, acao text, detalhe text) returns void
 language sql security definer set search_path = public
@@ -311,7 +324,7 @@ as $$
     (16, 'Altura', valor_br('cm', to_jsonb(a.altura_cm)), valor_br('cm', to_jsonb(d.altura_cm))),
     (99, 'Foto trocada', case when a.fotos is distinct from d.fotos then 'sim' end, null)
     union all
-    select 17, 'Imposto no ' || nome_do_canal(d.empresa_id, k),
+    select 17, 'Imposto (' || nome_do_canal(d.empresa_id, k) || ')',
       coalesce(nullif(valor_br('pct', a.impostos_canal -> k), '—'), 'padrão'), coalesce(nullif(valor_br('pct', d.impostos_canal -> k), '—'), 'padrão')
     from (select jsonb_object_keys(coalesce(a.impostos_canal, '{}'::jsonb)) union select jsonb_object_keys(coalesce(d.impostos_canal, '{}'::jsonb))) t(k)
   ) m(ordem, campo, antes, depois)
@@ -504,7 +517,7 @@ end $$;
 -- A foto da empresa também conta: o app não apaga um logo que ainda está no selo.
 create function foto_em_uso(url text) returns boolean
 language sql stable security definer set search_path = public
-as $$ select exists (select 1 from produtos where url = any(fotos)) or exists (select 1 from empresas where foto = url) $$;
+as $$ select exists (select 1 from produtos where fotos @> array[url]) or exists (select 1 from empresas where foto = url) $$;  -- pelo índice produtos_fotos
 
 -- Excluir empresa (janela Editar empresa): só o admin dela. Tudo numa transação: se algo falhar, nada some.
 -- Filhas de empresas, todas com "on delete cascade": membros, convites, produtos, itens_kit, precificacoes, config_canais e historico.
@@ -534,6 +547,7 @@ as $$
   select distinct substring(f from '/storage/v1/object/public/fotos/([^?#]+)')
   from produtos, unnest(fotos) f
   where sou_dono(empresa) and empresa_id <> empresa and f like '%/storage/v1/object/public/fotos/' || empresa || '/%'
+  order by 1 -- o app lê em blocos de 1000
 $$;
 
 -- ---------- permissões ----------

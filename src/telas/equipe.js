@@ -107,7 +107,7 @@ function janelaConvite() {
         <div class="campo"><span id="convite-papel-rotulo">Papel</span>
           <div class="alternar" role="radiogroup" aria-labelledby="convite-papel-rotulo"><label><input type="radio" name="papel" value="membro" checked><span>Membro</span></label><label><input type="radio" name="papel" value="dono"><span>Admin</span></label></div>
         </div>
-        <p class="dica">A pessoa entra abrindo o Calculéo com este e-mail e tocando em "Primeiro acesso? Crie sua senha".</p>
+        <p class="dica">No 1º acesso, a pessoa abre o Calculéo, digita este e-mail e cria uma senha com pelo menos 8 caracteres em "Entrar".</p>
         <p class="erro" role="alert" hidden></p>
       </div>
       <div class="janela-base"><div class="direita">
@@ -133,7 +133,7 @@ function janelaConvite() {
     try {
       await convidar(email, j.querySelector('[name=papel]:checked').value);
       j.close();
-      estado(`Convite feito. Avise ${email}: é só abrir o Calculéo, tocar em "Primeiro acesso? Crie sua senha" e usar este e-mail.`);
+      estado(`Convite feito. Avise ${email}: é só abrir o Calculéo, digitar este e-mail e criar uma senha com pelo menos 8 caracteres em "Entrar".`);
       await desenhar();
       $('#equipe-lista [data-acao=convidar]')?.focus();
     } catch (x) {
