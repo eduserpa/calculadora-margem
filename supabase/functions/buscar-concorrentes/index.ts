@@ -35,6 +35,7 @@ async function registrarBusca(empresa: string, produto: string, autorizacao: str
   if (r.status === 401) throw new Falha(401, 'Entre no Calculéo de novo.');
   const motivo = r.ok ? await r.json().catch(() => null) : null;
   if (motivo === 'fora') throw new Falha(403, 'Você não é desta empresa.');
+  if (motivo === 'so_admin') throw new Falha(403, 'Só o admin da empresa pode buscar concorrentes.');
   if (motivo === 'produto') throw new Falha(429, 'Este produto foi buscado há menos de 10 minutos. Use o resultado guardado.');
   if (motivo === 'dia') throw new Falha(429, 'A empresa já fez 30 buscas nas últimas 24 horas. Tente de novo amanhã.');
   if (motivo !== 'ok') throw new Falha(503, 'A busca de concorrentes ainda não foi ligada (falta rodar a correção 13 no Supabase).');

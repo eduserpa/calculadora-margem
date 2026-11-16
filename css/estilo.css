@@ -594,10 +594,10 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .regra-topo > :first-child { min-width: 0; }
 .regra-topo .engrenagem { position: relative; top: auto; right: auto; flex: none; }
 .barra-regra { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: -6px; }
-.info:not(.aviso-tipo), .info-pilula { position: relative; display: inline-grid; place-items: center; width: 20px; height: 20px; margin: 0 0 0 4px; vertical-align: middle; color: var(--suave); cursor: help; }  /* o (i) das dicas; .aviso-tipo.info é o aviso cinza */
-.info:not(.aviso-tipo)::after, .info-pilula::after { content: ""; position: absolute; inset: -12px; }  /* 44 px de toque, sem empurrar o rótulo */
-.info:not(.aviso-tipo) .ic, .info-pilula .ic { width: 16px; height: 16px; }
-@media (hover: hover) { .info:not(.aviso-tipo):hover, .info-pilula:hover { color: var(--roxo); } }
+.info:not(.aviso-tipo), .info-pilula, .conc-cadeado { position: relative; display: inline-grid; place-items: center; width: 20px; height: 20px; margin: 0 0 0 4px; vertical-align: middle; color: var(--suave); cursor: help; }  /* o (i) das dicas; .aviso-tipo.info é o aviso cinza */
+.info:not(.aviso-tipo)::after, .info-pilula::after, .conc-cadeado::after { content: ""; position: absolute; inset: -12px; }  /* 44 px de toque, sem empurrar o rótulo */
+.info:not(.aviso-tipo) .ic, .info-pilula .ic, .conc-cadeado .ic { width: 16px; height: 16px; }
+@media (hover: hover) { .info:not(.aviso-tipo):hover, .info-pilula:hover, .conc-cadeado:hover { color: var(--roxo); } }
 .fixo { display: flex; align-items: center; min-height: 38px; padding: 0 12px; border-radius: 8px; background: var(--superficie-2); font-weight: 600; }
 .tabela-rolagem { overflow-x: auto; border: 1px solid var(--linha); border-radius: 10px; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
@@ -1112,6 +1112,9 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
 .conc-candidato:first-child { border-top: 0; }
 .conc-candidato > label { display: grid; grid-template-columns: 20px 56px minmax(0, 1fr) 6.5em 5.5em 6.5em; align-items: center; column-gap: 12px; min-width: 0; cursor: pointer; }
 .conc-candidato input[type="checkbox"] { grid-column: 1; width: 20px; height: 20px; margin: 0; accent-color: var(--grafite); cursor: pointer; }
+/* 1.2.3: membro não mexe nos concorrentes (só o admin): caixinhas travadas e o cadeado (mesmo (i) das dicas, 20 com toque de 44) depois do "Adicionar à mão" */
+.conc-candidato > label:has(> input:disabled), .conc-candidato input[type="checkbox"]:disabled { cursor: not-allowed; }
+.conc-acoes > .conc-cadeado { margin: 0; }
 .conc-candidato .miniatura { grid-column: 2; width: 56px; height: 56px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--linha); border-radius: var(--raio-p); background: #fff; color: var(--suave); }
 .conc-candidato .miniatura img { width: 100%; height: 100%; object-fit: contain; }
 .conc-cand-info { grid-column: 3; display: grid; gap: 4px; min-width: 0; }

@@ -205,6 +205,7 @@ language plpgsql security definer set search_path = public
 as $$
 begin
   if empresa is null or empresa not in (select minhas_empresas()) then return 'fora'; end if;
+  if not sou_dono(empresa) then return 'so_admin'; end if; -- buscar gasta crédito: só o admin (correção 16)
   perform pg_advisory_xact_lock(hashtext('busca:' || empresa)); -- 2 cliques ao mesmo tempo contam um depois do outro
   if exists (select 1 from buscas_feitas where empresa_id = empresa and produto_id = produto and feita_em > now() - interval '10 minutes') then
     return 'produto';
@@ -614,10 +615,15 @@ create policy da_empresa on precificacoes for all to authenticated
   using (empresa_id in (select minhas_empresas())) with check (empresa_id in (select minhas_empresas()));
 create policy da_empresa on config_canais for all to authenticated
   using (empresa_id in (select minhas_empresas())) with check (empresa_id in (select minhas_empresas()));
-create policy da_empresa on concorrentes for all to authenticated
-  using (empresa_id in (select minhas_empresas())) with check (empresa_id in (select minhas_empresas()));
-create policy da_empresa on buscas_concorrentes for all to authenticated
-  using (empresa_id in (select minhas_empresas())) with check (empresa_id in (select minhas_empresas()));
+-- Concorrentes e busca guardada: todos da empresa leem; anotar, excluir, buscar e desmarcar, só o admin (correção 16).
+create policy ver_concorrentes on concorrentes for select to authenticated
+  using (empresa_id in (select minhas_empresas()));
+create policy admin_concorrentes on concorrentes for all to authenticated
+  using (sou_dono(empresa_id)) with check (sou_dono(empresa_id));
+create policy ver_buscas on buscas_concorrentes for select to authenticated
+  using (empresa_id in (select minhas_empresas()));
+create policy admin_buscas on buscas_concorrentes for all to authenticated
+  using (sou_dono(empresa_id)) with check (sou_dono(empresa_id));
 
 -- ---------- fotos (Storage) ----------
 -- Leitura pública (endereço fixo, o navegador guarda em cache; o nome do arquivo é o hash da foto, impossível de adivinhar).

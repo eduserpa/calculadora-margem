@@ -3,7 +3,8 @@
     "versao": "Alpha 1.2.2",
     "data": "16/11/2026",
     "itens": [
-      "Concorrentes aparecem só no Mercado Livre, e a lista Mais caro que a concorrência da Início também"
+      "Concorrentes aparecem só no Mercado Livre, e a lista Mais caro que a concorrência da Início também",
+      "Buscar, atualizar e anotar concorrentes ficou só para o admin; membros veem os resultados com os botões bloqueados"
     ]
   },
   {

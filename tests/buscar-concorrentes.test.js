@@ -49,13 +49,13 @@ test('função: logado e da empresa recebe os itens do Apify; conta a busca ante
   assert.deepEqual(JSON.parse(a.op.body), { keyword: 'Dispenser papel higiênico inox', maxPages: 1, sort: 'relevance', promoted: false });
 });
 
-test('função: sem login, de fora, termo curto, produto buscado há pouco, teto do dia e sem a correção 13 não chegam ao Apify', async () => {
+test('função: sem login, de fora, membro (não admin), termo curto, produto buscado há pouco, teto do dia e sem a correção 13 não chegam ao Apify', async () => {
   chamadas.length = 0;
   assert.equal((await pedir(PEDIDO, '')).status, 401);
   assert.equal((await pedir(PEDIDO, 'Bearer de-fora')).status, 403);
   assert.equal((await pedir({ ...PEDIDO, termo: 'pi' })).status, 400);
   assert.equal((await pedir({ ...PEDIDO, produto: undefined })).status, 400);
-  for (const [m, status, msg] of [['produto', 429, /10 minutos/], ['dia', 429, /30 buscas/], [null, 503, /correção 13/]]) {
+  for (const [m, status, msg] of [['so_admin', 403, /Só o admin/], ['produto', 429, /10 minutos/], ['dia', 429, /30 buscas/], [null, 503, /correção 13/]]) {
     motivo = m;
     const r = await pedir(PEDIDO);
     assert.equal(r.status, status);
