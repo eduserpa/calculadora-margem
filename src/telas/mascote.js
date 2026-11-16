@@ -7,6 +7,11 @@ export const imgMascote = (pose, largura = 120, entra = true) => {
   return `<img src="assets/mascote/${pose}.webp" alt="" width="${largura}" height="${Math.round((largura * h) / w)}" class="mascote-img${entra ? ' mascote-entra' : ''}" decoding="async">`;
 };
 
+// Leão de arquivo 2x no tamanho exato (ex.: planilha-144.webp): width e height do arquivo só dão a proporção; o CSS mostra na
+// metade da altura, sem outro redimensionamento (regra do Eduardo: leão nunca abaixo de 72 px de altura).
+export const imgMascote2x = (arquivo, largura, altura) =>
+  `<img src="assets/mascote/${arquivo}.webp" alt="" width="${largura}" height="${altura}" class="mascote-img mascote-entra" decoding="async">`;
+
 // Estado vazio: o leão, uma frase e (opcional) o que fazer.
 export const htmlVazio = (pose, frase, dica = '') => `
   <div class="estado-mascote">${imgMascote(pose)}<div><p class="estado-frase">${frase}</p>${dica ? `<p class="dica">${dica}</p>` : ''}</div></div>`;

@@ -108,7 +108,7 @@ function desenhar() {
 // Produto em que o nosso preço salvo no Mercado Livre passa da mediana dos concorrentes (anotados à mão e os da busca que
 // ficaram no cálculo; só aparece se houver algum). Os outros canais não têm concorrentes na tela (1.2.2).
 async function desenharMaisCaro(precos) {
-  if (!empresaAtual()) return;
+  if (!empresaAtual() || !nuvem.souDono()) return; // concorrentes são só do admin (1.2.3): o membro nem lê
   let lista;
   try {
     lista = maisCaroQueConcorrencia(precos, await concorrentes(), (await nuvem.buscasGuardadas?.()) ?? []).slice(0, 5);

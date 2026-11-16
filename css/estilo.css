@@ -46,7 +46,7 @@
   --sombra: 0 1px 2px rgb(12 13 17 / 6%), 0 8px 24px rgb(12 13 17 / 6%);
   --sombra-dura: 2px 2px #0c0d11, 3px 3px #b8de5a;
   /* Cores (Eduardo 13/11): ~80% neutros, ~10% lima (marca: primário, ativo, selecionado, destaques), ~5% roxo (só detalhes:
-     links, foco, ícone i, selos pequenos, seta da dica, marcador da análise). A mesma sombra em camadas em 4 tons: */
+     links, foco, ícone i, selos pequenos, seta da dica). A mesma sombra em camadas em 4 tons: */
   --grafite: #2d3039;
   --sombra-dura-cinza: 2px 2px #2d3039, 3px 3px #a3a5aa;        /* secundário neutro */
   --perigo: #a32020;                                            /* 7,5:1 no branco */
@@ -62,6 +62,8 @@
   --atencao: #8a5a00; --atencao-fundo: #fff8e1; --atencao-borda: #f0d48a;
   --erro: #a32020;    --erro-fundo: #fdeeee;    --erro-borda: #f1bcbc;
   --info: #2d3039;    --info-fundo: #f1f2ee;    --info-borda: #d3d5cf;
+  /* NÚMEROS (Eduardo 16/11, 1.2.3): todo número em 600 com tabular-nums; 700 só no principal de cada cartão (margem do Resultado,
+     Preço Mínimo); nada em 800/900. Número secundário (lucro das listas) em --grafite. */
   --fonte: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
   --fonte-titulo: "Outfit", "Inter", "Segoe UI", system-ui, sans-serif;
   color-scheme: light;
@@ -281,7 +283,10 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .cartao-topo { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--e1) var(--e2); }
 .produto-escolhido.ativo { border-color: var(--verde-linha); background: linear-gradient(var(--verde-suave), var(--superficie) 80%); }
 .produto-info { display: flex; flex-wrap: wrap; gap: 6px; color: var(--suave); font-size: 13px; }
-.pilula { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; background: var(--superficie-2); }
+.pilula { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; border-radius: 999px; background: var(--superficie-2); color: var(--suave); font-weight: 400; }
+/* pílulas (CMV, Ref, Frete ML): rótulo cinza normal, valor em 600 (a regra dos números, Eduardo 16/11) */
+.pilula strong { color: var(--texto); font-weight: 600; font-variant-numeric: tabular-nums; }
+#c-desconto-rotulo { font-weight: 600; font-variant-numeric: tabular-nums; }  /* strong dentro de texto 600 viraria 900 (bolder) */
 .produto-info:empty { display: none; }
 .produto-info strong { color: var(--texto); }
 .bloco h2 { font-size: 18px; font-weight: 700; }
@@ -350,13 +355,13 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .caixa-azul { background: var(--azul-suave); border-radius: 10px; padding: 16px; display: grid; gap: 16px; }
 .linha-barra { display: flex; align-items: center; gap: 10px; }
 .linha-barra .mini { width: 72px; padding: 0 8px; text-align: right; }
-.campo input.destaque { font-weight: 700; font-size: 15px; }
+.campo input.destaque { font-weight: 600; font-size: 15px; }
 
 .res-linha { display: flex; justify-content: space-between; gap: 12px; font-variant-numeric: tabular-nums; }
-.res-linha.receita { font-size: 15px; font-weight: 700; }
+.res-linha.receita { font-size: 15px; font-weight: 600; }
 .res-linha.receita .valor { color: var(--verde); }
 .res-grupo { border-left: 3px solid var(--linha); padding-left: 12px; display: grid; gap: 3px; }
-.res-grupo > .res-linha:first-child { font-weight: 700; font-size: 14px; }
+.res-grupo > .res-linha:first-child { font-weight: 600; font-size: 14px; }
 .res-grupo.vermelho { border-color: color-mix(in srgb, var(--vermelho) 35%, transparent); }
 .res-grupo.vermelho > .res-linha:first-child { color: var(--vermelho); }
 .res-grupo.laranja { border-color: color-mix(in srgb, var(--laranja) 40%, transparent); }
@@ -366,19 +371,20 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .res-detalhe { font-size: 12px; color: var(--azul); padding-left: 10px; }
 .res-total { border-top: 1px solid var(--linha); padding-top: 14px; text-align: center; display: grid; gap: 2px; }
 .res-total .rotulo { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--suave); text-transform: uppercase; }
-.res-total .numeros { display: flex; justify-content: center; align-items: center; gap: 14px; font-size: 32px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.res-total .numeros { display: flex; justify-content: center; align-items: center; gap: 14px; font-size: 32px; font-weight: 600; font-variant-numeric: tabular-nums; }
+#c-num-margem { font-weight: 700; }  /* o número principal do Resultado; o lucro ao lado fica em 600 */
 .res-total .numeros i { width: 1px; height: 30px; background: var(--linha); }
 .res-total small { color: var(--suave); }
 .bom { color: var(--verde); }
 .atencao { color: var(--amarelo); }
 .ruim { color: var(--vermelho); }
-.selo { justify-self: center; display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--superficie-2); }
+.selo { justify-self: center; display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--superficie-2); }
 .vazio-resultado { text-align: center; color: var(--suave); padding: 36px 10px; }
 .vazio-resultado b { display: block; font-size: 28px; color: var(--linha); }
 
 .minimo { background: var(--verde-suave); border-color: var(--verde-linha); text-align: center; justify-items: center; gap: 16px; }
 .minimo h2 { justify-self: start; color: var(--texto); font-size: 14px; }
-.minimo-valor { font-size: 30px; color: var(--verde); font-weight: 800; font-variant-numeric: tabular-nums; }
+.minimo-valor { font-size: 30px; color: var(--verde); font-weight: 700; font-variant-numeric: tabular-nums; }  /* o número principal do cartão */
 .minimo-sub { margin: -6px 0 0; color: var(--suave); }
 .alerta { margin: 0; color: var(--erro); font-weight: 600; font-size: 13px; }
 .minimo > :is(.campo, .linha-barra) { justify-self: stretch; text-align: left; }  /* Margem desejada: mesma linha do Desconto */
@@ -392,7 +398,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .liquidacao { justify-self: stretch; text-align: left; border-top: 1px solid var(--verde-linha); padding-top: 12px; display: grid; gap: 4px; }
 .liquidacao:empty { display: none; }
 .liquidacao .linha { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.liquidacao strong { font-size: 20px; color: var(--laranja); font-variant-numeric: tabular-nums; }
+.liquidacao strong { font-size: 20px; font-weight: 600; color: var(--laranja); font-variant-numeric: tabular-nums; }
 .analise { gap: 10px; }
 .analise:empty { display: none; }
 .analise-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
@@ -403,8 +409,15 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .barra-faixas span:nth-child(3) { background: #f59e0b; } .barra-faixas span:nth-child(4) { background: #facc15; }
 .barra-faixas span:nth-child(5) { background: #4ade80; } .barra-faixas span:nth-child(6) { background: #60a5fa; } .barra-faixas span:nth-child(7) { background: #a78bfa; }
 .marcador { position: relative; height: 0; margin: 0 14px; }
-.marcador b { position: absolute; top: -26px; transform: translateX(-50%); font-size: 12px; background: var(--superficie); border: 1px solid var(--linha); border-radius: 6px; padding: 0 5px; }
-.marcador i { position: absolute; top: -12px; width: 2px; height: 18px; background: var(--texto); transform: translateX(-50%); }
+/* marcador da análise (Eduardo 16/11): caixinha de largura fixa, branca e por cima; nas pontas ela encosta na borda (sai no máximo os 14 px
+   de margem do .marcador, que ficam dentro do padding do cartão) e a seta continua no ponto. --x vem do JS (posição da margem, em %).
+   A haste (i) começa na base da caixinha e desce até a barra; a seta é o ::before dela, então fica sempre no ponto exato. Grafite. */
+.marcador { --meia: 34px; }
+.marcador b { position: absolute; z-index: 1; top: -32px; left: clamp(calc(var(--meia) - 14px), var(--x, 0%), calc(100% - var(--meia) + 14px)); transform: translateX(-50%);
+  display: grid; place-items: center; width: calc(2 * var(--meia)); height: 22px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1;
+  color: var(--grafite); background: #fff; border: 1px solid var(--grafite); border-radius: 6px; }
+.marcador i { position: absolute; top: -10px; left: var(--x, 0%); width: 2px; height: 22px; background: var(--grafite); transform: translateX(-50%); }  /* 10 até a base do marcador + 10 do gap da .analise + 2 dentro da barra */
+.marcador i::before { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%); border: 5px solid transparent; border-top-color: var(--grafite); border-bottom: 0; }
 .escala { position: relative; height: 16px; font-size: 11px; color: var(--suave); margin: 0 14px; }
 .escala span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 /* Salvar Precificação à DIREITA, na borda da grade dos cartões (Eduardo 16/11); Descartar à esquerda dele e o status antes dos dois.
@@ -572,7 +585,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .linha-item.kit { grid-template-columns: minmax(0, 2fr) minmax(0, 0.7fr) 84px 32px; }
 .linha-item .subtotal { min-height: 40px; display: flex; align-items: center; justify-content: flex-end; font-variant-numeric: tabular-nums; color: var(--suave); font-size: 13px; }
 .subtotal-linha { text-align: right; font-size: 12px; color: var(--suave); margin: 0; }
-.total { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 12px 14px; border-radius: 10px; background: var(--roxo-suave); font-weight: 700; }
+.total { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 12px 14px; border-radius: 10px; background: var(--roxo-suave); font-weight: 600; font-variant-numeric: tabular-nums; }
 .total strong { font-size: 18px; color: var(--texto); font-variant-numeric: tabular-nums; }
 
 /* Taxas dos canais */
@@ -594,10 +607,10 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .regra-topo > :first-child { min-width: 0; }
 .regra-topo .engrenagem { position: relative; top: auto; right: auto; flex: none; }
 .barra-regra { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-bottom: -6px; }
-.info:not(.aviso-tipo), .info-pilula, .conc-cadeado { position: relative; display: inline-grid; place-items: center; width: 20px; height: 20px; margin: 0 0 0 4px; vertical-align: middle; color: var(--suave); cursor: help; }  /* o (i) das dicas; .aviso-tipo.info é o aviso cinza */
-.info:not(.aviso-tipo)::after, .info-pilula::after, .conc-cadeado::after { content: ""; position: absolute; inset: -12px; }  /* 44 px de toque, sem empurrar o rótulo */
-.info:not(.aviso-tipo) .ic, .info-pilula .ic, .conc-cadeado .ic { width: 16px; height: 16px; }
-@media (hover: hover) { .info:not(.aviso-tipo):hover, .info-pilula:hover, .conc-cadeado:hover { color: var(--roxo); } }
+.info:not(.aviso-tipo), .info-pilula { position: relative; display: inline-grid; place-items: center; width: 20px; height: 20px; margin: 0 0 0 4px; vertical-align: middle; color: var(--suave); cursor: help; }  /* o (i) das dicas; .aviso-tipo.info é o aviso cinza */
+.info:not(.aviso-tipo)::after, .info-pilula::after { content: ""; position: absolute; inset: -12px; }  /* 44 px de toque, sem empurrar o rótulo */
+.info:not(.aviso-tipo) .ic, .info-pilula .ic { width: 16px; height: 16px; }
+@media (hover: hover) { .info:not(.aviso-tipo):hover, .info-pilula:hover { color: var(--roxo); } }
 .fixo { display: flex; align-items: center; min-height: 38px; padding: 0 12px; border-radius: 8px; background: var(--superficie-2); font-weight: 600; }
 .tabela-rolagem { overflow-x: auto; border: 1px solid var(--linha); border-radius: 10px; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
@@ -712,8 +725,8 @@ table.faixas input { width: 96px; padding: 0 8px; text-align: right; }
 .mascote-img { display: block; width: 120px; max-width: 100%; height: auto; flex: none; }
 /* leão da Análise da margem: abaixo da barra, à esquerda, com a dica ao lado (110 px; 80 no celular) */
 .mascote-analise { display: flex; align-items: center; gap: var(--e2); }
-.mascote-analise .mascote-img { width: 110px; }
-@media (max-width: 600px) { .mascote-analise .mascote-img { width: 80px; } }
+/* leão nunca abaixo de 72 de altura (Eduardo 16/11): arquivo 2x mostrado na metade exata, pela ALTURA (a largura vem da proporção) */
+.mascote-analise .mascote-img { width: auto; height: 96px; max-width: none; }  /* <pose>-192.webp, igual no computador e no celular */
 .mascote-analise p { margin: 0; font-weight: 700; }
 .estado-erro { display: flex; flex-wrap: wrap; align-items: center; gap: 16px 20px; }
 .estado-erro h2 { font-size: 18px; margin: 0; }
@@ -733,15 +746,15 @@ table.faixas input { width: 96px; padding: 0 8px; text-align: right; }
 .estado-mascote .dica { margin-top: 4px; }
 .intro-mascote { display: flex; align-items: center; gap: 12px; }
 .intro-mascote p { margin: 0; }
-.intro-mascote .mascote-img { width: 72px; }
+.intro-mascote .mascote-img { width: auto; height: 72px; max-width: none; }  /* planilha-144 / copiar-144.webp */
 #aviso-geral[data-mascote]:not([hidden]) { display: flex; align-items: center; gap: 12px; }
-/* leão do aviso: 64 px (56 no celular), em arquivo de 128 px (2x) com nitidez leve: assets/mascote/aviso-<nome>.webp (Wednesday 13/11) */
-#aviso-geral[data-mascote]::before { content: ''; flex: none; width: 64px; height: 64px; background: center / contain no-repeat; }
-@media (max-width: 760px) { #aviso-geral[data-mascote]::before { width: 56px; height: 56px; } }
-#aviso-geral[data-mascote="salvo"]::before { background-image: url(../assets/mascote/aviso-salvo.webp); }
-#aviso-geral[data-mascote="calculando"]::before { background-image: url(../assets/mascote/aviso-calculando.webp); }
-#aviso-geral[data-mascote="erro"]::before { background-image: url(../assets/mascote/aviso-erro.webp); }
-#aviso-geral[data-mascote="trocar-empresa"]::before { background-image: url(../assets/mascote/aviso-trocar-empresa.webp); }  /* "Agora você está em …" (arquivo a gerar do trocar-empresa.webp) */
+/* leão do aviso (Eduardo 16/11: leão nunca abaixo de 72 de altura, nem no celular): arquivo 2x de 144 de altura mostrado na metade
+   exata, 72 de altura e a largura = metade da natural de cada pose (nada é redimensionado além do 2x → 1x) */
+#aviso-geral[data-mascote]::before { content: ''; flex: none; height: 72px; background: center / 100% 100% no-repeat; }
+#aviso-geral[data-mascote="salvo"]::before { width: 76.5px; background-image: url(../assets/mascote/aviso-salvo-144.webp); }  /* 153x144 */
+#aviso-geral[data-mascote="calculando"]::before { width: 67.5px; background-image: url(../assets/mascote/aviso-calculando-144.webp); }  /* 135x144 */
+#aviso-geral[data-mascote="erro"]::before { width: 63px; background-image: url(../assets/mascote/aviso-erro-144.webp); }  /* 126x144 */
+#aviso-geral[data-mascote="trocar-empresa"]::before { width: 75px; background-image: url(../assets/mascote/aviso-trocar-empresa-144.webp); }  /* 150x144: "Agora você está em …" */
 @media (prefers-reduced-motion: no-preference) { #aviso-geral[data-mascote]::before { animation: mascote-entra 320ms ease-out; } }
 .estado-mascote[role="status"] .mascote-img { width: 96px; }
 
@@ -769,7 +782,7 @@ button.selo-empresa:active { transform: translate(1px, 1px); box-shadow: 1px 1px
   @media (hover: hover) { button.selo-empresa:hover .avatar-empresa, .menu-empresas [role="menuitemradio"]:hover .avatar-empresa { animation: balanca 200ms ease-in-out; } }
 }
 .selo-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.selo-papel { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--superficie); font-size: 11px; font-weight: 700; color: var(--suave); }
+.selo-papel { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--superficie); font-size: 11px; font-weight: 600; color: var(--suave); }
 .selo-seta { flex: none; display: grid; place-items: center; }
 .selo-seta .ic { width: 16px; height: 16px; }  /* a mesma seta dos seletores (chevron-down do Lucide) */
 /* menu das empresas (abre no selo): uma linha por empresa, a ativa com ✓ e lima claro; "+ Nova empresa" no fim */
@@ -807,11 +820,9 @@ select, .campo select, select.campo-texto {
 :root[data-tema="escuro"] :is(select, .campo select, select.campo-texto) { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d5d7db' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); }
 
 /* roxo do ícone (Ellie 13/11; rebalanceado pela Wednesday 13/11): só em detalhes pequenos (links e foco pelo token --roxo, ícone i,
-   selos pequenos de contagem e papel, seta da dica, marcador da análise, filete do aviso). Lima no ícone do título e no ativo. */
+   selos pequenos de contagem e papel, seta da dica, filete do aviso). Lima no ícone do título e no ativo. */
 .icone-titulo { background: var(--lima); color: #0c0d11; box-shadow: var(--sombra-dura); }  /* destaque da tela: lima (marca) */
 .etiqueta.com, .etiqueta.kit, .selo-papel { background: var(--roxo-claro); color: var(--roxo); }
-.marcador b { border-color: var(--roxo); color: var(--roxo); }
-.marcador i { background: var(--roxo); }
 
 /* aviso geral como balão flutuante no topo, abaixo do selo (não empurra o conteúdo): branco, borda igual dos dois lados, sem filete;
    a barrinha de tempo é que muda de cor: roxa no aviso, vermelho escuro no erro (Eduardo 13/11); × de 44 px; some em 6 s menos o de erro (src/telas/aviso.js). Ellie 13/11 */
@@ -837,7 +848,7 @@ select, .campo select, select.campo-texto {
 .inicio-numeros { display: grid; gap: var(--e3); grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
 .cartao.numero { gap: var(--e1); align-content: start; }
 .numero-rotulo { font-size: 13px; font-weight: 600; color: var(--suave); }
-.numero-valor { font: 800 28px/1.1 var(--fonte-titulo); font-variant-numeric: tabular-nums; color: var(--texto); }
+.numero-valor { font: 600 28px/1.1 var(--fonte-titulo); font-variant-numeric: tabular-nums; color: var(--texto); }
 .numero-sub { font-size: var(--f-p); color: var(--suave); }
 .inicio-grade { display: grid; gap: var(--e3); grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr)); align-items: start; }  /* 2 colunas no computador, 1 no celular */
 .lista-simples { list-style: none; margin: 0; padding: 0; display: grid; }
@@ -856,7 +867,7 @@ ol.plano li::marker { font-weight: 700; }
 /* margem por canal: nome | barra de distribuição | margem; a dica embaixo */
 .lista-canais li { display: grid; grid-template-columns: minmax(80px, 140px) minmax(0, 1fr) auto; align-items: center; gap: 4px var(--e2); }
 .lista-canais li > small { grid-column: 1 / -1; }
-.lista-canais li > strong { min-width: 56px; text-align: right; font-weight: 800; }
+.lista-canais li > strong { min-width: 56px; text-align: right; font-weight: 600; font-variant-numeric: tabular-nums; }
 .barra-dist { display: flex; gap: 2px; height: 10px; border-radius: 999px; overflow: hidden; background: var(--superficie-2); }
 .barra-dist > span { min-width: 4px; }
 @media (max-width: 600px) {
@@ -869,7 +880,7 @@ ol.plano li::marker { font-weight: 700; }
   color: var(--roxo); font: 600 var(--f) / 1.4 var(--fonte); text-decoration: underline; text-underline-offset: 2px; white-space: normal; text-align: left; justify-self: start; }
 :is(#tela-inicio, .imposto-origem, .login-cartao) .link-botao:is(:hover, :active) { background: none; box-shadow: none; transform: none; text-decoration-thickness: 2px; }
 #login .link-botao { justify-self: center; font-size: 13px; }  /* "Receber link por e-mail" e "Esqueci a senha": link de texto pequeno, centrado abaixo do Entrar (#: ganha do :is acima) */
-td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
+td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 600; font-variant-numeric: tabular-nums; }
 /* 7 faixas da margem (as mesmas da barra da Análise): texto com contraste AA e a cor cheia na barra */
 .f-prejuizo { color: #a32020; } .barra-dist .f-prejuizo { background: #c62828; }
 .f-critica { color: #b42318; } .barra-dist .f-critica { background: #ef6c6c; }
@@ -1040,6 +1051,13 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
 .conc-buscado > span { color: var(--suave); font-size: 13px; }
 .conc-buscando { min-height: var(--alt); font-weight: 600; gap: var(--e1); }  /* o arquivo já tem folga transparente do lado */
 .conc-buscando img { display: block; width: 66px; height: 72px; }  /* buscando-anim.webp 132x144 em 2x exato: não redimensionar (borra) */
+/* membro (1.2.3): o cartão mostra só o título e o leão trancado com a frase e a dica ao lado. LEÃO (Eduardo 16/11): nunca abaixo de
+   72 de altura, nem no celular, sempre a metade exata do arquivo 2x (trancado-144.webp 129x144 → 72 de altura, largura pela proporção) */
+.conc-trancado { display: flex; align-items: center; gap: var(--e2); }
+.conc-trancado img { display: block; flex: none; width: auto; height: 72px; max-width: none; }
+.conc-trancado > div { display: grid; gap: 2px; min-width: 0; }
+.conc-trancado p { margin: 0; }
+.conc-trancado-texto { font-weight: 600; }
 .conc-aviso-apify { margin: calc(-1 * var(--e1)) 0 0; font-size: 12px; }  /* nota pequena colada nos botões */
 /* nome fraco (só no ML): aviso de ATENÇÃO com "Corrigir nome", que abre o campo para renomear logo abaixo */
 .conc-nome-fraco { display: grid; gap: var(--e2); }
@@ -1052,7 +1070,7 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
 .conc-resumo { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--e2); }
 .conc-num-cartao { display: grid; gap: 2px; align-content: start; padding: 12px 14px; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--superficie); min-width: 0; }
 .conc-num-rotulo { font-size: 12px; font-weight: 600; color: var(--suave); }
-.conc-num-valor { font: 800 24px/1.15 var(--fonte-titulo); font-variant-numeric: tabular-nums; color: var(--texto); }
+.conc-num-valor { font: 600 24px/1.15 var(--fonte-titulo); font-variant-numeric: tabular-nums; color: var(--texto); }
 .conc-num-sub { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
 :where(.conc-num-sub) { color: var(--suave); }  /* peso zero: a margem leva a cor da faixa (.f-…) */
 .conc-resumo:not(:has(> :is(.conc-abaixo, .conc-abaixo-zero))) { grid-template-columns: repeat(3, minmax(0, 1fr)); }  /* sem custo não há o 4º */
@@ -1099,7 +1117,7 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
 .conc-mais-caro li > span:first-child { flex: 1 1 auto; min-width: 10em; display: grid; gap: 2px; justify-items: start; }  /* o produto não espreme; o preço só desce se não couber */
 .conc-mais-caro li > span:last-child { flex: 0 1 auto; margin-left: auto; text-align: right; }  /* se descer, fica à direita */
 .conc-mais-caro li { flex-wrap: wrap; }
-.conc-dif { color: #a44a07; margin-left: 4px; }
+.conc-dif { color: #a44a07; margin-left: 4px; font-weight: 600; font-variant-numeric: tabular-nums; }
 
 /* BUSCA NO ML (Hermione 16/11; visual refeito a pedido do Eduardo 16/11). Computador, uma linha: caixinha | foto 56 | título (2 linhas no
    máximo) com vendedor, selos e vendidos embaixo | preço | margem | lucro em colunas fixas à direita, rótulo pequeno em cima | ver anúncio.
@@ -1112,16 +1130,16 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
 .conc-candidato:first-child { border-top: 0; }
 .conc-candidato > label { display: grid; grid-template-columns: 20px 56px minmax(0, 1fr) 6.5em 5.5em 6.5em; align-items: center; column-gap: 12px; min-width: 0; cursor: pointer; }
 .conc-candidato input[type="checkbox"] { grid-column: 1; width: 20px; height: 20px; margin: 0; accent-color: var(--grafite); cursor: pointer; }
-/* 1.2.3: membro não mexe nos concorrentes (só o admin): caixinhas travadas e o cadeado (mesmo (i) das dicas, 20 com toque de 44) depois do "Adicionar à mão" */
+/* 1.2.3: membro não mexe nos concorrentes (só o admin): caixinhas travadas */
 .conc-candidato > label:has(> input:disabled), .conc-candidato input[type="checkbox"]:disabled { cursor: not-allowed; }
-.conc-acoes > .conc-cadeado { margin: 0; }
 .conc-candidato .miniatura { grid-column: 2; width: 56px; height: 56px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--linha); border-radius: var(--raio-p); background: #fff; color: var(--suave); }
 .conc-candidato .miniatura img { width: 100%; height: 100%; object-fit: contain; }
 .conc-cand-info { grid-column: 3; display: grid; gap: 4px; min-width: 0; }
 .conc-cand-titulo { font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
 .conc-cand-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px; color: var(--suave); }
 .conc-cand-meta .conc-vendedor { font-weight: 400; }
-.conc-num { display: grid; justify-items: end; gap: 1px; font-size: 14px; font-weight: 700; white-space: nowrap; }  /* sem color: a margem leva a da faixa */
+.conc-num { display: grid; justify-items: end; gap: 1px; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.conc-num.conc-lucro { color: var(--grafite); }  /* número secundário: um tom mais claro */  /* sem color: a margem leva a da faixa */
 .conc-num small { font-size: 11px; font-weight: 400; color: var(--suave); }
 .conc-candidato .conc-preco { grid-column: 4; }
 .conc-candidato .conc-margem { grid-column: 5; }  /* valor na cor da faixa (.f-…); o rótulo fica cinza */

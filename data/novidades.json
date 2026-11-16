@@ -1,5 +1,15 @@
 [
   {
+    "versao": "Alpha 1.2.3",
+    "data": "16/11/2026",
+    "itens": [
+      "Concorrentes ficaram só para o admin; o membro vê o leão trancado",
+      "Números mais leves: negrito forte só no número principal de cada cartão",
+      "Marcador da Análise da margem com setinha, sem cobrir o número",
+      "Leões maiores e mais nítidos nos avisos, na Análise e nas janelas"
+    ]
+  },
+  {
     "versao": "Alpha 1.2.2",
     "data": "16/11/2026",
     "itens": [

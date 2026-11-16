@@ -418,14 +418,16 @@ function htmlResultado(r, canal, pesoG) {
 // Um leão por faixa da margem, embaixo da barra, com uma dica curta. A entrada só anima quando a faixa muda,
 // não a cada tecla (o cartão é redesenhado a cada número digitado).
 let mascoteAntes = null;
+// Arquivos 2x de 192 de altura, mostrados a 96 pelo CSS (leão nunca abaixo de 72 px); largura e altura = as do arquivo, só
+// para a proporção.
 const LEAO_DA_FAIXA = {
-  'Prejuízo': ['prejuizo', 445, 420, 'Assim o leão passa fome! Suba o preço ou corte custos.'],
-  'Margem crítica': ['margem-critica', 382, 420, 'Tá roendo as unhas: qualquer frete extra vira prejuízo.'],
-  'Margem baixa': ['margem-baixa', 360, 350, 'Cada moedinha conta. Fuja de cupom neste preço.'],
-  'Margem razoável': ['margem-razoavel', 300, 360, 'Dá pro gasto, mas dá pra melhorar.'],
-  'Margem boa': ['margem-boa', 360, 338, 'Bom negócio! Dá pra crescer com segurança.'],
-  'Margem muito boa': ['margem-muito-boa', 360, 287, 'Margem de leão: sobra espaço para anúncio.'],
-  'Margem excelente': ['sucesso', 387, 420, 'Rugido de campeão! Só confira se o cliente aceita esse preço.'],
+  'Prejuízo': ['prejuizo-192', 171, 192, 'Assim o leão passa fome! Suba o preço ou corte custos.'],
+  'Margem crítica': ['margem-critica-192', 175, 192, 'Tá roendo as unhas: qualquer frete extra vira prejuízo.'],
+  'Margem baixa': ['margem-baixa-192', 197, 192, 'Cada moedinha conta. Fuja de cupom neste preço.'],
+  'Margem razoável': ['margem-razoavel-192', 207, 192, 'Dá pro gasto, mas dá pra melhorar.'],
+  'Margem boa': ['margem-boa-192', 194, 192, 'Bom negócio! Dá pra crescer com segurança.'],
+  'Margem muito boa': ['margem-muito-boa-192', 241, 192, 'Margem de leão: sobra espaço para anúncio.'],
+  'Margem excelente': ['sucesso-192', 177, 192, 'Rugido de campeão! Só confira se o cliente aceita esse preço.'],
 };
 function mascoteDaAnalise(f) {
   const [img, largura, altura, dica] = LEAO_DA_FAIXA[f.rotulo];
@@ -440,7 +442,7 @@ function htmlAnalise(margem) {
   return `
     <div class="analise-topo"><h2>Análise da margem</h2><span>${f.faixa}</span></div>
     <h3 class="${f.classe}">${f.frase}</h3>
-    <div class="marcador" style="margin-top:28px" data-alvo="${posicao}"><b style="left:${posicaoMarcador ?? posicao}%">${margemPct(margem)}</b><i style="left:${posicaoMarcador ?? posicao}%"></i></div>
+    <div class="marcador" style="margin-top:28px; --x:${posicaoMarcador ?? posicao}%" data-alvo="${posicao}"><b>${margemPct(margem)}</b><i></i></div>
     <div class="barra-faixas" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
     <div class="escala">${[-10, 0, 10, 20, 25, 40, 50].map((v) => `<span style="left:${((v + 10) / 60) * 100}%">${v}%${v === 50 ? '+' : ''}</span>`).join('')}</div>
     ${mascoteDaAnalise(f)}`;
@@ -487,7 +489,7 @@ function atualizar() {
     contar('c-num-lucro', 'lucro', r.lucro, reais);
     const marcador = $('#c-analise .marcador');
     const alvo = Number(marcador.dataset.alvo);
-    requestAnimationFrame(() => marcador.querySelectorAll('b, i').forEach((el) => (el.style.left = `${alvo}%`)));
+    requestAnimationFrame(() => marcador.style.setProperty('--x', `${alvo}%`)); // o CSS posiciona b e i por left: var(--x)
     posicaoMarcador = alvo;
   } else {
     ultimos.delete('margem');
@@ -549,12 +551,6 @@ let ondeConc = ''; // produto|canal do cartão: mudou, o formulário aberto fech
 const buscas = new Map(); // produtoId -> última busca guardada (null: nunca buscou; undefined: lendo)
 const buscando = new Set(); // produtoIds com busca em andamento
 
-// Membro (não admin) vê tudo, mas os botões e as caixinhas ficam bloqueados, com o cadeado e a dica (correção 16: o banco
-// também recusa). Buscar gasta crédito do Apify; anotar e desmarcar mudam o que a empresa toda vê.
-const SO_ADMIN = 'Só o admin da empresa pode buscar e editar concorrentes.';
-const trava = (admin) => (admin ? '' : ' disabled aria-disabled="true"');
-const CADEADO = `<span class="conc-cadeado" tabindex="0" role="img" aria-label="${SO_ADMIN}" data-dica>${icone('lock')}</span>`;
-
 const LEAO_BUSCANDO = `<picture><source media="(prefers-reduced-motion: reduce)" srcset="assets/mascote/buscando-parado.webp"><img src="assets/mascote/buscando-anim.webp" alt="" width="66" height="72"></picture>`;
 const quando = (iso) => {
   const d = new Date(iso);
@@ -565,6 +561,10 @@ function iniciarConcorrentes() {
   const caixa = $('#c-concorrentes');
   caixa.innerHTML = `
     <h2 id="c-conc-titulo">Concorrentes neste canal</h2>
+    <div class="conc-trancado" hidden>
+      <img src="assets/mascote/trancado-144.webp" alt="" width="129" height="144">
+      <div><p class="conc-trancado-texto">Só o admin da empresa busca e edita concorrentes.</p><p class="dica">Peça ao admin para buscar os concorrentes deste produto.</p></div>
+    </div>
     <div id="c-conc-corpo"></div>
     <div class="conc-nome-fraco" hidden>
       <div class="aviso-tipo atencao"><p class="aviso-texto">O nome deste produto é curto ou tem só código, então os concorrentes podem vir menos precisos.</p>
@@ -760,13 +760,11 @@ function desenharBusca({ produto, canal, cmv, pesoG }) {
     });
   }
   const salva = buscas.get(produto.id);
-  const admin = nuvem.souDono();
-  const t = trava(admin);
-  const mao = `<button type="button" class="botao pequeno" data-acao="novo-conc"${t}>${icone('plus')} Adicionar à mão</button>${admin ? '' : CADEADO}`;
+  const mao = `<button type="button" class="botao pequeno" data-acao="novo-conc">${icone('plus')} Adicionar à mão</button>`;
   const html = salva === undefined ? mao
     : buscando.has(produto.id) ? `<p class="conc-buscando" role="status">${LEAO_BUSCANDO}<span>Buscando concorrentes…</span></p>${mao}`
-    : salva ? `<p class="conc-buscado"><span>Buscado em ${esc(quando(salva.buscadoEm))}</span><button type="button" class="botao pequeno" data-acao="buscar-ml"${t}>Atualizar</button></p>${mao}`
-    : `<button type="button" class="botao principal" data-acao="buscar-ml"${t}>Buscar concorrentes</button>${mao}`;
+    : salva ? `<p class="conc-buscado"><span>Buscado em ${esc(quando(salva.buscadoEm))}</span><button type="button" class="botao pequeno" data-acao="buscar-ml">Atualizar</button></p>${mao}`
+    : `<button type="button" class="botao principal" data-acao="buscar-ml">Buscar concorrentes</button>${mao}`;
   if (html !== desenhoAcoes) acoes.innerHTML = desenhoAcoes = html;
   caixa.querySelector('.conc-nome-fraco').hidden = qualidadeDoNome(produto.nome, produto.sku).boa;
 
@@ -777,16 +775,16 @@ function desenharBusca({ produto, canal, cmv, pesoG }) {
     desenhoBusca = '';
     return daBusca;
   }
-  const chave = JSON.stringify([produto.id, salva.buscadoEm, cmv, pesoG, estado.canal, admin]);
+  const chave = JSON.stringify([produto.id, salva.buscadoEm, cmv, pesoG, estado.canal]);
   if (chave === desenhoBusca) return daBusca;
   desenhoBusca = chave;
-  lista.querySelector('.conc-instrucao').textContent = !daBusca.length ? `Nada encontrado no Mercado Livre para "${salva.termo}".${admin ? ' Use "Adicionar à mão".' : ''}`
-    : admin ? `Anúncios do Mercado Livre para "${salva.termo}": todos entram no cálculo. Desmarque os que não são o mesmo produto que o seu.`
-      : `Anúncios do Mercado Livre para "${salva.termo}". Os desmarcados o admin tirou do cálculo.`;
+  lista.querySelector('.conc-instrucao').textContent = daBusca.length
+    ? `Anúncios do Mercado Livre para "${salva.termo}": todos entram no cálculo. Desmarque os que não são o mesmo produto que o seu.`
+    : `Nada encontrado no Mercado Livre para "${salva.termo}". Use "Adicionar à mão".`;
   lista.querySelector('.conc-candidatos').innerHTML = daBusca.map((c) => {
     const r = cmv > 0 ? calcularMargem({ preco: c.preco, cmv, canal, pesoG }) : null;
     return `<li class="conc-candidato${c.fora ? ' fora' : ''}">
-      <label><input type="checkbox" data-chave="${esc(c.chave)}" ${c.fora ? '' : 'checked'}${t}>
+      <label><input type="checkbox" data-chave="${esc(c.chave)}" ${c.fora ? '' : 'checked'}>
         <span class="miniatura">${c.foto ? `<img src="${esc(c.foto)}" alt="" loading="lazy">` : icone('package')}</span>
         <span class="conc-cand-info">
           <span class="conc-cand-titulo">${esc(c.titulo)}</span>
@@ -810,6 +808,12 @@ function desenharConcorrentes({ produto, canal, cmv, pesoG, minimo }) {
   // neles continua guardado no banco.
   caixa.hidden = !produto || !nuvem.empresaAtual() || canal.tipo !== 'mercadolivre';
   if (caixa.hidden) return;
+  // Membro (não admin): a feature inteira fica trancada (Eduardo, 1.2.3; o banco também recusa, correção 16). Só o título, o
+  // leão e a frase; nada é lido do banco. O leão nunca fica menor que 72 px: o arquivo 2x (144) aparece na metade.
+  if (!nuvem.souDono()) {
+    for (const parte of caixa.children) parte.hidden = !parte.matches('h2, .conc-trancado');
+    return;
+  }
   const corpo = $('#c-conc-corpo');
   if (ondeConc !== `${produto.id}|${estado.canal}`) fecharNovoConc();
   ondeConc = `${produto.id}|${estado.canal}`;
@@ -854,7 +858,7 @@ function desenharConcorrentes({ produto, canal, cmv, pesoG, minimo }) {
         ${comCusto ? `<span class="conc-num conc-margem ${classeDaFaixa(c.margem)}"><small>margem</small>${margemPct(c.margem)}</span>
         <span class="conc-num conc-lucro"><small>lucro</small>${reais(c.lucro)}</span>` : ''}
         ${linkSeguro(c.link) ? `<a class="botao conc-link" href="${esc(c.link)}" target="_blank" rel="noopener noreferrer" title="Ver anúncio" aria-label="Ver anúncio de ${esc(c.vendedor)} (abre em nova aba)">${icone('external-link')}</a>` : ''}
-        <button type="button" class="botao perigo" data-excluir-conc="${esc(c.id)}" data-vendedor="${esc(c.vendedor)}" aria-label="Excluir ${esc(c.vendedor)}" title="Excluir"${trava(nuvem.souDono())}>${icone('trash-2')}</button>
+        <button type="button" class="botao perigo" data-excluir-conc="${esc(c.id)}" data-vendedor="${esc(c.vendedor)}" aria-label="Excluir ${esc(c.vendedor)}" title="Excluir">${icone('trash-2')}</button>
       </li>`).join('')}
     </ul>` : ''}`;
 }

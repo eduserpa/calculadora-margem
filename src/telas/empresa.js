@@ -6,7 +6,7 @@ import { dados, salvar, carregar, aoMudar } from '../dados.js';
 import { lerNumero, campo, esc } from '../formato.js';
 import { icone } from '../icones.js';
 import { capa } from '../fotos.js';
-import { imgMascote, htmlCarregando } from './mascote.js';
+import { imgMascote2x, htmlCarregando } from './mascote.js';
 import { iniciarEquipe, resumoEquipe } from './equipe.js';
 import { iniciarHistorico } from './historico.js';
 import { iniciarAviso } from './aviso.js';
@@ -420,7 +420,7 @@ function janelaCopiar(outras) {
       <label class="campo"><span>Copiar de</span>
         <select id="copiar-origem" class="campo-texto">${outras.map((e) => `<option value="${esc(e.id)}">${esc(e.nome)}</option>`).join('')}</select>
       </label>
-      <div class="intro-mascote">${imgMascote('copiar', 72)}<p class="dica">Produto com o mesmo SKU é atualizado; os outros entram como novos. Preços, taxas e kits não são copiados.</p></div>
+      <div class="intro-mascote">${imgMascote2x('copiar-144', 129, 144)}<p class="dica">Produto com o mesmo SKU é atualizado; os outros entram como novos. Preços, taxas e kits não são copiados.</p></div>
       <div id="copiar-previa" role="status"></div>
     </div>
     <div class="janela-base"><div class="direita">
