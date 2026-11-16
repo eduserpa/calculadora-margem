@@ -25,7 +25,10 @@ function passar(campo, passo) {
 document.addEventListener('mousedown', (e) => e.target.closest('[data-passo]') && e.preventDefault()); // o foco fica no campo
 document.addEventListener('click', (e) => {
   const b = e.target.closest('[data-passo]');
-  if (b) passar(b.parentElement.querySelector('input'), Number(b.dataset.passo));
+  if (b) return passar(b.parentElement.querySelector('input'), Number(b.dataset.passo));
+  // a peça inteira (44 px no toque) é o alvo: tocar no %, no R$ ou na sobra ao lado do número leva ao campo
+  const peca = e.target.closest('.passo-numero');
+  if (peca && e.target.tagName !== 'INPUT') peca.querySelector('input').focus();
 });
 // type="number" já sobe e desce com as setas; o campo de texto (vírgula decimal) ganha o mesmo aqui
 document.addEventListener('keydown', (e) => {

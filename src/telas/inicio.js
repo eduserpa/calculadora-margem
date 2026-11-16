@@ -2,8 +2,10 @@
 // Números, margem por canal, preços que pedem atenção, um plano de ação curto e as últimas alterações.
 import { dados, aoMudar } from '../dados.js';
 import { precosSalvos } from '../produtos.js';
-import { faixaDaMargem, abrirNaCalculadora } from './calculadora.js';
-import { historico } from '../nuvem.js';
+import { faixaDaMargem, abrirNaCalculadora, FAIXAS, classeDaFaixa } from './calculadora.js';
+import { historico, concorrentes, empresaAtual } from '../nuvem.js';
+import * as nuvem from '../nuvem.js';
+import { maisCaroQueConcorrencia } from '../concorrentes.js';
 import { telaAtual } from '../rotas.js';
 import { reais, numero, esc, margemPct } from '../formato.js';
 import { htmlVazio } from './mascote.js';
@@ -12,12 +14,6 @@ const $ = (s) => document.querySelector(s);
 const pct = margemPct; // 2 casas, como na Calculadora
 // Object.groupBy não existe em navegador mais antigo (iOS abaixo de 17.4): agrupa à mão
 const agrupar = (lista, chave) => lista.reduce((g, x) => ((g[chave(x)] ??= []).push(x), g), {});
-// As 7 faixas da Análise da margem, na ordem, com a classe que pinta cada uma.
-const FAIXAS = [
-  ['Prejuízo', 'f-prejuizo'], ['Margem crítica', 'f-critica'], ['Margem baixa', 'f-baixa'], ['Margem razoável', 'f-razoavel'],
-  ['Margem boa', 'f-boa'], ['Margem muito boa', 'f-muito-boa'], ['Margem excelente', 'f-excelente'],
-];
-const classeDaFaixa = (m) => FAIXAS.find(([r]) => r === faixaDaMargem(m).rotulo)[1];
 // Margem média ponderada pelo preço: soma dos lucros ÷ soma dos preços.
 const ponderada = (lista) => (lista.reduce((s, x) => s + x.r.lucro, 0) / lista.reduce((s, x) => s + x.preco, 0)) * 100;
 const quando = (iso) => new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
@@ -101,10 +97,30 @@ function desenhar() {
   corpo.innerHTML = `
     ${numeros}
     <div class="inicio-grade">${plano}${canais}${atencao}
+      <section class="cartao" id="inicio-mais-caro" hidden><h2>Mais caro que a concorrência</h2><ul class="lista-simples conc-mais-caro"></ul></section>
       <section class="cartao"><h2>Últimas alterações</h2><div id="inicio-historico"><p class="dica">Carregando…</p></div><a class="link-botao" href="/historico">Ver histórico completo</a></section>
     </div>
     <div class="inicio-atalhos"><a class="botao principal" href="/calculadora">Abrir a Calculadora</a><a class="botao" href="/produtos">Meus Produtos</a></div>`;
   desenharHistorico();
+  desenharMaisCaro(precos);
+}
+
+// Produto e canal em que o nosso preço salvo passa da mediana dos concorrentes (anotados à mão e os da busca no ML que ficaram
+// no cálculo; só aparece se houver algum).
+async function desenharMaisCaro(precos) {
+  if (!empresaAtual()) return;
+  let lista;
+  try {
+    lista = maisCaroQueConcorrencia(precos, await concorrentes(), (await nuvem.buscasGuardadas?.()) ?? []).slice(0, 5);
+  } catch {
+    return; // sem concorrentes agora: o resto da Início continua
+  }
+  const caixa = $('#inicio-mais-caro');
+  if (!caixa || !lista.length) return;
+  caixa.querySelector('ul').innerHTML = lista.map((p) => `
+    <li><span><button type="button" class="link-botao" data-abrir="${esc(p.produto.id)}" data-canal="${esc(p.canalId)}">${esc(p.produto.nome)}</button> <small class="dica">${esc(p.canal.nome)}</small></span>
+      <span>${reais(p.preco)} × mediana ${reais(p.mediana)} de ${p.quantos} <strong class="conc-dif">+${reais(p.diferenca)}</strong></span></li>`).join('');
+  caixa.hidden = false;
 }
 
 const cartaoNumero = (rotulo, valor, sub, classe = '') => `

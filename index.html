@@ -58,6 +58,10 @@
         <label class="campo"><span>Nova senha</span><input type="password" id="nova-senha" autocomplete="new-password" minlength="8" required></label>
         <button type="submit" class="botao principal">Salvar nova senha</button>
       </form>
+      <form id="criar-empresa-form" novalidate hidden>
+        <label class="campo"><span>Nome da empresa</span><input type="text" id="criar-empresa-nome" autocomplete="organization" required></label>
+        <button type="submit" class="botao principal">Criar empresa</button>
+      </form>
       <p class="login-msg" id="login-msg" role="status"></p>
       <button type="button" class="botao" id="login-sair" hidden>Sair</button>
     </div>
@@ -70,12 +74,12 @@
       </div>
       <nav class="menu" aria-label="Telas">
         <p class="menu-titulo">Principal</p>
-        <a href="/inicio" class="aba" data-aba="inicio"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#building-2"></use></svg>Início</a>
+        <a href="/inicio" class="aba" data-aba="inicio"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#house"></use></svg>Início</a>
         <a href="/calculadora" class="aba" data-aba="calculadora"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#percent"></use></svg>Calculadora de Margem</a>
         <a href="/produtos" class="aba" data-aba="produtos"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#package"></use></svg>Meus Produtos</a>
         <p class="menu-titulo">Ajustes</p>
         <a href="/taxas" class="aba" data-aba="configuracoes"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#sliders-horizontal"></use></svg>Taxas dos Canais</a>
-        <a href="/equipe" class="aba" data-aba="equipe" data-nuvem hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#users"></use></svg>Equipe</a>
+        <a href="/empresa" class="aba" data-aba="equipe" data-nuvem hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#building-2"></use></svg>Empresa</a>
         <a href="/historico" class="aba" data-aba="historico" data-nuvem hidden><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#history"></use></svg>Histórico</a>
         <a href="/novidades" class="aba" data-aba="novidades"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#sparkles"></use></svg>Novidades</a>
       </nav>
@@ -168,14 +172,18 @@
             <p class="minimo-sub" id="c-minimo-sub"></p>
             <p class="dica" id="c-minimo-aviso" hidden></p>
             <button type="button" class="botao contorno pequeno" id="c-usar-minimo" hidden>Usar este preço</button>
-            <div class="linha-margem"><label for="c-margem">Margem desejada</label><span class="passo-numero"><button type="button" class="passo-numero-btn" data-passo="-1" tabindex="-1" aria-label="Diminuir a margem">−</button><input type="text" inputmode="decimal" id="c-margem-num" data-min="1" data-max="90" aria-label="Margem desejada em porcentagem"><span class="passo-numero-un" aria-hidden="true">%</span><button type="button" class="passo-numero-btn" data-passo="1" tabindex="-1" aria-label="Aumentar a margem">+</button></span></div>
-            <input type="range" id="c-margem" min="5" max="50" step="1">
-            <div class="limites"><span>5%</span><span>50%</span></div>
+            <label class="campo" for="c-margem"><span>Margem desejada</span></label>
+            <div class="linha-barra">
+              <input type="range" id="c-margem" min="5" max="50" step="1">
+              <span class="passo-numero"><button type="button" class="passo-numero-btn" data-passo="-1" tabindex="-1" aria-label="Diminuir a margem">−</button><input type="text" inputmode="decimal" id="c-margem-num" data-min="1" data-max="90" aria-label="Margem desejada em porcentagem"><span class="passo-numero-un" aria-hidden="true">%</span><button type="button" class="passo-numero-btn" data-passo="1" tabindex="-1" aria-label="Aumentar a margem">+</button></span>
+              <div class="limites"><span>5%</span><span>50%</span></div>
+            </div>
             <p class="dica-caixa"><strong>Dica:</strong> uma margem entre 20% e 25% costuma dar folga para promoções e anúncios.</p>
             <div class="liquidacao" id="c-liquidacao"></div>
           </div>
 
           <div class="cartao analise" id="c-analise"></div>
+          <section class="cartao concorrentes" id="c-concorrentes" aria-labelledby="c-conc-titulo" hidden></section>
         </div>
         <div class="acoes-salvar" id="c-acoes">
           <button type="button" class="botao principal" id="c-salvar">Salvar Precificação</button>
@@ -242,22 +250,13 @@
         <div id="lista-canais" class="lista-canais"></div>
       </section>
 
-      <!-- Equipe e Histórico (src/telas/equipe.js e historico.js) -->
+      <!-- Empresa (endereço /empresa; a tela se chama "equipe" no código: src/telas/empresa.js e equipe.js) e Histórico (historico.js) -->
       <section id="tela-equipe" class="tela" aria-labelledby="titulo-equipe" hidden>
         <header class="titulo-tela">
-          <h1 id="titulo-equipe">Equipe</h1>
-          <p>Quem usa o Calculéo nesta empresa</p>
+          <h1 id="titulo-equipe">Empresa</h1>
+          <p>A empresa em uso e quem trabalha nela</p>
         </header>
         <div id="empresa-cartao" class="cartao empresa-cartao"></div>
-        <form id="equipe-convidar" class="cartao" novalidate hidden>
-          <h2>Convidar pessoa</h2>
-          <div class="linha-convite">
-            <label class="campo"><span>E-mail</span><input type="email" id="convite-email" class="campo-texto" autocomplete="off" required placeholder="nome@empresa.com.br"></label>
-            <div class="campo"><span id="convite-papel-rotulo">Papel</span><div class="alternar" role="radiogroup" aria-labelledby="convite-papel-rotulo"><label><input type="radio" name="convite-papel" value="membro" checked><span>Membro</span></label><label><input type="radio" name="convite-papel" value="dono"><span>Admin</span></label></div></div>
-            <button type="submit" class="botao principal">Convidar</button>
-          </div>
-          <p class="dica">Membro usa a calculadora e os produtos. Admin também convida e remove pessoas.</p>
-        </form>
         <p id="equipe-estado" class="dica" role="status" tabindex="-1"></p>
         <div id="equipe-lista" class="cartao"></div>
       </section>
@@ -292,6 +291,7 @@
   <dialog id="janela-planilha" class="janela pequena" aria-labelledby="titulo-planilha"></dialog>
   <dialog id="janela-copiar" class="janela pequena" aria-labelledby="titulo-copiar"></dialog>
   <dialog id="janela-empresa" class="janela pequena" aria-labelledby="titulo-nova-empresa"></dialog>
+  <dialog id="janela-convite" class="janela pequena" aria-labelledby="titulo-convite"></dialog>
   <script>
     // Sem sessão guardada (e sem link de login no endereço), o login aparece já, antes de o app terminar de carregar.
     try {

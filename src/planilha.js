@@ -106,8 +106,9 @@ export function prepararImportacao(texto, produtos, novoId, agora = new Date().t
 // Uma linha por produto x canal com preço salvo.
 export function csvPrecificacoes(linhas) {
   return paraCsv([
-    ['produto', 'sku', 'canal', 'preco', 'margem_%', 'lucro_r$', 'preco_minimo_20%'], // mínimo para 20%, a margem com que a Calculadora abre
-    ...linhas.map((l) => [l.produto, l.sku ?? '', l.canal, decimal(l.preco), decimal(l.margem), decimal(l.lucro), decimal(l.minimo)]),
+    // mínimo para 20%, a margem com que a Calculadora abre; imposto_% = o só deste produto neste canal (vazio = padrão)
+    ['produto', 'sku', 'canal', 'preco', 'margem_%', 'lucro_r$', 'preco_minimo_20%', 'imposto_%'],
+    ...linhas.map((l) => [l.produto, l.sku ?? '', l.canal, decimal(l.preco), decimal(l.margem), decimal(l.lucro), decimal(l.minimo), l.imposto == null ? '' : decimal(l.imposto)]),
   ]);
 }
 

@@ -2,7 +2,7 @@
 import { icone } from '../icones.js';
 import { dados, salvar, novoId } from '../dados.js';
 import { modelo, decodificar, prepararImportacao, baixar, csvPrecificacoes } from '../planilha.js';
-import { custoDoProduto, precosSalvos } from '../produtos.js';
+import { custoDoProduto, precosSalvos, impostoDoProdutoNoCanal } from '../produtos.js';
 import { precoMinimo } from '../calculos/margem.js';
 import { esc, reais } from '../formato.js';
 import { imgMascote } from './mascote.js';
@@ -91,9 +91,9 @@ function linhaAtualizado(p) {
 
 // Uma linha por produto x canal com preço salvo na Calculadora.
 function exportarPrecificacoes() {
-  const linhas = precosSalvos().map(({ produto, canal, preco, cmv, pesoG, r }) => {
+  const linhas = precosSalvos().map(({ produto, canalId, canal, preco, cmv, pesoG, r }) => {
     const minimo = precoMinimo({ cmv, canal, pesoG, margemDesejada: MARGEM_DESEJADA });
-    return { produto: produto.nome, sku: produto.sku, canal: canal.nome, preco, margem: r.margem, lucro: r.lucro, minimo: minimo || NaN }; // NaN: margem inalcançável, célula vazia
+    return { produto: produto.nome, sku: produto.sku, canal: canal.nome, preco, margem: r.margem, lucro: r.lucro, minimo: minimo || NaN, imposto: impostoDoProdutoNoCanal(produto, canalId) }; // NaN: margem inalcançável, célula vazia
   });
   baixar(`precificacoes-${new Date().toISOString().slice(0, 10)}.csv`, csvPrecificacoes(linhas));
 }

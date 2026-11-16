@@ -25,6 +25,17 @@ export const kitIncompleto = (p, mapa = porId()) =>
 
 export const pesoDoProduto = (p) => pesoParaFrete(p.pesoG, p.comprimento, p.largura, p.altura);
 
+// Imposto só deste produto neste canal (ex.: DIFAL no Mercado Livre), por cima do da empresa e do canal. Toda conta com
+// produto e canal passa por aqui; impostoDoProduto marca de onde veio (o Resultado mostra "· deste produto").
+export const impostoDoProdutoNoCanal = (produto, canalId) => {
+  const v = produto?.impostosCanal?.[canalId];
+  return v == null ? null : Number(v);
+};
+export const canalDoProduto = (canal, produto, canalId) => {
+  const imposto = impostoDoProdutoNoCanal(produto, canalId);
+  return canal && imposto != null ? { ...canal, impostos: imposto, impostoDoProduto: true } : canal;
+};
+
 // Cada preço salvo na Calculadora (produto × canal) com a conta feita: { produto, canalId, canal, preco, cmv, pesoG, r }.
 // Usado pela Início e pela planilha de preços.
 export function precosSalvos() {
@@ -32,8 +43,11 @@ export function precosSalvos() {
   return dados.produtos.flatMap((produto) => {
     const cmv = custoDoProduto(produto, mapa);
     const pesoG = pesoDoProduto(produto);
-    return Object.entries(dados.precificacoes?.[produto.id] ?? {}).flatMap(([canalId, salvo]) => {
-      const canal = canais()?.[canalId];
+    const salvos = dados.precificacoes?.[produto.id] ?? {};
+    // na ordem dos canais (canais()), não na ordem em que os preços foram salvos
+    return Object.entries(canais() ?? {}).filter(([canalId]) => salvos[canalId]).flatMap(([canalId, doCanal]) => {
+      const salvo = salvos[canalId];
+      const canal = canalDoProduto(doCanal, produto, canalId);
       const preco = precoPor(salvo.de, salvo.desconto);
       if (!canal || !(preco > 0)) return [];
       return [{ produto, canalId, canal, preco, cmv, pesoG, r: calcularMargem({ preco, cmv, canal, pesoG }) }];
@@ -55,6 +69,7 @@ export function produtoVazio() {
     comprimento: 0,
     largura: 0,
     altura: 0,
+    impostosCanal: {}, // imposto só deste produto num canal: { mercadolivre: 15 }; sem o canal = o do canal/empresa
   };
 }
 

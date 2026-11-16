@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { calcularMargem, precoMinimo, margemMaxima } from '../src/calculos/margem.js';
+import { calcularMargem, precoMinimo, margemMaxima, precoMelhorAbaixo } from '../src/calculos/margem.js';
 import { precoPor, descontoPeloPor } from '../src/calculos/preco-de-por.js';
 import { custoRevenda, custoFabricacao, custoKit } from '../src/calculos/custo-produto.js';
 import { pesoParaFrete } from '../src/calculos/peso.js';
@@ -67,6 +67,22 @@ test('preço mínimo: a margem nele nunca fica abaixo do alvo, e 1 centavo a men
       assert.ok(calcularMargem({ preco: minimo - 0.01, cmv, canal: canais[id], pesoG }).margem < alvo, `${id} ${alvo}%: ${minimo} não é o menor`);
     }
   }
+});
+
+test('preço menor com mais lucro: só logo abaixo de uma virada de faixa, e só se o lucro for maior', () => {
+  // ML, 5,4 kg: de R$ 200 em diante o frete é R$ 4,40 mais caro; a R$ 202,90 compensa descer para R$ 199,99
+  const ml = { cmv: 89.08, canal: canais.mercadolivre, pesoG: 5400 };
+  const r = precoMelhorAbaixo({ preco: 202.9, ...ml });
+  assert.equal(r.preco, 199.99);
+  assert.equal(r.motivo, 'freteCanal');
+  perto(r.economia, 4.4, 'frete mais barato');
+  assert.ok(r.lucro > calcularMargem({ preco: 202.9, ...ml }).lucro);
+  perto(r.lucro, calcularMargem({ preco: 199.99, ...ml }).lucro, 'lucro sugerido = a conta da margem');
+  // a R$ 210 os R$ 10,01 a menos já não compensam: nada a sugerir
+  assert.equal(precoMelhorAbaixo({ preco: 210, ...ml }), null);
+  // canal sem faixas, ou preço abaixo de todas as viradas: nada
+  assert.equal(precoMelhorAbaixo({ preco: 100, cmv: 30, canal: canais.lojapropria }), null);
+  assert.equal(precoMelhorAbaixo({ preco: 79, cmv: 30, canal: canais.shopee }), null);
 });
 
 test('preço mínimo devolve 0 quando as taxas não deixam chegar na margem', () => {

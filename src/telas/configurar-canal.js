@@ -1,10 +1,14 @@
 // Janela "Configurar <canal>": a regra do canal (fixa; o lápis libera para editar), depois impostos, custos por unidade e promoção.
+// Aberta da Calculadora com um produto escolhido, o campo "Impostos (%)" é o desse produto neste canal (ex.: DIFAL no ML):
+// já vem com o que vale hoje; mudar grava só nele (produto.impostosCanal); igual ao padrão não grava. Sem produto (Taxas dos
+// Canais), o campo muda o padrão do canal para todos, como antes.
 import { icone } from '../icones.js';
 import { dados, salvar, canais, canaisDePadrao } from '../dados.js';
 import { quadroDaRegra, notaDoMercadoLivre, tipoDeVenda, faixasEmTexto, data } from '../canais-texto.js';
 import { lerNumero, campo, campoReais, esc } from '../formato.js';
 import { comissoesProprias } from '../calculos/canal.js';
 import { campoNumero } from './numero.js';
+import { impostoDoProdutoNoCanal } from '../produtos.js';
 
 const $ = (s, raiz = document) => raiz.querySelector(s);
 const janela = () => $('#janela-canal');
@@ -12,6 +16,8 @@ let id = '';
 let rasc = null;
 let editando = false; // regra do canal liberada pelo lápis
 let categorias = null; // lista oficial do ML, carregada quando a janela do ML abre
+let produto = null; // escolhido na Calculadora: o imposto da janela é o dele neste canal
+let impostoProprio = null; // o imposto só deste produto neste canal (null = o padrão do canal)
 
 const REPUTACOES = { verde: 'Verde ou MercadoLíder', sem: 'Sem reputação', amarela: 'Amarela', laranja: 'Laranja', vermelha: 'Vermelha' };
 
@@ -23,15 +29,33 @@ export function iniciarConfigurarCanal() {
   j.addEventListener('submit', (e) => {
     e.preventDefault();
     if (rasc.faixas) rasc.faixas.sort((a, b) => (a.ate ?? Infinity) - (b.ate ?? Infinity));
+    if (impostoProprio != null && !(impostoProprio >= 0 && impostoProprio <= 100)) { // NaN (letras) também cai aqui
+      if (!Number.isNaN(impostoProprio)) mostrarErroImposto('Os impostos vão de 0 a 100%.');
+      return $('#imposto-produto', j).focus();
+    }
     dados.canais = { ...structuredClone(canais()), [id]: rasc };
+    if (produto && impostoProprio !== impostoDoProdutoNoCanal(produto, id)) gravarImpostoDoProduto();
     salvar();
     j.close();
   });
 }
 
-export async function abrirConfigurarCanal(idCanal) {
+// Só o imposto deste produto neste canal muda (os outros canais e produtos ficam como estão).
+function gravarImpostoDoProduto() {
+  dados.produtos = dados.produtos.map((p) => {
+    if (p.id !== produto.id) return p;
+    const impostosCanal = { ...(p.impostosCanal ?? {}) };
+    if (impostoProprio == null) delete impostosCanal[id];
+    else impostosCanal[id] = impostoProprio;
+    return { ...p, impostosCanal, atualizadoEm: new Date().toISOString() };
+  });
+}
+
+export async function abrirConfigurarCanal(idCanal, produtoEscolhido = null) {
   id = idCanal;
   rasc = structuredClone(canais()[id]);
+  produto = produtoEscolhido;
+  impostoProprio = impostoDoProdutoNoCanal(produto, id);
   if (rasc.tipo === 'mercadolivre') rasc.comissao_propria = comissoesProprias(rasc); // um valor por tipo de anúncio
   if (rasc.tipo_vendedor) rasc.tipo_vendedor = 'cnpj'; // a empresa vende como CNPJ
   editando = false;
@@ -137,6 +161,7 @@ function opcoesMercadoLivre() {
       <div class="grade">${editando ? porcento(`${nome} (%)`, `comissao.${tipo}`) : fixo(nome, pctFixo(rasc.comissao[tipo]))}</div>
     </div>
     ${porcento(`Comissão própria do ${nome} (opcional)`, `comissao_propria.${tipo}`, 'Se preencher, vale no lugar da comissão da categoria.')}
+    ${campoImposto()}
     <div class="secao">
       <p class="secao-titulo">Comissão menor de R$ ${campoReais(r.de)} a R$ ${campoReais(r.ate)} ${info([rasc.faixa_reduzida_fonte, rasc.faixa_reduzida_conferido_em])}</p>
       <label class="campo"><span>Categoria do produto</span>
@@ -172,6 +197,9 @@ function camposDoCanal() {
   return `${quadroDaRegra(id, rasc)}<div class="grade">${porcento('Comissão (%)', 'comissao')}${dinheiro('Taxa fixa (R$)', 'taxa_fixa')}</div>`;
 }
 
+// Impostos logo depois da comissão (no ML, logo abaixo da comissão própria): do canal, ou do produto escolhido na Calculadora.
+const campoImposto = () => (produto ? campoImpostoDoProduto() : porcento('Impostos (%)', 'impostos', 'Um número só, calculado sobre o preço de venda.'));
+
 function desenhar() {
   const corpo = $('.janela-corpo', janela());
   const rolagem = corpo ? corpo.scrollTop : 0;
@@ -185,7 +213,7 @@ function desenhar() {
       </div>
       <div class="janela-corpo">
         ${camposDoCanal()}
-        ${porcento('Impostos (%)', 'impostos', 'Um número só, calculado sobre o preço de venda.')}
+        ${rasc.tipo === 'mercadolivre' ? '' : campoImposto()}
         ${porcento(venda === 'loja' ? 'Taxa financeira / plataforma (%)' : 'Taxa financeira (%)', 'taxa_financeira', dicaFin)}
         ${dinheiro('Frete absorvido (R$ por unidade)', 'frete_absorvido', 'Frete que você paga por pedido (Correios, transportadora).')}
         ${dinheiro('Pick & pack (R$ por unidade)', 'embalagem', 'Embalagem + manuseio + etiqueta por pedido.')}
@@ -202,11 +230,40 @@ function desenhar() {
   $('.janela-corpo', janela()).scrollTop = rolagem;
 }
 
+// O mesmo "Impostos (%)", com produto: o valor que vale para ele aqui e, se for só dele, "voltar ao padrão (12%)".
+const padraoImposto = () => Number(rasc.impostos) || 0; // o do canal (ou da empresa), para todos os produtos
+const pctCampo = (v) => v.toLocaleString('pt-BR', { maximumFractionDigits: 2 }); // 0 aparece como 0
+const origemImposto = () => (Number.isNaN(impostoProprio) ? '' : impostoProprio == null
+  ? `Mudar aqui vale só para “${esc(produto.nome)}” neste canal.`
+  : `Só deste produto · <button type="button" class="link-botao" data-acao="imposto-padrao">voltar ao padrão (${pctCampo(padraoImposto())}%)</button>`);
+function mostrarErroImposto(texto) {
+  Object.assign($('#imposto-erro', janela()), { textContent: texto, hidden: !texto });
+  const entrada = $('#imposto-produto', janela());
+  if (texto) entrada.setAttribute('aria-invalid', 'true');
+  else entrada.removeAttribute('aria-invalid');
+}
+const campoImpostoDoProduto = () => `
+  <div class="campo-imposto">
+    <label class="campo"><span>Impostos (%)</span>
+      ${campoNumero(`<input type="text" inputmode="decimal" id="imposto-produto" data-min="0" data-max="100" value="${pctCampo(impostoProprio ?? padraoImposto())}" placeholder="0" aria-describedby="imposto-origem">`, '%', 'impostos')}
+    </label>
+    <small class="dica imposto-origem" id="imposto-origem">${origemImposto()}</small>
+    <small class="erro" id="imposto-erro" role="alert" hidden></small>
+  </div>`;
+
 // ---------- eventos ----------
 
 function aoDigitar(e) {
   const el = e.target;
   if (el.id === 'categoria-ml') return escolherCategoria(el.value, false);
+  if (el.id === 'imposto-produto') {
+    // só número (15, 12,5, 15%); letras ("abc", "1O") não viram 0% nem 1%: ficam NaN e o Salvar mostra o erro no campo
+    const t = el.value.replace(/\s/g, '');
+    const v = !t ? null : /^\d+([.,]\d+)?%?$/.test(t) ? lerNumero(t) : NaN;
+    impostoProprio = v == null || Math.abs(v - padraoImposto()) < 0.005 ? null : v; // igual ao padrão: não grava
+    mostrarErroImposto(Number.isNaN(v) ? 'Digite só o número (ex.: 15 ou 12,5).' : '');
+    return void ($('#imposto-origem', janela()).innerHTML = origemImposto());
+  }
   if (!el.dataset?.c || el.type === 'checkbox' || el.type === 'radio' || el.tagName === 'SELECT') return;
   definir(el.dataset.c, el.hasAttribute('data-num') ? lerNumero(el.value) : el.value);
   if (el.dataset.c === 'impostos') rasc.impostosProprio = el.value.trim() !== ''; // vazio: vale o imposto da empresa
@@ -239,6 +296,11 @@ function aoClicar(e) {
   if (!b) return;
   const acao = b.dataset.acao;
   if (acao === 'cancelar') return janela().close();
+  if (acao === 'imposto-padrao') {
+    impostoProprio = null;
+    desenhar();
+    return $('#imposto-produto', janela()).focus();
+  }
   if (acao === 'editar') editando = true;
   if (acao === 'pronto') editando = false;
   if (acao === 'padrao') {

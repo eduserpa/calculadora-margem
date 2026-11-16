@@ -67,5 +67,16 @@ test('planilha sem as colunas obrigatórias', () => {
 
 test('exporta precificações com ; e vírgula decimal', () => {
   const csv = csvPrecificacoes([{ produto: 'Banco; inox', sku: '1058', canal: 'Shopee', preco: 735.2, margem: 14.94, lucro: 109.8, minimo: 801 }]);
-  assert.equal(csv, '\uFEFFproduto;sku;canal;preco;margem_%;lucro_r$;preco_minimo_20%\r\n"Banco; inox";1058;Shopee;735,20;14,94;109,80;801,00\r\n');
+  assert.equal(csv, '\uFEFFproduto;sku;canal;preco;margem_%;lucro_r$;preco_minimo_20%;imposto_%\r\n"Banco; inox";1058;Shopee;735,20;14,94;109,80;801,00;\r\n');
+});
+
+test('exportar: coluna imposto_% com o imposto só do produto naquele canal (vazio = padrão)', () => {
+  const csv = csvPrecificacoes([
+    { produto: 'P1', sku: 'A', canal: 'Shopee', preco: 100, margem: 10, lucro: 10, minimo: 120, imposto: 15 },
+    { produto: 'P2', sku: 'B', canal: 'Shopee', preco: 100, margem: 10, lucro: 10, minimo: 120, imposto: null },
+  ]);
+  const linhas = csv.replace('﻿', '').trim().split('\r\n');
+  assert.ok(linhas[0].endsWith(';imposto_%'));
+  assert.ok(linhas[1].endsWith(';15,00'));
+  assert.ok(linhas[2].endsWith(';'));
 });

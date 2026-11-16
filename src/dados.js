@@ -53,14 +53,19 @@ export function salvar() {
   return ok;
 }
 
+// Ordem dos canais em todo lugar (Calculadora, Taxas dos Canais, Início, planilha). Fixa aqui: a ordem das chaves que cada
+// empresa gravou não conta. Canal fora da lista vai para o fim.
+export const ORDEM_DOS_CANAIS = ['mercadolivre', 'shopee', 'shein', 'tiktokshop', 'lojapropria', 'atacado', 'lojafisica'];
+const posicao = (id) => (ORDEM_DOS_CANAIS.includes(id) ? ORDEM_DOS_CANAIS.indexOf(id) : ORDEM_DOS_CANAIS.length);
+
 // Taxas em uso: as que a empresa ajustou (ou as de data/canais.json), com o imposto da empresa
-// em todo canal que não tem imposto próprio.
+// em todo canal que não tem imposto próprio, na ORDEM_DOS_CANAIS.
 export function canais() {
   const base = dados.canais ?? canaisPadrao;
   if (!base) return base;
   const imposto = dados.empresa?.impostos;
   // o nome vem sempre do padrão: a empresa que salvou as taxas guardou junto o nome antigo do canal
-  return Object.fromEntries(Object.entries(base).map(([id, c]) => {
+  return Object.fromEntries(Object.entries(base).sort(([a], [b]) => posicao(a) - posicao(b)).map(([id, c]) => {
     const nome = canaisPadrao?.[id]?.nome ?? c.nome;
     return [id, imposto == null || c.impostosProprio ? { ...c, nome } : { ...c, nome, impostos: imposto }];
   }));

@@ -1,5 +1,23 @@
 [
   {
+    "versao": "Alpha 1.2.0",
+    "data": "16/11/2026",
+    "itens": [
+      "Busca de concorrentes no Mercado Livre: todos entram na conta, desmarque os que não são o mesmo produto",
+      "A última busca fica guardada em cada produto, com o botão Atualizar",
+      "Concorrentes na Calculadora: veja sua margem e seu lucro no preço de cada concorrente",
+      "Aviso quando o nome do produto atrapalha a busca, com Corrigir nome",
+      "Imposto só de um produto num canal (ex.: DIFAL no Mercado Livre)",
+      "Canais sempre na mesma ordem, com o Mercado Livre primeiro",
+      "Aviso quando um preço um pouco menor dá mais lucro",
+      "Início mostra onde você está mais caro que a concorrência",
+      "Tela Empresa: pessoas, convites e dados da empresa num lugar só",
+      "Excluir empresa (só o admin, com confirmação)",
+      "Explicação do peso pela caixa mais simples",
+      "Botões mais fáceis de tocar no celular"
+    ]
+  },
+  {
     "versao": "Alpha 1.1.1",
     "data": "13/11/2026",
     "itens": [

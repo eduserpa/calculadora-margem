@@ -119,7 +119,7 @@ a.marca, a.marca:hover, a.marca span { text-decoration: none; }  /* a marca é l
 .aba { display: flex; align-items: center; gap: 8px; padding: 6px 8px; white-space: nowrap; border: 1px solid transparent; border-radius: var(--raio-p); color: var(--lateral-texto); text-decoration: none;
   transition: transform .15s ease-out, box-shadow .15s ease-out, background-color .15s ease-out; }  /* borda transparente: a mesma altura de antes (6 + 1) */
 .aba .icone { width: 16px; text-align: center; }
-.aba:hover { color: var(--lateral-texto); background: #2a2d36; transform: translateY(-1px); }
+@media (hover: hover) { .aba:hover { color: var(--lateral-texto); background: #2a2d36; transform: translateY(-1px); } }
 /* item ativo = botão primário em camadas (Eduardo 13/11); na lateral escura a sombra dura é cinza médio para aparecer */
 .aba[aria-current="page"], .aba[aria-current="page"]:hover { color: #0c0d11; font-weight: 600; background: var(--lima); border-color: #2d3039; box-shadow: 2px 2px #8a8d96, 3px 3px #5c5f69; transform: none; }
 .lateral :focus-visible { outline-color: var(--lima); }  /* foco visível na lateral escura (o roxo some no preto) */
@@ -146,7 +146,8 @@ a.marca, a.marca:hover, a.marca span { text-decoration: none; }  /* a marca é l
 /* Autoria: "Feito por" + logo, só no pé do menu lateral */
 .credito { display: grid; justify-items: center; justify-self: center; text-align: center; gap: 6px; width: 100%; max-width: 100%; margin-top: 8px; padding: 6px 8px; color: var(--lateral-suave); text-decoration: none; font-size: 11px; }
 .credito img { width: 110px; height: auto; max-width: 100%; display: block; filter: var(--logo-filtro); opacity: .85; }
-.credito:hover img, .credito:focus-visible img { opacity: 1; }
+.credito:focus-visible img { opacity: 1; }
+@media (hover: hover) { .credito:hover img { opacity: 1; } }
 
 /* Ícones (Lucide, assets/icones.svg) */
 .ic { width: 1em; height: 1em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; vertical-align: -0.125em; }
@@ -195,14 +196,15 @@ a.versao { pointer-events: auto; text-decoration: none; }  /* o leão da versão
   text-decoration: none; white-space: nowrap; cursor: pointer; box-shadow: var(--sombra-dura-cinza);
   transition: transform .15s ease-out, box-shadow .15s ease-out, background-color .15s ease-out;
 }
-:is(.botao, .engrenagem, .fechar, .toast-fechar, .abrir-menu, .link-botao):hover { background: var(--superficie-2); transform: translate(-1px, -1px); box-shadow: 3px 3px #2d3039, 5px 5px #a3a5aa; }
+/* :hover só onde há mouse ((hover: hover), Eduardo 16/11): no toque o hover gruda depois do toque e o botão fica cinza/levantado */
+@media (hover: hover) { :is(.botao, .engrenagem, .fechar, .toast-fechar, .abrir-menu, .link-botao):hover { background: var(--superficie-2); transform: translate(-1px, -1px); box-shadow: 3px 3px #2d3039, 5px 5px #a3a5aa; } }
 :is(.botao, .engrenagem, .fechar, .toast-fechar, .abrir-menu, .link-botao):active { transform: translate(1px, 1px); box-shadow: 1px 1px #2d3039, 2px 2px #a3a5aa; }
 /* PERIGO: o secundário em vermelho escuro, só no que apaga (Excluir produto, lixeira dos cartões, Remover pessoa, confirmar exclusão) */
 .botao.perigo, .botao[data-remover] { border-color: var(--perigo); color: var(--perigo); box-shadow: var(--sombra-dura-perigo); }
-.botao.perigo:hover, .botao[data-remover]:hover { background: var(--vermelho-suave); box-shadow: 3px 3px #6b1212, 5px 5px #e3a3a3; }
+@media (hover: hover) { .botao.perigo:hover, .botao[data-remover]:hover { background: var(--vermelho-suave); box-shadow: 3px 3px #6b1212, 5px 5px #e3a3a3; } }
 .botao.perigo:active, .botao[data-remover]:active { box-shadow: 1px 1px #6b1212, 2px 2px #e3a3a3; }
 .botao.principal { background: var(--lima); border-color: var(--lima); color: #0c0d11; box-shadow: var(--sombra-dura); }
-.botao.principal:hover { background: var(--lima-forte); transform: translate(-1px, -1px); box-shadow: 3px 3px #0c0d11, 5px 5px #b8de5a; }
+@media (hover: hover) { .botao.principal:hover { background: var(--lima-forte); transform: translate(-1px, -1px); box-shadow: 3px 3px #0c0d11, 5px 5px #b8de5a; } }
 .botao.principal:active { transform: translate(1px, 1px); box-shadow: 1px 1px #0c0d11, 2px 2px #b8de5a; }
 .botao:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 .botao.cheio { width: 100%; }
@@ -216,7 +218,7 @@ a.versao { pointer-events: auto; text-decoration: none; }  /* o leão da versão
 /* CLARO: o secundário na lateral escura (recolher, Exportar dados, Importar dados, Sair): contorno e texto claros, sombra escura */
 .lateral-alternar, .lateral-botao { border: 1px solid var(--lateral-texto); background: transparent; color: var(--lateral-texto); box-shadow: var(--sombra-dura-clara); }
 .lateral-alternar { flex: none; }
-.lateral-alternar:hover, .lateral-botao:hover { background: var(--lateral-hover); color: var(--lateral-texto); transform: translate(-1px, -1px); box-shadow: 3px 3px #000000, 5px 5px #4b4e58; }
+@media (hover: hover) { .lateral-alternar:hover, .lateral-botao:hover { background: var(--lateral-hover); color: var(--lateral-texto); transform: translate(-1px, -1px); box-shadow: 3px 3px #000000, 5px 5px #4b4e58; } }
 .lateral-alternar:active, .lateral-botao:active { transform: translate(1px, 1px); box-shadow: 1px 1px #000000, 2px 2px #4b4e58; }
 /* FOCO dos botões em camadas (Eduardo 13/11): só no teclado (:focus-visible); o anel contorna o conjunto botão + sombra dura
    (a sombra sai 3 px à direita e embaixo, então o anel vai 3 px mais longe desses lados) e fica centrado nele. Roxo; lima na lateral escura.
@@ -226,18 +228,18 @@ a.versao { pointer-events: auto; text-decoration: none; }  /* o leão da versão
   content: ""; position: absolute; inset: -4px -7px -7px -4px; border: 2px solid var(--roxo); border-radius: calc(var(--raio-p) + 4px); pointer-events: none; }
 .lateral :focus-visible::before { border-color: var(--lima); }
 .lateral-botao, button.selo-empresa, .aba { position: relative; }
-#tela-inicio .link-botao:focus-visible { outline: 2px solid var(--roxo); }  /* na Início ele é link de texto, sem sombra: anel comum */
-#tela-inicio .link-botao:focus-visible::before { content: none; }
+:is(#tela-inicio, .imposto-origem) .link-botao:focus-visible { outline: 2px solid var(--roxo); }  /* na Início e no "voltar ao padrão" ele é link de texto, sem sombra: anel comum */
+:is(#tela-inicio, .imposto-origem) .link-botao:focus-visible::before { content: none; }
 
 /* Campos: todos iguais (40, 44 no toque; cantos 6; foco roxo), inclusive os pequenos das tabelas e da calculadora */
 .campo { display: grid; gap: var(--e1); min-width: 0; align-content: start; }
 .campo > span { font-size: 13px; font-weight: 600; }
 .campo-texto, .campo input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .campo select,
-.linha-barra .mini, .linha-margem input, table.faixas input, .regra table.editaveis input {
+.linha-barra .mini, table.faixas input, .regra table.editaveis input {
   width: 100%; min-height: var(--alt); padding: 0 12px; border: 1px solid var(--linha); border-radius: var(--raio-p);
   background: var(--superficie); color: var(--texto); font-variant-numeric: tabular-nums;
 }
-.campo-texto:focus, .campo input:focus, .campo select:focus, .linha-barra .mini:focus, .linha-margem input:focus, table.faixas input:focus, .regra table.editaveis input:focus {
+.campo-texto:focus, .campo input:focus, .campo select:focus, .linha-barra .mini:focus, table.faixas input:focus, .regra table.editaveis input:focus {
   border-color: var(--roxo); outline: none; box-shadow: 0 0 0 3px var(--roxo-claro);
 }
 .grade { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
@@ -272,7 +274,8 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .seletor-lista { position: absolute; z-index: 6; left: 0; right: 0; top: calc(100% + 4px); background: var(--superficie); border: 1px solid var(--linha); border-radius: 10px; box-shadow: var(--sombra); padding: 8px; display: grid; gap: 6px; }
 #c-opcoes { max-height: 300px; overflow-y: auto; display: grid; }
 .opcao { cursor: pointer; display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: 2px 10px; text-align: left; padding: 8px 10px; border: 0; border-radius: 8px; background: none; cursor: pointer; }
-.opcao:hover, .opcao:focus-visible, .opcao[aria-selected="true"] { background: var(--roxo-suave); }
+.opcao:focus-visible, .opcao[aria-selected="true"] { background: var(--roxo-suave); }
+@media (hover: hover) { .opcao:hover { background: var(--roxo-suave); } }
 .opcao b { font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
 .opcao small { color: var(--suave); grid-column: 2; }
 .opcao .etiqueta { grid-row: 1 / span 2; grid-column: 3; align-self: center; }
@@ -295,7 +298,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
   position: relative; display: grid; gap: var(--e1); justify-items: center; align-content: start; text-align: center;
   padding: var(--e2) var(--e1) var(--e2); cursor: pointer; border: 2px solid var(--linha); border-radius: var(--raio); background: var(--superficie);
 }
-.canal-caixa:hover .canal { border-color: var(--grafite); }
+@media (hover: hover) { .canal-caixa:hover .canal { border-color: var(--grafite); } }
 .canal[aria-checked="true"] { border-color: var(--lima-forte); background: var(--roxo-suave); }
 .canal[aria-checked="true"]::before { content: ""; position: absolute; top: 12px; left: 12px; width: 20px; height: 20px; border-radius: 50%; background: var(--lima) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230c0d11' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E") center / 12px no-repeat; }  /* o check do Lucide, como no resto do app */
 .canal-icone { width: 46px; height: 46px; border-radius: 10px; }
@@ -359,10 +362,10 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .minimo-valor { font-size: 30px; color: var(--verde); font-weight: 800; font-variant-numeric: tabular-nums; }
 .minimo-sub { margin: -6px 0 0; color: var(--suave); }
 .alerta { margin: 0; color: var(--vermelho); font-weight: 600; font-size: 13px; }
-.linha-margem { justify-self: stretch; display: flex; justify-content: space-between; align-items: center; font-weight: 600; margin-top: 6px; }
-.linha-margem span { color: var(--verde); font-weight: 700; }
-.linha-margem input { width: 72px; padding: 0 8px; text-align: right; color: var(--verde); font-weight: 700; }
-.limites { justify-self: stretch; display: flex; justify-content: space-between; font-size: 12px; color: var(--suave); margin-top: -6px; }
+.minimo > :is(.campo, .linha-barra) { justify-self: stretch; text-align: left; }  /* Margem desejada: mesma linha do Desconto */
+.minimo > .campo { margin-top: 6px; }
+.linha-barra:has(> .limites) { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 10px; }  /* 5%/50% só embaixo do slider */
+.limites { grid-column: 1; display: flex; justify-content: space-between; font-size: 12px; color: var(--suave); margin-top: -4px; }
 .dica-caixa { justify-self: stretch; text-align: left; margin: 0; padding: 8px 10px; border-radius: 8px; background: var(--superficie); border: 1px solid var(--linha); font-size: 12px; color: var(--suave); }
 
 /* Liquidação, análise e salvar */
@@ -399,7 +402,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 @media (pointer: coarse) {
   .botao, .link-botao, .lateral-alternar, .abrir-menu, .aba, .lateral-botao,
   .campo-texto, .campo input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), .campo select,
-  .linha-barra .mini, .linha-margem input, table.faixas input, .regra table.editaveis input { min-height: var(--alt-toque); }
+  .linha-barra .mini, table.faixas input, .regra table.editaveis input { min-height: var(--alt-toque); }
   .lateral-alternar, .abrir-menu { width: var(--alt-toque); }
 }
 .lista-previa { max-height: 180px; overflow-y: auto; margin: 0; padding-left: 18px; font-size: 13px; }
@@ -486,7 +489,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
   display: flex; align-items: center; justify-content: center; min-height: calc(var(--alt) - 8px); padding: 0 var(--e2);
   border: 0; border-radius: var(--raio-p); background: transparent; box-shadow: none; font-weight: 600; color: var(--suave); white-space: nowrap;
 }
-.alternar label:hover span { color: var(--texto); }
+@media (hover: hover) { .alternar label:hover span { color: var(--texto); } }
 .alternar input:checked + span, .alternar.compacto input:checked + span, .alternar.separado input:checked + span { background: var(--lima); color: #0c0d11; box-shadow: none; border: 0; }
 .alternar input:focus-visible + span { outline: 2px solid var(--roxo); outline-offset: 1px; }
 @media (pointer: coarse) {   /* no toque, cada opção tem 44 px inteiros */
@@ -525,6 +528,13 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .regra p { margin: 0; }
 .regra .pe { font-size: 12px; }  /* sem opacidade: com 0,9 o laranja ficava abaixo de 4,5:1 (axe) */
 
+/* imposto do produto neste canal (Hermione 16/11; Eduardo: discreto), na janela Configurar canal aberta pela Calculadora: a peça como os
+   outros % da janela e, logo embaixo, a origem em 12 px ("vale só para … neste canal" ou "Só deste produto · voltar ao padrão") e o erro */
+.campo-imposto { display: grid; gap: 6px; }
+.campo-imposto > .erro { font-size: 12px; }
+.campo-imposto > .erro[hidden] { display: none; }
+#janela-canal .imposto-origem .link-botao { position: relative; font-size: inherit; }  /* link de texto no tamanho da dica (regra da Início) */
+.imposto-origem .link-botao::after { content: ""; position: absolute; inset: -10px -4px; }  /* 44 de toque sem mudar a linha */
 .info-peso { padding: 9px 12px; border-radius: 8px; background: var(--superficie-2); color: var(--suave); font-size: 13px; }
 .info-peso strong { color: var(--texto); }
 .cmv-cabeca { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
@@ -560,7 +570,7 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .info, .info-pilula { position: relative; display: inline-grid; place-items: center; width: 20px; height: 20px; margin: 0 0 0 4px; vertical-align: middle; color: var(--suave); cursor: help; }
 .info::after, .info-pilula::after { content: ""; position: absolute; inset: -12px; }  /* 44 px de toque, sem empurrar o rótulo */
 .info .ic, .info-pilula .ic { width: 16px; height: 16px; }
-.info:hover, .info-pilula:hover { color: var(--roxo); }
+@media (hover: hover) { .info:hover, .info-pilula:hover { color: var(--roxo); } }
 .fixo { display: flex; align-items: center; min-height: 38px; padding: 0 12px; border-radius: 8px; background: var(--superficie-2); font-weight: 600; }
 .tabela-rolagem { overflow-x: auto; border: 1px solid var(--linha); border-radius: 10px; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
@@ -612,8 +622,8 @@ table.faixas input { width: 96px; padding: 0 8px; text-align: right; }
   .tela, #c-depois-produto, #c-calc, #c-sem-canal, #c-analise, .seletor-lista, .vazio-resultado { animation: aparecer 220ms ease-out; }
   .canal-caixa { transition: transform 150ms ease-out; }
   .canal { transition: box-shadow 150ms ease-out, border-color 150ms ease-out; }
-  .canal-caixa:hover { transform: translateY(-3px); }
-  .canal-caixa:hover .canal { box-shadow: 0 6px 16px rgb(12 13 17 / 10%); }
+  @media (hover: hover) { .canal-caixa:hover { transform: translateY(-3px); } }
+  @media (hover: hover) { .canal-caixa:hover .canal { box-shadow: 0 6px 16px rgb(12 13 17 / 10%); } }
   .canal[aria-checked="true"]::before { animation: pop 260ms cubic-bezier(.3, 1.4, .6, 1); }
   .conteudo { transition: padding-left 200ms ease-out; }
   .lateral { transition: width 200ms ease-out, padding 200ms ease-out, transform 200ms ease-out, box-shadow 200ms ease-out, visibility 0s linear 0s; }
@@ -651,11 +661,9 @@ table.faixas input { width: 96px; padding: 0 8px; text-align: right; }
 
 /* Ellie: equipe/histórico/empresa (src/telas/equipe.js, historico.js, empresa.js) */
 .imposto-empresa { gap: 8px; }
-.linha-imposto { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
-.linha-imposto .campo-texto { width: 200px; max-width: 100%; }
-.linha-convite { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--e2); align-items: end; }  /* campo | seletor | botão, 16 entre eles */
+.linha-imposto { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }  /* peça −/+ e o "Salvo…" ao lado; no celular o status desce */
 .lista-pessoas, .lista-historico { list-style: none; margin: 0; padding: 0; display: grid; }
-.pessoa { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 12px 0; border-top: 1px solid var(--linha); }
+.pessoa { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; padding: 12px 0; border-top: 1px solid var(--linha); }  /* inicial | nome (cresce) | ações */
 .pessoa:first-child { border-top: 0; }
 .pessoa-nome { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
 #equipe-lista h2 { font-size: 16px; }
@@ -669,7 +677,6 @@ table.faixas input { width: 96px; padding: 0 8px; text-align: right; }
 .lista-historico time { color: var(--suave); font-variant-numeric: tabular-nums; font-size: 13px; }
 .lista-historico small { grid-column: 2; }
 @media (max-width: 600px) {
-  .linha-convite { grid-template-columns: minmax(0, 1fr); }
   .lista-historico li { grid-template-columns: minmax(0, 1fr); }
   .lista-historico small { grid-column: 1; }
 }
@@ -721,7 +728,7 @@ table.faixas input { width: 96px; padding: 0 8px; text-align: right; }
   border: 1px solid var(--grafite); border-radius: var(--raio-p); background: var(--superficie); color: var(--grafite); font: 600 var(--f) / 1.2 var(--fonte-titulo);
   box-shadow: var(--sombra-dura-cinza); transition: transform .15s ease-out, box-shadow .15s ease-out, background-color .15s ease-out; }
 button.selo-empresa { cursor: pointer; }
-button.selo-empresa:hover { background: var(--superficie-2); transform: translate(-1px, -1px); box-shadow: 3px 3px #2d3039, 5px 5px #a3a5aa; }
+@media (hover: hover) { button.selo-empresa:hover { background: var(--superficie-2); transform: translate(-1px, -1px); box-shadow: 3px 3px #2d3039, 5px 5px #a3a5aa; } }
 button.selo-empresa:active { transform: translate(1px, 1px); box-shadow: 1px 1px #2d3039, 2px 2px #a3a5aa; }
 .selo-empresa .ic { flex: none; }
 .avatar-empresa { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border: 2px solid #0c0d11; border-radius: 8px;
@@ -729,11 +736,11 @@ button.selo-empresa:active { transform: translate(1px, 1px); box-shadow: 1px 1px
 .avatar-empresa.cor-1 { background: #d5d7db; }   /* grafite claro */
 .avatar-empresa.cor-2 { background: var(--roxo-claro); }   /* roxo suave */
 /* com foto/logo da empresa (Ellie 13/11): imagem de 256 inteira dentro do quadradinho, fundo branco; mesma borda, raio e balanço */
-.avatar-empresa.com-foto { padding: 0; overflow: hidden; background: #fff; }
+.avatar-empresa.com-foto { padding: 0; overflow: hidden; background: #fff; border: 1px solid var(--linha); }  /* foto/logo: moldura cinza fina (as iniciais seguem com o contorno grosso) */
 .avatar-empresa.com-foto img { display: block; width: 100%; height: 100%; object-fit: contain; }
 @keyframes balanca { 0%, 100% { transform: rotate(0); } 30% { transform: rotate(-9deg); } 70% { transform: rotate(9deg); } }
 @media (prefers-reduced-motion: no-preference) {
-  button.selo-empresa:hover .avatar-empresa, .menu-empresas [role="menuitemradio"]:hover .avatar-empresa { animation: balanca 200ms ease-in-out; }
+  @media (hover: hover) { button.selo-empresa:hover .avatar-empresa, .menu-empresas [role="menuitemradio"]:hover .avatar-empresa { animation: balanca 200ms ease-in-out; } }
 }
 .selo-nome { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .selo-papel { flex: none; padding: 2px 8px; border-radius: 999px; background: var(--superficie); font-size: 11px; font-weight: 700; color: var(--suave); }
@@ -742,7 +749,8 @@ button.selo-empresa:active { transform: translate(1px, 1px); box-shadow: 1px 1px
 /* menu das empresas (abre no selo): uma linha por empresa, a ativa com ✓ e lima claro; "+ Nova empresa" no fim */
 .menu-empresas { position: absolute; right: 0; top: calc(100% + 8px); z-index: 13; width: max-content; min-width: max(260px, 100%); max-width: min(380px, calc(100vw - 32px)); margin: 0; padding: var(--e1); list-style: none; background: var(--superficie); border: 1px solid var(--linha); border-radius: var(--raio); box-shadow: 0 2px 6px rgb(12 13 17 / 10%), 0 12px 32px rgb(12 13 17 / 16%); }  /* como as janelas */
 .menu-empresas [role="menuitemradio"], .menu-nova { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 10px; border: 0; border-radius: var(--raio-p); background: none; color: var(--texto); font: 500 14px/1.2 var(--fonte); text-align: left; text-decoration: none; cursor: pointer; }
-.menu-empresas [role="menuitemradio"]:hover, .menu-nova:hover, .menu-empresas [role="menuitemradio"]:focus-visible, .menu-nova:focus-visible { background: var(--superficie-2); }
+.menu-empresas [role="menuitemradio"]:focus-visible, .menu-nova:focus-visible { background: var(--superficie-2); }
+@media (hover: hover) { .menu-empresas [role="menuitemradio"]:hover, .menu-nova:hover { background: var(--superficie-2); } }
 .menu-empresas [aria-checked="true"], .menu-empresas [aria-checked="true"]:hover, .menu-empresas [aria-checked="true"]:focus-visible { background: var(--lima-claro); font-weight: 700; }
 .menu-empresas :focus-visible { outline-offset: -2px; }
 .menu-marca { flex: none; display: grid; place-items: center; width: 16px; margin-left: auto; }
@@ -828,10 +836,10 @@ ol.plano li::marker { font-weight: 700; }
   .lista-canais li > strong { grid-row: 1; grid-column: 2; }  /* nome e margem na mesma linha; a barra e a dica embaixo */
   .lista-canais li > .barra-dist, .lista-canais li > small { grid-column: 1 / -1; }
 }
-/* nome do produto na tabela e "Ver histórico completo": link de texto (roxo é detalhe), não botão */
-#tela-inicio .link-botao { display: inline-block; min-height: 24px; padding: 0; border: 0; background: none; box-shadow: none; transform: none;
+/* nome do produto na tabela, "Ver histórico completo" e o "voltar ao padrão" do imposto (janela do canal): link de texto (roxo é detalhe), não botão */
+:is(#tela-inicio, .imposto-origem) .link-botao { display: inline-block; min-height: 24px; padding: 0; border: 0; background: none; box-shadow: none; transform: none;
   color: var(--roxo); font: 600 var(--f) / 1.4 var(--fonte); text-decoration: underline; text-underline-offset: 2px; white-space: normal; text-align: left; justify-self: start; }
-#tela-inicio .link-botao:hover, #tela-inicio .link-botao:active { background: none; box-shadow: none; transform: none; text-decoration-thickness: 2px; }
+:is(#tela-inicio, .imposto-origem) .link-botao:is(:hover, :active) { background: none; box-shadow: none; transform: none; text-decoration-thickness: 2px; }
 td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
 /* 7 faixas da margem (as mesmas da barra da Análise): texto com contraste AA e a cor cheia na barra */
 .f-prejuizo { color: #a32020; } .barra-dist .f-prejuizo { background: #c62828; }
@@ -851,7 +859,7 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
 .lista-clonar { list-style: none; margin: 0; padding: 0; display: grid; max-height: 320px; overflow-y: auto; border: 1px solid var(--linha); border-radius: var(--raio); }
 .lista-clonar li + li { border-top: 1px solid var(--linha); }
 .item-clonar { display: grid; grid-template-columns: 20px 40px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: var(--alt-toque); padding: var(--e1) 12px; cursor: pointer; }
-.item-clonar:hover { background: var(--superficie-2); }
+@media (hover: hover) { .item-clonar:hover { background: var(--superficie-2); } }
 .item-clonar input { width: 18px; height: 18px; margin: 0; accent-color: var(--grafite); }
 .item-clonar-nome { min-width: 0; overflow-wrap: anywhere; }
 .item-clonar-nome small { margin-left: 4px; }
@@ -866,7 +874,7 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
 /* Equipe: "Tornar <e-mail> Admin?" + Salvar + Cancelar, logo depois do seletor de papel da pessoa (HTML da Hermione) */
 .confirmar-papel { display: inline-flex; flex-wrap: wrap; align-items: center; gap: var(--e1); font-size: 13px; font-weight: 600; }
 /* menu da lateral: o ícone dá a mesma balançadinha do avatar da empresa no hover (Eduardo 13/11) */
-@media (prefers-reduced-motion: no-preference) { .aba:hover .ic, a.marca:hover .marca-logo { animation: balanca 200ms ease-in-out; } }
+@media (prefers-reduced-motion: no-preference) and (hover: hover) { .aba:hover .ic, a.marca:hover .marca-logo { animation: balanca 200ms ease-in-out; } }
 /* Histórico detalhado (HTML da Ellie): o que mudou numa linha só, "Rótulo: antes → depois", com recuo pequeno e tom de dica */
 .historico-detalhe > summary { cursor: pointer; list-style: none; }
 .historico-detalhe > summary::-webkit-details-marker { display: none; }
@@ -900,8 +908,6 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
 .editar-foto .botao[aria-label] { width: var(--alt); padding: 0; }
 @media (pointer: coarse) { .editar-foto .botao[aria-label] { width: var(--alt-toque); } }
 /* cartão Empresa (Equipe) e janela Editar empresa, com a foto/logo (HTML da Ellie) */
-.empresa-quem { display: flex; align-items: center; gap: var(--e1); margin: 0; }
-.empresa-quem .avatar-empresa { width: 40px; height: 40px; font-size: 15px; }
 .editar-foto { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--e1) var(--e2); }
 .editar-foto .avatar-empresa { grid-row: 1 / span 2; width: 96px; height: 96px; border-radius: 16px; font-size: 32px; }
 .editar-foto .dica { grid-column: 2; }
@@ -925,7 +931,7 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
 .passo-numero-btn { order: 1; flex: none; display: grid; place-items: center; width: var(--alt); padding: 0; border: 0; border-left: 1px solid var(--linha);
   background: transparent; color: var(--grafite); font: 600 18px / 1 var(--fonte-titulo); cursor: pointer; transition: background-color .15s ease-out; }
 .passo-numero-btn[data-passo="-1"] { order: -1; border-left: 0; border-right: 1px solid var(--linha); }
-.passo-numero-btn:hover { background: var(--superficie-2); }
+@media (hover: hover) { .passo-numero-btn:hover { background: var(--superficie-2); } }
 .passo-numero-btn:active { background: var(--linha); }
 .campo .passo-numero:not(:has(> [data-passo])) { display: flex; width: 100%; }  /* R$ (sem botões): a largura do campo */
 /* com − e + (Eduardo 13/11): largura do conteúdo, só o bastante para "XX,XX %" + os 2 botões, à esquerda, número no meio entre − e + */
@@ -952,3 +958,157 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 800; }
 @media (prefers-reduced-motion: no-preference) { .dica-balao:not([hidden]) { animation: dica-entra 120ms ease-out; } }
 @keyframes dica-entra { from { opacity: 0; } }
 [data-dica] { cursor: help; }
+
+/* EXCLUIR EMPRESA no fim da janela Editar empresa (HTML da Ellie, Eduardo 13/11): área separada por uma linha.
+   Fechada: só o botão perigo, à esquerda. Confirmando: caixa vermelha bem suave com o aviso, o campo do nome e os botões (quebram em 390). */
+.excluir-empresa { display: grid; gap: var(--e1); margin-top: var(--e1); padding-top: var(--e2); border-top: 1px solid var(--linha); }
+.excluir-empresa > .botao { justify-self: start; }
+.excluir-empresa:has(#aviso-excluir) { gap: var(--e2); padding: var(--e2); border: 1px solid color-mix(in srgb, var(--perigo) 30%, transparent); border-radius: var(--raio); background: var(--vermelho-suave); }
+.excluir-empresa p { margin: 0; }
+.excluir-empresa #aviso-excluir strong { color: var(--perigo); }
+.excluir-empresa .erro[hidden] { display: none; }
+/* desabilitado não sobe nem afunda (o Excluir para sempre fica assim até o nome bater) */
+.botao:disabled:is(:hover, :active) { transform: none; box-shadow: none; }
+.botao.perigo:disabled:hover { background: var(--superficie); }
+
+/* EMPRESA (tela Equipe repaginada, HTML da Ellie, Eduardo 16/11): a empresa é o cabeçalho; embaixo, uma lista com pessoas e convites.
+   Cabeçalho: avatar 56 | nome + "Você é Admin · 2 pessoas" | Editar à direita (em 600 px ou menos, o Editar desce, alinhado com o nome). */
+.empresa-cabeca { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--e1) var(--e2); }
+.empresa-cabeca .avatar-empresa { width: 56px; height: 56px; border-radius: 12px; font-size: 20px; }
+.empresa-titulo { display: grid; gap: 2px; min-width: 0; }
+.empresa-titulo h2 { margin: 0; font-size: var(--f-g); overflow-wrap: anywhere; }
+#empresa-estado:empty { display: none; }
+/* pessoa: inicial num círculo de 36; convite com círculo tracejado e texto apagado */
+.avatar-pessoa { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--superficie-2); color: var(--grafite); font: 700 15px / 1 var(--fonte-titulo); }
+.pessoa.convite .avatar-pessoa { background: transparent; border: 1.5px dashed var(--suave); color: var(--suave); }
+.pessoa.convite .pessoa-nome strong { color: var(--suave); }
+.pessoa-acoes { justify-content: flex-end; }
+.pessoa-acoes [data-remover]:not(.confirmar) { width: var(--alt); padding: 0; }  /* só a lixeira: quadrada; "Confirmar remoção" volta a ter texto */
+@media (pointer: coarse) { .pessoa-acoes [data-remover]:not(.confirmar) { width: var(--alt-toque); } }
+@media (max-width: 600px) {
+  .empresa-cabeca { grid-template-columns: auto minmax(0, 1fr); }
+  .empresa-cabeca > .botao { grid-column: 2; justify-self: start; }
+  .pessoa { grid-template-columns: auto minmax(0, 1fr); }
+  .pessoa-acoes { grid-column: 2; justify-content: flex-start; }  /* as ações descem para baixo do nome */
+}
+
+/* CONCORRENTES (1.1.2, HTML da Hermione, Eduardo 16/11). Cartão na largura toda da grade da Calculadora, abaixo da Análise.
+   Resumo em pílulas (menor / mediana / maior) + "N abaixo do seu preço mínimo" em âmbar; lista compacta: no computador uma linha
+   por concorrente em colunas alinhadas; no celular, vendedor + preço + lixeira em cima e margem · lucro · data · link embaixo. */
+.calc > .concorrentes { grid-column: 1 / -1; }
+.concorrentes { gap: var(--e2); }
+.conc-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e1) var(--e2); }  /* Buscar no ML (principal) + Adicionar à mão */
+/* "Adicionar à mão": secundário MENOR que o Buscar no ML (Maestro 16/11): 32 visíveis, 44 de área no toque pelo ::after (como os botões só de ícone) */
+.conc-acoes .botao.pequeno, .conc-nome-fraco .botao.pequeno { min-height: 32px; height: 32px; padding: 0 12px; gap: 6px; font-size: 13px; }
+.conc-acoes .botao.pequeno .ic { width: 14px; height: 14px; }
+:is(.conc-acoes, .conc-nome-fraco) .botao.pequeno::after { content: ""; position: absolute; inset: -6px 0; }
+@media (pointer: coarse) { :is(.conc-acoes, .conc-nome-fraco) .botao.pequeno { min-height: 32px; } }
+/* estados da busca (Hermione 16/11): "Buscado em … [Atualizar]" e "[leão] Buscando concorrentes…" no lugar do botão */
+:is(.conc-buscado, .conc-buscando) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e1) var(--e2); margin: 0; }
+.conc-buscado > span { color: var(--suave); font-size: 13px; }
+.conc-buscando { min-height: var(--alt); font-weight: 600; gap: var(--e1); }  /* o arquivo já tem folga transparente do lado */
+.conc-buscando img { display: block; width: 66px; height: 72px; }  /* buscando-anim.webp 132x144 em 2x exato: não redimensionar (borra) */
+.conc-aviso-apify { margin: calc(-1 * var(--e1)) 0 0; font-size: 12px; }  /* nota pequena colada nos botões */
+/* nome fraco (só no ML): caixa neutra com a dica + "Corrigir nome", que abre o campo para renomear */
+.conc-nome-fraco { display: grid; gap: var(--e2); padding: 10px 12px; border: 1px solid var(--linha); border-radius: var(--raio-p); background: var(--superficie-2); }
+.conc-nome-fraco[hidden], .conc-renomear[hidden] { display: none; }
+.conc-nome-fraco > .dica { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e1) var(--e2); margin: 0; }
+.conc-renomear { display: grid; gap: var(--e2); }
+.conc-renomear .direita { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--e1); }
+#c-conc-corpo { display: grid; gap: var(--e1); }
+/* resumo (Eduardo 16/11): mini-cartões de número como os da Início; Menor/Mediana/Maior com a margem que você teria nele (cor da
+   faixa) e o 4º, "Abaixo do seu mínimo", em âmbar (neutro quando é 0). 4 lado a lado; 2 por linha no celular */
+.conc-resumo { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--e2); }
+.conc-num-cartao { display: grid; gap: 2px; align-content: start; padding: 12px 14px; border: 1px solid var(--linha); border-radius: var(--raio); background: var(--superficie); min-width: 0; }
+.conc-num-rotulo { font-size: 12px; font-weight: 600; color: var(--suave); }
+.conc-num-valor { font: 800 24px/1.15 var(--fonte-titulo); font-variant-numeric: tabular-nums; color: var(--texto); }
+.conc-num-sub { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+:where(.conc-num-sub) { color: var(--suave); }  /* peso zero: a margem leva a cor da faixa (.f-…) */
+.conc-resumo:not(:has(> :is(.conc-abaixo, .conc-abaixo-zero))) { grid-template-columns: repeat(3, minmax(0, 1fr)); }  /* sem custo não há o 4º */
+.conc-num-cartao.conc-abaixo { background: var(--laranja-suave); border-color: var(--laranja-linha); }
+.conc-abaixo :is(.conc-num-rotulo, .conc-num-valor) { color: var(--laranja); }
+@media (max-width: 600px) { .conc-resumo { grid-template-columns: repeat(2, minmax(0, 1fr)); } .conc-num-valor { font-size: 22px; } }
+/* anotados à mão (Maestro 16/11: mesmo layout da lista da busca): vendedor com a data pequena embaixo | preço | margem | lucro
+   (colunas fixas, rótulo cinza em cima) | ver anúncio | lixeira. Celular: vendedor e ícones em cima, números em linha embaixo */
+.conc-lista { list-style: none; margin: 0; padding: 0; display: grid; }
+.conc-item { display: grid; grid-template-columns: minmax(0, 1fr) 6.5em 5.5em 6.5em 32px auto; align-items: center; column-gap: 12px;
+  padding: 12px 0; border-top: 1px solid var(--linha); font-size: 13px; font-variant-numeric: tabular-nums; }
+.conc-item:first-child { border-top: 0; }
+.conc-item-info { grid-column: 1; display: grid; gap: 2px; min-width: 0; }
+.conc-item .conc-vendedor { font-weight: 600; overflow-wrap: anywhere; }
+.conc-item .conc-data { color: var(--suave); font-size: 12px; }
+.conc-item > .conc-preco { grid-column: 2; }
+.conc-item > .conc-margem { grid-column: 3; }
+.conc-item > .conc-lucro { grid-column: 4; }
+.conc-item > .conc-link { grid-column: 5; }
+.conc-item > [data-excluir-conc] { grid-column: 6; justify-self: end; }
+.conc-item > [data-excluir-conc]:not(.confirmar) { width: var(--alt); padding: 0; }  /* só a lixeira: quadrada; "Excluir?" volta a ter texto */
+@media (pointer: coarse) { .conc-item > [data-excluir-conc]:not(.confirmar) { width: var(--alt-toque); } }
+/* "Ver anúncio": secundário pequeno só de ícone, como a engrenagem e o lápis (32 visíveis, 44 de toque pelo ::after) */
+.botao.conc-link { width: 32px; min-height: 32px; height: 32px; padding: 0; flex: none; }
+.botao.conc-link::after { content: ""; position: absolute; inset: -6px; }
+.botao.conc-link .ic { width: 16px; height: 16px; }
+@media (max-width: 760px) {
+  .conc-item { grid-template-columns: repeat(3, minmax(0, 1fr)) 32px auto; row-gap: 10px; }
+  .conc-item-info { grid-column: 1 / 4; }
+  .conc-item > .conc-num { grid-row: 2; justify-items: start; }
+  .conc-item > .conc-preco { grid-column: 1; } .conc-item > .conc-margem { grid-column: 2; } .conc-item > .conc-lucro { grid-column: 3; }
+  .conc-item > .conc-link { grid-column: 4; } .conc-item > [data-excluir-conc] { grid-column: 5; }
+}
+/* adicionar concorrente: vendedor | preço | link numa linha (no celular, um embaixo do outro) */
+.conc-novo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 11em) minmax(0, 1.3fr); align-items: end; gap: var(--e2);
+  padding: var(--e2); border: 1px solid var(--linha); border-radius: var(--raio); background: var(--superficie-2); }
+.conc-novo[hidden] { display: none; }
+.conc-novo > .erro, .conc-novo > .direita { grid-column: 1 / -1; }
+.conc-novo .direita { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--e1); }
+@media (max-width: 760px) { .conc-novo { grid-template-columns: minmax(0, 1fr); } }
+/* aviso de preço menor com mais lucro, no fim do Resultado: discreto (neutro, ícone roxo), não é erro */
+.conc-aviso { position: relative; margin: var(--e2) 0 0; padding: 10px 12px 10px 36px; border: 1px solid var(--linha); border-radius: var(--raio-p);
+  background: var(--superficie-2); color: var(--texto); font-size: 13px; line-height: 1.5; }  /* texto corrido; o botão segue o texto */
+.conc-aviso > .ic { position: absolute; left: 12px; top: 12px; width: 16px; height: 16px; color: var(--roxo); }
+.conc-aviso > .botao { margin: 6px 0 0 4px; vertical-align: middle; }
+/* Início: "Mais caro que a concorrência" */
+.conc-mais-caro li > span:first-child { flex: 1 1 auto; min-width: 10em; display: grid; gap: 2px; justify-items: start; }  /* o produto não espreme; o preço só desce se não couber */
+.conc-mais-caro li > span:last-child { flex: 0 1 auto; margin-left: auto; text-align: right; }  /* se descer, fica à direita */
+.conc-mais-caro li { flex-wrap: wrap; }
+.conc-dif { color: #a44a07; margin-left: 4px; }
+
+/* BUSCA NO ML (Hermione 16/11; visual refeito a pedido do Eduardo 16/11). Computador, uma linha: caixinha | foto 56 | título (2 linhas no
+   máximo) com vendedor, selos e vendidos embaixo | preço | margem | lucro em colunas fixas à direita, rótulo pequeno em cima | ver anúncio.
+   Celular: caixinha, foto e título em cima; preço, margem e lucro em linha embaixo; ver anúncio à direita dos números. */
+.conc-busca { display: grid; gap: var(--e1); }
+.conc-busca[hidden] { display: none; }
+.conc-contador { color: var(--texto); font-size: 13px; font-weight: 600; }  /* "23 concorrentes, 2 fora do cálculo" */
+.conc-candidatos { list-style: none; margin: 0; padding: 0; display: grid; }
+.conc-candidato { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 32px; align-items: center; column-gap: var(--e2); padding: 12px 0; border-top: 1px solid var(--linha); font-size: 13px; font-variant-numeric: tabular-nums; }
+.conc-candidato:first-child { border-top: 0; }
+.conc-candidato > label { display: grid; grid-template-columns: 20px 56px minmax(0, 1fr) 6.5em 5.5em 6.5em; align-items: center; column-gap: 12px; min-width: 0; cursor: pointer; }
+.conc-candidato input[type="checkbox"] { grid-column: 1; width: 20px; height: 20px; margin: 0; accent-color: var(--grafite); cursor: pointer; }
+.conc-candidato .miniatura { grid-column: 2; width: 56px; height: 56px; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--linha); border-radius: var(--raio-p); background: #fff; color: var(--suave); }
+.conc-candidato .miniatura img { width: 100%; height: 100%; object-fit: contain; }
+.conc-cand-info { grid-column: 3; display: grid; gap: 4px; min-width: 0; }
+.conc-cand-titulo { font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
+.conc-cand-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px; color: var(--suave); }
+.conc-cand-meta .conc-vendedor { font-weight: 400; }
+.conc-num { display: grid; justify-items: end; gap: 1px; font-size: 14px; font-weight: 700; white-space: nowrap; }  /* sem color: a margem leva a da faixa */
+.conc-num small { font-size: 11px; font-weight: 400; color: var(--suave); }
+.conc-candidato .conc-preco { grid-column: 4; }
+.conc-candidato .conc-margem { grid-column: 5; }  /* valor na cor da faixa (.f-…); o rótulo fica cinza */
+.conc-candidato .conc-lucro { grid-column: 6; }
+.conc-candidato > .conc-link { grid-column: 2; }
+/* desmarcado (.fora, fora do cálculo): apagado mas legível (cinza, sem opacidade no texto); a caixinha vazia remarca, "Ver anúncio" igual */
+.conc-candidato.fora > label, .conc-candidato.fora .conc-num { color: var(--suave); }
+.conc-candidato.fora :is(.conc-cand-titulo, .conc-num) { font-weight: 400; }
+.conc-candidato.fora .miniatura { opacity: .5; }
+.conc-candidato.fora .conc-selo { filter: grayscale(1); }
+@media (max-width: 760px) {
+  .conc-candidato { grid-template-columns: minmax(0, 1fr); }
+  .conc-candidato > label { grid-template-columns: 20px 56px minmax(0, 1fr) minmax(0, 1fr) 32px; row-gap: 10px; }
+  .conc-candidato .conc-num { grid-row: 2; justify-items: start; }
+  .conc-candidato .conc-preco { grid-column: 1 / 3; }
+  .conc-candidato .conc-margem { grid-column: 3; }
+  .conc-candidato .conc-lucro { grid-column: 4; }
+  .conc-cand-info { grid-column: 3 / -1; }
+  .conc-candidato > .conc-link { position: absolute; right: 0; bottom: 12px; }  /* na coluna de 32 px que o label deixa livre, à direita dos números */
+
+}

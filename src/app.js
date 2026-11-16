@@ -182,6 +182,15 @@ function iniciarLogin() {
       msg(erro.message);
     }
   });
+  $('#criar-empresa-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    msg('Criando...');
+    try {
+      await nuvem.criarEmpresa($('#criar-empresa-nome').value); // já passa para a nova e recarrega
+    } catch (erro) {
+      msg(erro.message);
+    }
+  });
   $('#nova-senha-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     msg('Salvando...');
@@ -295,7 +304,12 @@ async function iniciar() {
       $('#nova-senha-form').hidden = false;
       return $('#nova-senha').focus();
     }
-    if (!(await nuvem.prepararEmpresa())) return mostrarLogin('Seu e-mail ainda não está em nenhuma empresa. Peça um convite ao admin.', true);
+    if (!(await nuvem.prepararEmpresa())) {
+      // sem empresa (nunca teve ou excluiu a última): cria a sua aqui mesmo
+      mostrarLogin('Crie a sua empresa ou peça um convite ao admin.', true);
+      $('#criar-empresa-form').hidden = false;
+      return $('#criar-empresa-nome').focus();
+    }
     usarGuardado(nuvem.guardadoNaNuvem);
     await carregar();
   } catch (erro) {

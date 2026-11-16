@@ -1,15 +1,16 @@
 // Empresa: selo da empresa em uso no canto superior direito de todas as telas (abre o menu com todas as empresas, para trocar,
-// e "+ Nova empresa"), cartão Empresa na tela Equipe (nova empresa; editar nome e foto), imposto da empresa em Taxas dos Canais (vale para todo canal
+// e "+ Nova empresa"), cabeçalho da tela Empresa (editar nome e foto; excluir), imposto da empresa em Taxas dos Canais (vale para todo canal
 // sem imposto próprio; quem aplica é canais() do dados.js) e "Clonar de outra empresa" em Meus Produtos (com prévia).
-import { minhasEmpresas, empresaAtual, trocarEmpresa, previaCopia, copiarProdutos, criarEmpresa, renomearEmpresa, trocarFotoEmpresa, tirarFotoEmpresa } from '../nuvem.js';
+import { minhasEmpresas, empresaAtual, trocarEmpresa, previaCopia, copiarProdutos, criarEmpresa, renomearEmpresa, trocarFotoEmpresa, tirarFotoEmpresa, excluirEmpresa } from '../nuvem.js';
 import { dados, salvar, carregar, aoMudar } from '../dados.js';
 import { lerNumero, campo, esc } from '../formato.js';
 import { icone } from '../icones.js';
 import { capa } from '../fotos.js';
 import { imgMascote, htmlCarregando } from './mascote.js';
-import { iniciarEquipe } from './equipe.js';
+import { iniciarEquipe, resumoEquipe } from './equipe.js';
 import { iniciarHistorico } from './historico.js';
 import { iniciarAviso } from './aviso.js';
+import { campoNumero } from './numero.js';
 
 const $ = (s) => document.querySelector(s);
 let empresas = [];
@@ -84,24 +85,26 @@ function desenharEmpresas() {
       <ul class="menu-empresas" id="menu-empresas" role="menu" aria-label="Suas empresas" hidden>
         ${empresas.map(item).join('')}
         <li role="separator" class="menu-separador"></li>
-        <li role="none"><a role="menuitem" tabindex="-1" href="/equipe" class="menu-nova">${icone('plus')} Nova empresa</a></li>
+        <li role="none"><button type="button" role="menuitem" tabindex="-1" class="menu-nova">${icone('plus')} Nova empresa</button></li>
       </ul>
     </div>`;
   desenharCartaoEmpresa();
 }
 
-// Cartão Empresa (Eduardo 13/11): avatar + "Você está em …"; para o admin, "+ Nova empresa" (primário) e "Editar" (janela com foto e nome).
+// Cabeçalho da tela Empresa (16/11): foto ou iniciais, o nome, o papel e o resumo da equipe; para o admin, "Editar" (janela com foto,
+// nome e excluir). "+ Nova empresa" fica só no menu do selo.
 function desenharCartaoEmpresa() {
   const e = atualE();
   const papel = PAPEL[e.papel] ?? esc(e.papel);
+  const resumo = resumoEquipe(); // "3 pessoas · 1 convite pendente" (equipe.js atualiza quando a lista muda)
   $('#empresa-cartao').innerHTML = `
-    <h2>Empresa</h2>
-    <div class="cartao-topo">
-      <p class="empresa-quem">${avatar(e, Math.max(0, empresas.indexOf(e)))}<span>Você está em <strong>${esc(e.nome)}</strong> (${papel}).</span></p>
-      ${e.papel === 'dono' ? `<div class="acoes-planilha">
-        <button type="button" class="botao principal" data-acao="nova-empresa">${icone('plus')} Nova empresa</button>
-        <button type="button" class="botao" data-acao="editar-empresa">${icone('pencil')} Editar</button>
-      </div>` : ''}
+    <div class="empresa-cabeca">
+      ${avatar(e, Math.max(0, empresas.indexOf(e)))}
+      <div class="empresa-titulo">
+        <h2>${esc(e.nome)}</h2>
+        <p class="dica">Você é ${papel}<span id="empresa-resumo">${resumo ? ` · ${esc(resumo)}` : ''}</span></p>
+      </div>
+      ${e.papel === 'dono' ? `<button type="button" class="botao" data-acao="editar-empresa">${icone('pencil')} Editar</button>` : ''}
     </div>
     <p class="dica" id="empresa-estado" role="status"></p>`;
 }
@@ -178,6 +181,7 @@ function janelaEditarEmpresa() {
         <div class="editar-foto"></div>
         <label class="campo"><span>Nome da empresa</span><input type="text" class="campo-texto" name="nome" value="${esc(e.nome)}" maxlength="80" required autocomplete="off"></label>
         <p class="erro" role="alert" hidden></p>
+        <div class="excluir-empresa"></div>
       </div>
       <div class="janela-base"><div class="direita">
         <button type="button" class="botao" data-acao="fechar">Cancelar</button>
@@ -199,6 +203,44 @@ function janelaEditarEmpresa() {
       <p class="dica">PNG, JPG ou WebP até 2 MB. Sem foto, aparecem as iniciais.</p>`;
   };
   desenharFoto();
+  // Excluir (Eduardo 13/11): no fim, separado. Confirmação forte na própria janela: digitar o nome da empresa habilita "Excluir para sempre".
+  const desenharExcluir = (confirmando = false) => {
+    j.querySelector('.excluir-empresa').innerHTML = confirmando
+      ? `<p id="aviso-excluir"><strong>Isto apaga ${esc(e.nome)} e não volta:</strong> produtos, fotos, preços, taxas, histórico, convites e o acesso de todos da equipe.</p>
+        <label class="campo"><span>Para confirmar, digite o nome da empresa: ${esc(e.nome)}</span><input type="text" class="campo-texto" name="confirmar" autocomplete="off" spellcheck="false" aria-describedby="aviso-excluir"></label>
+        <p class="erro" role="alert" hidden></p>
+        <div class="acoes-planilha">
+          <button type="button" class="botao" data-acao="cancelar-excluir">Cancelar</button>
+          <button type="button" class="botao perigo" data-acao="excluir-para-sempre" disabled>${icone('trash-2')} Excluir para sempre</button>
+        </div>`
+      : `<button type="button" class="botao perigo" data-acao="excluir-empresa">${icone('trash-2')} Excluir empresa</button>`;
+  };
+  desenharExcluir();
+  const confirmou = () => j.querySelector('[name=confirmar]')?.value.trim() === e.nome;
+  const excluir = async () => {
+    const botao = j.querySelector('[data-acao=excluir-para-sempre]');
+    const aviso = j.querySelector('.excluir-empresa .erro');
+    botao.disabled = true;
+    botao.lastChild.textContent = ' Excluindo…';
+    try {
+      lembrarAviso(empresas.find((x) => x.id !== e.id)?.nome); // "Agora você está em …" depois de recarregar
+      await excluirEmpresa(); // apaga e passa para outra empresa (recarrega)
+    } catch (x) {
+      lembrarAviso(null);
+      aviso.textContent = x.message;
+      aviso.hidden = false;
+      botao.lastChild.textContent = ' Excluir para sempre';
+      botao.disabled = !confirmou();
+    }
+  };
+  j.oninput = (ev) => {
+    if (ev.target.name === 'confirmar') j.querySelector('[data-acao=excluir-para-sempre]').disabled = !confirmou();
+  };
+  j.onkeydown = (ev) => {
+    if (ev.key !== 'Enter' || ev.target.name !== 'confirmar') return;
+    ev.preventDefault(); // Enter aqui não salva a janela
+    if (confirmou()) excluir();
+  };
   j.onclick = (ev) => {
     const acao = ev.target.closest('[data-acao]')?.dataset.acao;
     if (acao === 'fechar') j.close();
@@ -208,6 +250,15 @@ function janelaEditarEmpresa() {
       desenharFoto();
       j.querySelector('[data-acao=trocar-foto]').focus();
     }
+    if (acao === 'excluir-empresa') {
+      desenharExcluir(true);
+      j.querySelector('[name=confirmar]').focus();
+    }
+    if (acao === 'cancelar-excluir') {
+      desenharExcluir();
+      j.querySelector('[data-acao=excluir-empresa]').focus();
+    }
+    if (acao === 'excluir-para-sempre') excluir();
   };
   j.onchange = async (ev) => {
     const arquivo = ev.target.name === 'foto' && ev.target.files[0];
@@ -321,6 +372,7 @@ export async function iniciarEmpresa() {
   desenharImposto();
   aoMudar(() => document.activeElement?.id !== 'imposto-valor' && desenharImposto());
   $('#imposto-empresa').addEventListener('change', guardarImposto);
+  $('#imposto-empresa').addEventListener('input', (e) => !e.isTrusted && guardarImposto(e)); // o − e + da peça (digitar salva ao sair)
   // copiar produtos
   const outras = empresas.filter((e) => e.id !== atual);
   if (outras.length) {
@@ -334,7 +386,7 @@ function desenharImposto() {
   $('#imposto-empresa').innerHTML = `
     <label class="campo" for="imposto-valor"><span>Imposto da empresa (%)</span></label>
     <div class="linha-imposto">
-      <input type="text" inputmode="decimal" id="imposto-valor" class="campo-texto" value="${v == null ? '' : campo(v)}" placeholder="Sem imposto da empresa" aria-describedby="imposto-dica">
+      ${campoNumero(`<input type="text" inputmode="decimal" id="imposto-valor" data-min="0" data-max="100" value="${v == null ? '' : campo(v)}" placeholder="—" aria-describedby="imposto-dica">`, '%', 'o imposto da empresa')}
       <span id="imposto-estado" class="dica" role="status"></span>
     </div>
     <p class="dica" id="imposto-dica">Vale para todos os canais. Um canal com imposto próprio (digitado nele) usa o dele. Deixe vazio para cada canal usar o seu.</p>`;

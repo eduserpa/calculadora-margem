@@ -9,6 +9,12 @@
 //   renomearEmpresa(nome)       -> renomeia a empresa em uso (só o dono)
 //   trocarFotoEmpresa(dataUrl)  -> endereço do logo novo da empresa em uso (só o dono; dataUrl já reduzida pela tela)
 //   tirarFotoEmpresa()          -> tira o logo da empresa em uso (só o dono)
+//   excluirEmpresa()            -> exclui a empresa em uso com tudo dela (só o dono) e passa para outra (recarrega)
+//   concorrentes()              -> [{ id, produtoId, canal, vendedor, preco, link, criadoEm, criadoPor }] da empresa em uso
+//   adicionarConcorrente({ produtoId, canal, vendedor, preco, link }) -> a linha nova; removerConcorrente(id)
+//   buscarConcorrentesNoML({ produtoId, termo }) -> busca no ML pelo Apify e guarda: { termo, resultados, buscadoEm }
+//   ultimaBusca(produtoId)      -> a última busca guardada do produto ({ termo, resultados, excluidos, buscadoEm }), ou null
+//   buscasGuardadas()           -> as buscas guardadas da empresa; salvarExcluidos(produtoId, chaves) -> fora do cálculo
 //   equipe()                    -> { membros: [{ usuarioId, email, papel, entrouEm }], convites: [{ email, papel, convidadoEm }], souDono }
 //   convidar(email, papel), cancelarConvite(email), removerMembro(usuarioId)
 //   mudarPapel(usuarioId, papel) -> 'dono' | 'membro'; só o dono; a empresa nunca fica sem dono
@@ -21,6 +27,7 @@
 import { SUPABASE } from './config.js';
 import { produtoVazio } from './produtos.js';
 import { dados } from './dados.js';
+import { candidatosDoApify } from './concorrentes.js';
 
 const BIBLIOTECA = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/+esm';
 const CHAVE_EMPRESA = 'calculadora-margem.empresa';
@@ -171,6 +178,43 @@ export async function trocarFotoEmpresa(dataUrl) {
 
 export const tirarFotoEmpresa = async () => gravarFotoEmpresa(await supa(), null);
 
+// Exclui a empresa em uso (só o admin). As fotos da pasta fotos/<empresa>/ saem ANTES (depois a pessoa já não é da empresa
+// e a regra do Storage não deixa mais apagar), menos as que produto de outra empresa usa (o Clonar copia o endereço).
+// Se a exclusão falhar depois das fotos, a empresa fica sem elas: quem pediu queria apagar tudo; é só tentar de novo.
+export async function excluirEmpresa() {
+  if (!souDono()) throw new Error('Só o admin pode excluir a empresa.');
+  const s = await supa();
+  const id = empresaId;
+  try {
+    const pasta = s.storage.from('fotos');
+    const listar = async (prefixo) => {
+      const { data, error } = await pasta.list(prefixo, { limit: 1000 });
+      if (error) throw error;
+      return data;
+    };
+    const { data: fora, error } = await s.rpc('fotos_usadas_fora', { empresa: id });
+    if (error) throw error;
+    const caminhos = [];
+    for (const item of await listar(id)) {
+      // pasta (id null): um nível abaixo, fotos/<empresa>/<produto ou empresa>/<hash>
+      if (item.id) caminhos.push(`${id}/${item.name}`);
+      else for (const f of await listar(`${id}/${item.name}`)) caminhos.push(`${id}/${item.name}/${f.name}`);
+    }
+    for (const lote of em(caminhos.filter((c) => !fora.includes(c)), 100)) await pasta.remove(lote);
+  } catch (erro) {
+    console.warn('fotos da empresa excluída ficaram no Storage', erro);
+  }
+  falhou('Não deu para excluir a empresa agora. Confira a internet e tente de novo.')(await s.rpc('excluir_empresa', { empresa: id }));
+  const outra = empresas.find((e) => e.id !== id);
+  if (outra) return trocarEmpresa(outra.id);
+  try {
+    localStorage.removeItem(CHAVE_EMPRESA);
+  } catch {
+    // sem armazenamento: nada guardado
+  }
+  location.reload(); // sem empresa: o login oferece criar uma
+}
+
 export function trocarEmpresa(id) {
   try {
     localStorage.setItem(CHAVE_EMPRESA, id);
@@ -232,6 +276,84 @@ export async function removerMembro(usuarioId) {
   if (!r.data.length) throw new Error('Só o admin pode remover pessoas (e não a si mesmo).');
 }
 
+// ---------- concorrentes (anotados à mão; correção 12) ----------
+
+const doBanco = (r) => ({ id: r.id, produtoId: r.produto_id, canal: r.canal, vendedor: r.vendedor, preco: Number(r.preco), link: r.link, criadoEm: r.criado_em, criadoPor: r.criado_por });
+
+export async function concorrentes() {
+  const r = await (await supa()).from('concorrentes').select('*').eq('empresa_id', empresaId).order('preco');
+  falhou('Não deu para ler os concorrentes.')(r);
+  return r.data.map(doBanco);
+}
+
+export async function adicionarConcorrente({ produtoId, canal, vendedor, preco, link }) {
+  vendedor = String(vendedor ?? '').trim();
+  link = String(link ?? '').trim() || null;
+  if (!vendedor) throw new Error('Escreva o nome do vendedor.');
+  if (!(preco > 0)) throw new Error('Digite o preço do concorrente.');
+  if (link && !/^https?:\/\//i.test(link)) throw new Error('O link precisa ser o endereço do anúncio, começando com https://');
+  const r = await (await supa()).from('concorrentes')
+    .insert({ empresa_id: empresaId, produto_id: produtoId, canal, vendedor, preco, link }).select().single();
+  falhou('Não deu para guardar o concorrente agora.')(r);
+  return doBanco(r.data);
+}
+
+export async function removerConcorrente(id) {
+  falhou('Não deu para excluir o concorrente agora.')(await (await supa()).from('concorrentes').delete().eq('id', id));
+}
+
+// Busca de concorrentes no ML pelo Apify (quem lê o ML são os servidores do Apify; o token nunca vem para o navegador).
+// Produção: Edge Function buscar-concorrentes (APIFY_TOKEN nos Secrets; confere login e empresa).
+// DEMO: no servidor local (127.0.0.1:8090) vai pelo POST /api/buscar-concorrentes do servidor_calculeo.py (token só lá).
+// Os dois devolvem { itens } do Apify; candidatosDoApify tira os nossos e monta os candidatos. A busca fica guardada por
+// produto (correção 13), substituindo a anterior.
+// -> { termo, resultados: [{ produtoCatalogo, itemId, titulo, foto, vendedor, preco, full, freteGratis, link, vendidos }], buscadoEm, naoGuardou? }
+const DEMO_APIFY = globalThis.location?.hostname === '127.0.0.1'; // globalThis: nos testes (Node) não há location
+export async function buscarConcorrentesNoML({ produtoId, termo }) {
+  let itens;
+  if (DEMO_APIFY) {
+    const r = await fetch('/api/buscar-concorrentes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ termo }) });
+    const corpo = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(corpo.erro ?? 'A busca de concorrentes falhou. Tente de novo em instantes.');
+    itens = corpo.itens;
+  } else {
+    const { data, error } = await (await supa()).functions.invoke('buscar-concorrentes', { body: { empresa: empresaId, produto: produtoId, termo } });
+    if (error) {
+      const corpo = await error.context?.json?.().catch(() => null); // a função explica o erro em { erro }
+      throw new Error(corpo?.erro ?? 'A busca de concorrentes ainda não está disponível. Use "Adicionar à mão" por enquanto.');
+    }
+    itens = data.itens;
+  }
+  const busca = { termo, resultados: candidatosDoApify(itens), buscadoEm: new Date().toISOString() };
+  // sem "excluidos" no envio: os anúncios que a pessoa tirou do cálculo continuam fora depois do Atualizar
+  const r = await (await supa()).from('buscas_concorrentes').upsert({
+    empresa_id: empresaId, produto_id: produtoId, termo, resultados: busca.resultados, buscado_em: busca.buscadoEm,
+  }).select('excluidos').single();
+  // a busca já foi paga: mostra mesmo sem guardar (ex.: correção 13 ainda não rodada)
+  return r.error ? { ...busca, excluidos: [], naoGuardou: true } : { ...busca, excluidos: r.data.excluidos ?? [] };
+}
+
+const daBusca = (r) => ({ produtoId: r.produto_id, termo: r.termo, resultados: r.resultados ?? [], excluidos: r.excluidos ?? [], buscadoEm: r.buscado_em });
+
+// A última busca guardada do produto (sem gastar crédito), ou null
+export async function ultimaBusca(produtoId) {
+  const r = await (await supa()).from('buscas_concorrentes').select('*')
+    .eq('empresa_id', empresaId).eq('produto_id', produtoId).maybeSingle();
+  return r.error || !r.data ? null : daBusca(r.data);
+}
+
+// Todas as buscas guardadas da empresa (a Início compara com elas); [] se ainda não houver a correção 13
+export async function buscasGuardadas() {
+  const r = await (await supa()).from('buscas_concorrentes').select('*').eq('empresa_id', empresaId);
+  return r.error ? [] : r.data.map(daBusca);
+}
+
+// Os anúncios da busca que a pessoa desmarcou (chaves de chaveDoCandidato): saem do cálculo, ficam na lista
+export async function salvarExcluidos(produtoId, excluidos) {
+  falhou('Não deu para guardar a escolha agora.')(await (await supa()).from('buscas_concorrentes')
+    .update({ excluidos }).eq('empresa_id', empresaId).eq('produto_id', produtoId));
+}
+
 // ---------- histórico ----------
 
 export async function historico({ quem } = {}) {
@@ -281,6 +403,7 @@ export function paraLinhas(d, empresa) {
     comprimento_cm: num(p.comprimento),
     largura_cm: num(p.largura),
     altura_cm: num(p.altura),
+    impostos_canal: p.impostosCanal ?? {}, // imposto só deste produto, por canal (correção 14)
     fotos: p.fotos ?? [],
     atualizado_em: p.atualizadoEm ?? new Date().toISOString(),
   }));
@@ -314,6 +437,7 @@ export function deLinhas(t) {
     comprimento: num(r.comprimento_cm),
     largura: num(r.largura_cm),
     altura: num(r.altura_cm),
+    impostosCanal: r.impostos_canal ?? {},
     fotos: r.fotos ?? [],
     atualizadoEm: r.atualizado_em,
   }));

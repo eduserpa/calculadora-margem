@@ -109,6 +109,12 @@ $$;
 
 -- ---------- dados da calculadora (por empresa) ----------
 
+-- Impostos por canal de um produto (correção 14): {"mercadolivre": 15, ...}, cada valor um número de 0 a 100.
+create or replace function impostos_validos(m jsonb) returns boolean
+language sql immutable set search_path = public
+as $$ select jsonb_typeof(m) = 'object' and not exists (select 1 from jsonb_each(m) e
+  where jsonb_typeof(e.value) <> 'number' or (e.value #>> '{}')::numeric not between 0 and 100) $$;
+
 create table produtos (
   id uuid primary key default gen_random_uuid(),
   empresa_id uuid not null references empresas on delete cascade,
@@ -120,6 +126,7 @@ create table produtos (
   comprimento_cm numeric not null default 0 check (comprimento_cm >= 0),
   largura_cm numeric not null default 0 check (largura_cm >= 0),
   altura_cm numeric not null default 0 check (altura_cm >= 0),
+  impostos_canal jsonb not null default '{}' check (impostos_validos(impostos_canal)), -- imposto só deste produto, por canal (correção 14)
   fotos text[] not null default '{}',
   atualizado_em timestamptz not null default now(),
   unique (empresa_id, id) -- para kit e precificação apontarem só para produto da mesma empresa
@@ -155,6 +162,59 @@ create table config_canais (
   atualizado_em timestamptz not null default now(),
   primary key (empresa_id, canal)
 );
+
+-- Concorrentes anotados à mão, por produto e canal (correção 12). Mudar = remover e adicionar de novo.
+create table concorrentes (
+  id uuid primary key default gen_random_uuid(),
+  empresa_id uuid not null references empresas on delete cascade,
+  produto_id uuid not null,
+  canal text not null,
+  vendedor text not null check (length(trim(vendedor)) > 0),
+  preco numeric not null check (preco > 0),
+  link text check (link is null or link ~* '^https?://'), -- só endereço web (nada de javascript:)
+  criado_em timestamptz not null default now(),
+  criado_por text default meu_email(),
+  foreign key (empresa_id, produto_id) references produtos (empresa_id, id) on delete cascade
+);
+create index concorrentes_produto on concorrentes (produto_id, canal);
+
+-- A última busca de concorrentes no ML de cada produto (correção 13): "Atualizar" busca de novo e substitui.
+create table buscas_concorrentes (
+  empresa_id uuid not null references empresas on delete cascade,
+  produto_id uuid not null,
+  termo text not null,
+  resultados jsonb not null default '[]',
+  excluidos jsonb not null default '[]' check (jsonb_typeof(excluidos) = 'array'), -- fora do cálculo (o Atualizar mantém)
+  buscado_em timestamptz not null default now(),
+  primary key (empresa_id, produto_id),
+  foreign key (empresa_id, produto_id) references produtos (empresa_id, id) on delete cascade
+);
+
+-- Contagem das buscas no Apify (correção 13): só a função registrar_busca grava; limite por produto e por dia.
+create table buscas_feitas (
+  id bigint generated always as identity primary key,
+  empresa_id uuid not null references empresas on delete cascade,
+  produto_id uuid not null,
+  feita_em timestamptz not null default now(),
+  foreign key (empresa_id, produto_id) references produtos (empresa_id, id) on delete cascade
+);
+create index buscas_feitas_empresa on buscas_feitas (empresa_id, feita_em);
+-- 'ok' (contou a busca) | 'fora' (não é da empresa) | 'produto' (buscado há menos de 10 min) | 'dia' (30 em 24 h)
+create or replace function registrar_busca(empresa uuid, produto uuid) returns text
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if empresa is null or empresa not in (select minhas_empresas()) then return 'fora'; end if;
+  perform pg_advisory_xact_lock(hashtext('busca:' || empresa)); -- 2 cliques ao mesmo tempo contam um depois do outro
+  if exists (select 1 from buscas_feitas where empresa_id = empresa and produto_id = produto and feita_em > now() - interval '10 minutes') then
+    return 'produto';
+  end if;
+  if (select count(*) from buscas_feitas where empresa_id = empresa and feita_em > now() - interval '24 hours') >= 30 then
+    return 'dia';
+  end if;
+  insert into buscas_feitas (empresa_id, produto_id) values (empresa, produto);
+  return 'ok';
+end $$;
 
 -- ---------- histórico (gravado pelo próprio banco) ----------
 
@@ -230,7 +290,7 @@ create or replace function mudancas_produto(a produtos, d produtos) returns json
 language sql stable set search_path = public
 as $$
   select coalesce(jsonb_agg(case when campo = 'Foto trocada' then jsonb_build_object('campo', campo)
-      else jsonb_build_object('campo', campo, 'antes', antes, 'depois', depois) end order by ordem), '[]'::jsonb)
+      else jsonb_build_object('campo', campo, 'antes', antes, 'depois', depois) end order by ordem, campo), '[]'::jsonb)
   from (values
     (1, 'Nome', valor_br('texto', to_jsonb(a.nome)), valor_br('texto', to_jsonb(d.nome))),
     (2, 'Referência / SKU', valor_br('texto', to_jsonb(nullif(a.sku, ''))), valor_br('texto', to_jsonb(nullif(d.sku, '')))),
@@ -249,7 +309,11 @@ as $$
     (14, 'Comprimento', valor_br('cm', to_jsonb(a.comprimento_cm)), valor_br('cm', to_jsonb(d.comprimento_cm))),
     (15, 'Largura', valor_br('cm', to_jsonb(a.largura_cm)), valor_br('cm', to_jsonb(d.largura_cm))),
     (16, 'Altura', valor_br('cm', to_jsonb(a.altura_cm)), valor_br('cm', to_jsonb(d.altura_cm))),
-    (17, 'Foto trocada', case when a.fotos is distinct from d.fotos then 'sim' end, null)
+    (99, 'Foto trocada', case when a.fotos is distinct from d.fotos then 'sim' end, null)
+    union all
+    select 17, 'Imposto no ' || nome_do_canal(d.empresa_id, k),
+      coalesce(nullif(valor_br('pct', a.impostos_canal -> k), '—'), 'padrão'), coalesce(nullif(valor_br('pct', d.impostos_canal -> k), '—'), 'padrão')
+    from (select jsonb_object_keys(coalesce(a.impostos_canal, '{}'::jsonb)) union select jsonb_object_keys(coalesce(d.impostos_canal, '{}'::jsonb))) t(k)
   ) m(ordem, campo, antes, depois)
   where antes is distinct from depois
 $$;
@@ -354,6 +418,21 @@ create trigger historico after insert or update or delete on produtos for each r
 create trigger historico after insert or update on precificacoes for each row execute function historico_preco();
 create trigger historico after insert or update or delete on config_canais for each row execute function historico_canal();
 
+-- "Concorrente adicionado/removido: Pia Inox · Mercado Livre · Loja X · R$ 199,90". Produto saindo (exclusão em cascata):
+-- não anota, o "Produto excluído" já conta.
+create or replace function historico_concorrente() returns trigger
+language plpgsql security definer set search_path = public
+as $$
+declare c concorrentes := coalesce(new, old); p text;
+begin
+  select nome || coalesce(' (' || nullif(sku, '') || ')', '') into p from produtos where id = c.produto_id;
+  if p is null then return null; end if;
+  perform anotar(c.empresa_id, case tg_op when 'INSERT' then 'Concorrente adicionado' else 'Concorrente removido' end,
+    p || ' · ' || nome_do_canal(c.empresa_id, c.canal) || ' · ' || c.vendedor || ' · R$ ' || numero_br(c.preco));
+  return null;
+end $$;
+create trigger historico after insert or delete on concorrentes for each row execute function historico_concorrente();
+
 -- O app anota a importação (um resumo); o resto vem dos gatilhos acima.
 create function anotar_importacao(empresa uuid, detalhe text) returns void
 language plpgsql security definer set search_path = public
@@ -406,12 +485,12 @@ begin
   for o in select * from produtos where empresa_id = origem and tipo_custo <> 'kit' and (ids is null or id = any(ids)) loop
     if sku_unico(origem, o.sku) and sku_unico(destino, o.sku) then
       update produtos d set nome = o.nome, tipo_custo = o.tipo_custo, custo = o.custo, peso_g = o.peso_g,
-        comprimento_cm = o.comprimento_cm, largura_cm = o.largura_cm, altura_cm = o.altura_cm, fotos = o.fotos, atualizado_em = now()
+        comprimento_cm = o.comprimento_cm, largura_cm = o.largura_cm, altura_cm = o.altura_cm, impostos_canal = o.impostos_canal, fotos = o.fotos, atualizado_em = now()
       where d.empresa_id = destino and lower(trim(d.sku)) = lower(trim(o.sku));
       atualizados := atualizados + 1;
     else
-      insert into produtos (empresa_id, nome, sku, tipo_custo, custo, peso_g, comprimento_cm, largura_cm, altura_cm, fotos)
-      values (destino, o.nome, o.sku, o.tipo_custo, o.custo, o.peso_g, o.comprimento_cm, o.largura_cm, o.altura_cm, o.fotos);
+      insert into produtos (empresa_id, nome, sku, tipo_custo, custo, peso_g, comprimento_cm, largura_cm, altura_cm, impostos_canal, fotos)
+      values (destino, o.nome, o.sku, o.tipo_custo, o.custo, o.peso_g, o.comprimento_cm, o.largura_cm, o.altura_cm, o.impostos_canal, o.fotos);
       novos := novos + 1;
     end if;
   end loop;
@@ -427,6 +506,36 @@ create function foto_em_uso(url text) returns boolean
 language sql stable security definer set search_path = public
 as $$ select exists (select 1 from produtos where url = any(fotos)) or exists (select 1 from empresas where foto = url) $$;
 
+-- Excluir empresa (janela Editar empresa): só o admin dela. Tudo numa transação: se algo falhar, nada some.
+-- Filhas de empresas, todas com "on delete cascade": membros, convites, produtos, itens_kit, precificacoes, config_canais e historico.
+-- Mas a cascata sozinha não serve: o kit aponta para o produto com "restrict" (não apaga produto que está num kit) e os gatilhos
+-- do histórico anotam a exclusão de cada produto e taxa numa empresa que está saindo. Por isso, em ordem:
+-- itens de kit, preços, produtos e taxas (os gatilhos anotam), o histórico (com essas anotações) e, por fim, a empresa
+-- (membros e convites vão pela cascata).
+-- As fotos (Storage, pasta fotos/<empresa>/) o app apaga antes de chamar esta função.
+create function excluir_empresa(empresa uuid) returns void
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if not sou_dono(empresa) then raise exception 'só o admin pode excluir a empresa'; end if;
+  delete from itens_kit where empresa_id = empresa;
+  delete from precificacoes where empresa_id = empresa;
+  delete from produtos where empresa_id = empresa;
+  delete from config_canais where empresa_id = empresa;
+  delete from historico where empresa_id = empresa;
+  delete from empresas where id = empresa;
+end $$;
+
+-- Fotos da pasta fotos/<empresa>/ que produtos de OUTRAS empresas ainda usam (o "Clonar" copia o endereço): o app não apaga
+-- essas ao excluir a empresa. Devolve o caminho no bucket. Só para o admin da empresa (para os outros, vazio).
+create function fotos_usadas_fora(empresa uuid) returns setof text
+language sql stable security definer set search_path = public
+as $$
+  select distinct substring(f from '/storage/v1/object/public/fotos/([^?#]+)')
+  from produtos, unnest(fotos) f
+  where sou_dono(empresa) and empresa_id <> empresa and f like '%/storage/v1/object/public/fotos/' || empresa || '/%'
+$$;
+
 -- ---------- permissões ----------
 -- anon (sem login): nada. authenticated: só o que o app usa, sempre filtrado pela RLS abaixo.
 
@@ -434,13 +543,17 @@ revoke all on all tables in schema public from anon;
 alter default privileges in schema public revoke all on tables from anon;
 revoke execute on all functions in schema public from anon, public;
 grant usage on schema public to authenticated;
-grant execute on function minhas_empresas(), sou_dono(uuid), meu_email(), aceitar_convites(), criar_empresa(text), mudar_papel(uuid, uuid, text), foto_em_uso(text),
+grant execute on function minhas_empresas(), sou_dono(uuid), meu_email(), aceitar_convites(), criar_empresa(text), mudar_papel(uuid, uuid, text), foto_em_uso(text), excluir_empresa(uuid), fotos_usadas_fora(uuid),
   anotar_importacao(uuid, text), previa_copia(uuid, uuid), copiar_produtos(uuid, uuid, uuid[]) to authenticated;
 grant select on empresas, historico to authenticated;
 grant update (nome, foto) on empresas to authenticated; -- renomear e trocar a foto: só o dono (RLS abaixo)
 grant select, delete on membros to authenticated;
 grant select, insert, delete on convites to authenticated;
 grant select, insert, update, delete on produtos, itens_kit, precificacoes, config_canais to authenticated;
+grant select, insert, delete on concorrentes to authenticated;
+grant select, insert, update, delete on buscas_concorrentes to authenticated;
+grant execute on function registrar_busca(uuid, uuid) to authenticated; -- buscas_feitas: sem grant, só pela função
+grant execute on function impostos_validos(jsonb) to authenticated; -- o check de produtos.impostos_canal roda como quem grava
 -- o hook roda como o Auth do Supabase
 grant usage on schema public to supabase_auth_admin;
 grant execute on function antes_de_criar_usuario(jsonb) to supabase_auth_admin;
@@ -455,6 +568,9 @@ alter table itens_kit enable row level security;
 alter table precificacoes enable row level security;
 alter table config_canais enable row level security;
 alter table historico enable row level security;
+alter table concorrentes enable row level security;
+alter table buscas_concorrentes enable row level security;
+alter table buscas_feitas enable row level security;
 
 create policy ver_minhas_empresas on empresas for select to authenticated
   using (id in (select minhas_empresas()));
@@ -483,6 +599,10 @@ create policy da_empresa on itens_kit for all to authenticated
 create policy da_empresa on precificacoes for all to authenticated
   using (empresa_id in (select minhas_empresas())) with check (empresa_id in (select minhas_empresas()));
 create policy da_empresa on config_canais for all to authenticated
+  using (empresa_id in (select minhas_empresas())) with check (empresa_id in (select minhas_empresas()));
+create policy da_empresa on concorrentes for all to authenticated
+  using (empresa_id in (select minhas_empresas())) with check (empresa_id in (select minhas_empresas()));
+create policy da_empresa on buscas_concorrentes for all to authenticated
   using (empresa_id in (select minhas_empresas())) with check (empresa_id in (select minhas_empresas()));
 
 -- ---------- fotos (Storage) ----------

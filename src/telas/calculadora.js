@@ -2,8 +2,12 @@
 // liquidação, análise e salvar a precificação do produto naquele canal.
 import { icone } from '../icones.js';
 import { dados, canais, salvar } from '../dados.js';
-import { porId, custoDoProduto, pesoDoProduto } from '../produtos.js';
-import { calcularMargem, precoMinimo, margemMaxima } from '../calculos/margem.js';
+import { porId, custoDoProduto, pesoDoProduto, canalDoProduto } from '../produtos.js';
+import { calcularMargem, precoMinimo, margemMaxima, precoMelhorAbaixo } from '../calculos/margem.js';
+import { margensDosConcorrentes, qualidadeDoNome, candidatosDaBusca, linkSeguro } from '../concorrentes.js';
+import * as nuvem from '../nuvem.js';
+import { campoNumero } from './numero.js';
+import { mostrarAviso } from './aviso.js';
 import { precoPor, descontoPeloPor, descontoMaximo } from '../calculos/preco-de-por.js';
 import { lerNumero, reais, numero, campo, campoReais, gramas, peso, esc, margemPct } from '../formato.js';
 import { irPara } from '../rotas.js';
@@ -14,7 +18,7 @@ import { capa } from '../fotos.js';
 const $ = (s) => document.querySelector(s);
 const CHAVE = 'calculadora-margem.tela';
 const AVULSO = '__avulso';
-const DICA_CAIXA = 'O Mercado Livre cobra o frete pelo maior entre o peso real e o peso da caixa (comprimento × largura × altura ÷ 6.000). Nesta peça, a caixa pesa mais.';
+const DICA_CAIXA = 'Caixa grande e leve ocupa espaço no caminhão, então o Mercado Livre cobra o frete pelo tamanho dela, como se pesasse mais. Por isso o frete usa este peso, e não o peso real da peça.';
 const MARGEM_LIQUIDACAO = 5;
 const semAcento = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 const comReais = (v) => (v ? campoReais(v) : ''); // o R$ fica fora do valor, como prefixo da peça (.passo-numero)
@@ -41,6 +45,13 @@ export function faixaDaMargem(m) {
   if (m < 40) return { rotulo: 'Margem muito boa', faixa: '25–40% – MUITO BOM', classe: 'bom', frase: 'Margem forte: há espaço para promoções e anúncios.' };
   return { rotulo: 'Margem excelente', faixa: '40% ou mais – EXCELENTE', classe: 'bom', frase: 'Margem muito alta: confira se o preço não está acima do que o cliente aceita.' };
 }
+
+// As 7 faixas da Análise da margem, na ordem, com a classe que pinta cada uma.
+export const FAIXAS = [
+  ['Prejuízo', 'f-prejuizo'], ['Margem crítica', 'f-critica'], ['Margem baixa', 'f-baixa'], ['Margem razoável', 'f-razoavel'],
+  ['Margem boa', 'f-boa'], ['Margem muito boa', 'f-muito-boa'], ['Margem excelente', 'f-excelente'],
+];
+export const classeDaFaixa = (m) => FAIXAS.find(([r]) => r === faixaDaMargem(m).rotulo)[1];
 
 const salvas = (produtoId) => dados.precificacoes?.[produtoId] ?? {};
 
@@ -125,7 +136,8 @@ export function iniciarCalculadora() {
   campoProduto.addEventListener('blur', fecharLista);
   $('#c-canais').addEventListener('click', (e) => {
     const config = e.target.closest('[data-config]');
-    if (config) return abrirConfigurarCanal(config.dataset.config);
+    // com produto escolhido, o imposto da janela vale só para ele nesse canal
+    if (config) return abrirConfigurarCanal(config.dataset.config, custoEPeso().produto);
     const b = e.target.closest('[data-canal]');
     if (!b) return;
     escolherCanal(b.dataset.canal);
@@ -153,6 +165,15 @@ export function iniciarCalculadora() {
     atualizar();
   });
   $('#c-salvar').addEventListener('click', salvarPrecificacao);
+  // Preço logo abaixo de uma virada de faixa que dá mais lucro (aviso no Resultado): vira o preço de venda, sem desconto.
+  $('#c-resultado').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-acao="usar-melhor"]');
+    if (!b) return;
+    Object.assign(precoDoCanal(), { de: Number(b.dataset.preco), desconto: 0 });
+    preencherPrecos();
+    atualizar();
+  });
+  iniciarConcorrentes();
   // Descartar: o preço do canal volta ao último salvo (ou vazio, se nunca salvou).
   $('#c-descartar').addEventListener('click', () => {
     const s = precoSalvo();
@@ -290,10 +311,11 @@ function escolherCanal(id) {
 
 function desenharCanais() {
   const produtoSalvo = estado.produtoId && estado.produtoId !== AVULSO ? salvas(estado.produtoId) : {};
-  const { cmv, pesoG } = custoEPeso();
+  const { cmv, pesoG, produto } = custoEPeso();
   const primeiro = Object.keys(canais())[0];
   $('#c-canais').innerHTML = Object.entries(canais())
-    .map(([id, c]) => {
+    .map(([id, doCanal]) => {
+      const c = canalDoProduto(doCanal, produto, id);
       const s = produtoSalvo[id];
       const preco = s ? precoPor(s.de, s.desconto) : 0;
       const resumo = s && preco > 0 && cmv > 0 ? calcularMargem({ preco, cmv, canal: c, pesoG }) : null;
@@ -383,7 +405,7 @@ function htmlResultado(r, canal, pesoG) {
         ${sub(`Comissão de afiliado (${pct(r.afiliadoPercentual)})`, r.afiliado)}
       </div>` : ''}
     <div class="res-grupo laranja">
-      <div class="res-linha"><span>Impostos (${pct(r.impostosPercentual)}):</span><span>${parte(r.impostos, r.preco)}</span></div>
+      <div class="res-linha"><span>Impostos (${pct(r.impostosPercentual)})${canal.impostoDoProduto ? ' · deste produto' : ''}:</span><span>${parte(r.impostos, r.preco)}</span></div>
       <div class="res-sub">Tributos sobre vendas, calculados sobre o preço de venda</div>
     </div>
     <div class="res-total">
@@ -446,7 +468,7 @@ function atualizar() {
   $('#c-descartar').hidden = !produto || !estado.canal || !mudouPreco();
   if (!temProduto || !estado.canal) return;
 
-  const canal = canais()[estado.canal];
+  const canal = canalDoProduto(canais()[estado.canal], produto, estado.canal);
   $('#c-peso-campo').hidden = canal.tipo !== 'mercadolivre';
   $('#c-por-rotulo').textContent = `Preço POR (Final) — ${canal.nome}`;
   $('#c-resultado-titulo').textContent = `Resultado — ${canal.nome}`;
@@ -456,7 +478,7 @@ function atualizar() {
   const preco = precoPor(p.de, p.desconto);
   const alvo = $('#c-resultado');
   const r = preco > 0 && cmv > 0 ? calcularMargem({ preco, cmv, canal, pesoG }) : null;
-  alvo.innerHTML = r ? htmlResultado(r, canal, pesoG) : `<div class="vazio-resultado"><b>${icone('percent')}</b>Preencha os campos para ver o resultado</div>`;
+  alvo.innerHTML = r ? htmlResultado(r, canal, pesoG) + htmlPrecoMelhor(preco, cmv, canal, pesoG) : `<div class="vazio-resultado"><b>${icone('percent')}</b>Preencha os campos para ver o resultado</div>`;
   $('#c-resultado-titulo').textContent = r ? `Resultado — ${canal.nome}` : 'Resultado';
   $('#c-data').hidden = !r;
   $('#c-analise').innerHTML = r ? htmlAnalise(r.margem) : '';
@@ -491,6 +513,7 @@ function atualizar() {
     $('#c-minimo-valor').textContent = '—';
   }
   $('#c-minimo-sub').textContent = `para margem de ${campo(estado.margemDesejada)}%`;
+  desenharConcorrentes({ produto, canal, cmv, pesoG, minimo });
   $('#c-minimo-aviso').textContent = aviso;
   $('#c-minimo-aviso').hidden = !aviso;
 
@@ -502,6 +525,330 @@ function atualizar() {
        <div class="linha"><strong>${reais(liquidacao)}</strong>${descMax != null && descMax > 0 ? `<span>Desconto máx: ${numero(descMax, 1)}%</span>` : ''}</div>
        <p class="dica">${descMax != null && descMax < 0 ? 'Margem de liquidação acima da margem atual.' : `Menor preço para recuperar os custos com margem mínima de ${MARGEM_LIQUIDACAO}%.`}</p>`
     : '';
+}
+
+// Uma linha discreta no Resultado quando um preço logo abaixo (antes de o frete, a comissão ou a taxa fixa subirem) dá mais lucro.
+const PARTE = { freteCanal: (c) => `o frete do ${c.nome} fica`, taxaFixa: () => 'a taxa fixa fica', comissao: () => 'a comissão fica' };
+function htmlPrecoMelhor(preco, cmv, canal, pesoG) {
+  const m = precoMelhorAbaixo({ preco, cmv, canal, pesoG });
+  if (!m) return '';
+  return `<p class="conc-aviso">${icone('info')} A ${reais(m.preco)} ${PARTE[m.motivo](canal)} ${reais(m.economia)} mais barato: margem ${margemPct(m.margem)} e lucro ${reais(m.lucro)}.
+    <button type="button" class="botao pequeno" data-acao="usar-melhor" data-preco="${m.preco}">Usar este preço</button></p>`;
+}
+
+// ---------- concorrentes (só com a nuvem; correções 12 e 13): busca no ML pelo Apify ou à mão ----------
+// O cartão tem uma parte fixa (formulário e lista da busca, que não podem sumir enquanto a pessoa digita ou marca) e
+// partes redesenhadas (corpo e ações). A busca só aparece no canal Mercado Livre: um botão busca pelo nome do produto; a
+// última busca fica guardada por produto e volta ao abrir (sem gastar crédito), com "Atualizar" para buscar de novo.
+// Os anúncios da busca entram TODOS no cálculo (resumo, margem, Início) junto com os anotados à mão; a pessoa desmarca os
+// que não são o mesmo produto e eles ficam na lista, apagados. A escolha fica guardada e vale também depois do Atualizar.
+let todosConc = null; // os da empresa, lidos na 1ª vez que um produto e um canal aparecem
+let lendoConc = false;
+let fecharNovoConc = () => {};
+let ondeConc = ''; // produto|canal do cartão: mudou, o formulário aberto fecha (senão gravaria no canal novo sem a pessoa ver)
+const buscas = new Map(); // produtoId -> última busca guardada (null: nunca buscou; undefined: lendo)
+const buscando = new Set(); // produtoIds com busca em andamento
+
+const LEAO_BUSCANDO = `<picture><source media="(prefers-reduced-motion: reduce)" srcset="assets/mascote/buscando-parado.webp"><img src="assets/mascote/buscando-anim.webp" alt="" width="66" height="72"></picture>`;
+const quando = (iso) => {
+  const d = new Date(iso);
+  return `${d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} às ${d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+};
+
+function iniciarConcorrentes() {
+  const caixa = $('#c-concorrentes');
+  caixa.innerHTML = `
+    <h2 id="c-conc-titulo">Concorrentes neste canal</h2>
+    <div id="c-conc-corpo"></div>
+    <div class="conc-nome-fraco" hidden>
+      <p class="dica">O nome deste produto é curto ou tem só código, então os concorrentes podem vir menos precisos.
+        <button type="button" class="botao pequeno" data-acao="corrigir-nome">Corrigir nome</button></p>
+      <form class="conc-renomear" novalidate hidden>
+        <label class="campo"><span>Nome do produto</span><input type="text" name="nome" autocomplete="off" required></label>
+        <p class="erro" role="alert" hidden></p>
+        <div class="direita"><button type="button" class="botao" data-acao="cancelar-nome">Cancelar</button><button type="submit" class="botao principal">Salvar</button></div>
+      </form>
+    </div>
+    <div class="conc-acoes"></div>
+    <p class="dica conc-aviso-apify" hidden>Cada busca usa créditos do Apify (cerca de 20 por mês no plano grátis).</p>
+    <div class="conc-busca" hidden>
+      <p class="dica conc-instrucao"></p>
+      <p class="dica conc-contador" role="status"></p>
+      <ul class="conc-candidatos"></ul>
+    </div>
+    <form class="conc-novo" novalidate hidden>
+      <label class="campo"><span>Vendedor</span><input type="text" name="vendedor" autocomplete="off" required></label>
+      <label class="campo"><span>Preço</span>${campoNumero('<input type="text" inputmode="decimal" name="preco" placeholder="0,00" required>', 'R$')}</label>
+      <label class="campo"><span>Link do anúncio (opcional)</span><input type="url" name="link" placeholder="https://" autocomplete="off"></label>
+      <p class="erro" role="alert" hidden></p>
+      <div class="direita"><button type="button" class="botao" data-acao="cancelar-conc">Cancelar</button><button type="submit" class="botao principal">Adicionar</button></div>
+    </form>`;
+  const form = caixa.querySelector('.conc-novo');
+  const acoes = caixa.querySelector('.conc-acoes');
+  const busca = caixa.querySelector('.conc-busca');
+  const renomear = caixa.querySelector('.conc-renomear');
+  const erro = (t) => Object.assign(form.querySelector('.erro'), { textContent: t, hidden: !t });
+  const erroNome = (t) => Object.assign(renomear.querySelector('.erro'), { textContent: t, hidden: !t });
+  const fecharNome = () => {
+    erroNome('');
+    renomear.hidden = true;
+    caixa.querySelector('[data-acao="corrigir-nome"]').hidden = false;
+  };
+  const fechar = () => {
+    form.reset();
+    erro('');
+    form.hidden = true;
+    acoes.hidden = false;
+    fecharNome();
+  };
+  fecharNovoConc = fechar;
+  // Desmarcar tira o anúncio do cálculo (e marcar devolve). A tela muda na hora; a escolha é guardada logo depois.
+  busca.addEventListener('change', async (e) => {
+    const caixinha = e.target.closest('input[data-chave]');
+    const id = estado.produtoId;
+    const salva = buscas.get(id);
+    if (!caixinha || !salva) return;
+    const antes = salva.excluidos ?? [];
+    const chave = caixinha.dataset.chave;
+    const excluidos = caixinha.checked ? antes.filter((k) => k !== chave) : [...new Set([...antes, chave])];
+    buscas.set(id, { ...salva, excluidos });
+    caixinha.closest('li').classList.toggle('fora', !caixinha.checked);
+    atualizar();
+    try {
+      await nuvem.salvarExcluidos(id, excluidos);
+    } catch (falha) {
+      buscas.set(id, { ...buscas.get(id), excluidos: antes });
+      desenhoBusca = ''; // volta as caixinhas como estavam
+      atualizar();
+      mostrarAviso(falha.message, 'erro');
+    }
+  });
+  // "Excluir?" armado: clicar fora ou Esc desfaz (composedPath: depois do 1º clique o ícone vira texto e o alvo pode sumir)
+  const desarmar = () => caixa.querySelector('[data-excluir-conc][data-confirmar]') && atualizar();
+  document.addEventListener('click', (e) => !e.composedPath().some((el) => el.dataset?.confirmar === 'sim') && desarmar());
+  document.addEventListener('keydown', (e) => e.key === 'Escape' && desarmar());
+  caixa.addEventListener('click', async (e) => {
+    if (e.target.closest('[data-acao="novo-conc"]')) {
+      form.hidden = false;
+      acoes.hidden = true;
+      return form.elements.vendedor.focus();
+    }
+    if (e.target.closest('[data-acao="cancelar-conc"]')) return fechar();
+    if (e.target.closest('[data-acao="corrigir-nome"]')) {
+      renomear.elements.nome.value = custoEPeso().produto?.nome ?? '';
+      renomear.hidden = false;
+      e.target.closest('button').hidden = true;
+      return renomear.elements.nome.select();
+    }
+    if (e.target.closest('[data-acao="cancelar-nome"]')) {
+      fecharNome();
+      return caixa.querySelector('[data-acao="corrigir-nome"]').focus();
+    }
+    // Regra do Eduardo: o Apify (que custa) só é chamado aqui, no clique de verdade da pessoa em "Buscar concorrentes" ou
+    // "Atualizar". Abrir a tela ou trocar de produto/canal só lê a busca guardada (tests/busca-so-no-clique.test.js).
+    if (e.target.closest('[data-acao="buscar-ml"]')) return e.isTrusted && buscarNoML();
+    const lixeira = e.target.closest('[data-excluir-conc]');
+    if (!lixeira) return;
+    // Mesmo padrão da lixeira dos produtos: o 1º clique pergunta no próprio botão, o 2º exclui.
+    if (lixeira.dataset.confirmar !== 'sim') {
+      lixeira.dataset.confirmar = 'sim';
+      lixeira.classList.add('confirmar');
+      lixeira.textContent = 'Excluir?';
+      lixeira.setAttribute('aria-label', `Excluir? Clique de novo para excluir ${lixeira.dataset.vendedor}`);
+      return;
+    }
+    try {
+      await nuvem.removerConcorrente(lixeira.dataset.excluirConc);
+      todosConc = todosConc.filter((c) => c.id !== lixeira.dataset.excluirConc);
+      atualizar();
+    } catch (falha) {
+      mostrarAviso(falha.message, 'erro');
+    }
+  });
+
+  // Busca pelo nome do produto e guarda (substitui a anterior). Trocar de produto no meio não atrapalha: fica no produto certo.
+  async function buscarNoML() {
+    const { produto } = custoEPeso();
+    if (!produto || buscando.has(produto.id)) return;
+    buscando.add(produto.id);
+    atualizar();
+    try {
+      const nova = await nuvem.buscarConcorrentesNoML({ produtoId: produto.id, termo: qualidadeDoNome(produto.nome, produto.sku).termo });
+      buscas.set(produto.id, nova);
+      if (nova.naoGuardou) mostrarAviso('A busca não ficou guardada: da próxima vez que abrir o produto, ela não aparece.', 'erro');
+    } catch (falha) {
+      mostrarAviso(falha.message, 'erro');
+    }
+    buscando.delete(produto.id);
+    atualizar();
+    if (estado.produtoId === produto.id) (busca.querySelector('input[data-chave]') ?? acoes.querySelector('[data-acao="buscar-ml"]'))?.focus();
+  }
+
+  // Corrigir o nome ali mesmo: grava como a tela de produtos (dados + salvar, entra no histórico) e NÃO busca de novo.
+  renomear.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const nome = renomear.elements.nome.value.trim();
+    if (!nome) return erroNome('Escreva o nome do produto.');
+    const antes = dados.produtos;
+    dados.produtos = dados.produtos.map((p) => (p.id === estado.produtoId ? { ...p, nome, atualizadoEm: new Date().toISOString() } : p));
+    if (!salvar()) {
+      dados.produtos = antes;
+      salvar();
+      return erroNome('Não deu para salvar o nome agora. Tente de novo.');
+    }
+    fecharNome();
+    desenharProdutos(); // o seletor da Calculadora mostra o nome novo
+    atualizar(); // reavalia o aviso
+    mostrarAviso('Nome salvo.');
+    (caixa.querySelector('.conc-nome-fraco:not([hidden]) [data-acao="corrigir-nome"]') ?? acoes.querySelector('[data-acao="buscar-ml"]'))?.focus();
+  });
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const enviar = form.querySelector('[type=submit]');
+    if (enviar.disabled) return;
+    enviar.disabled = true;
+    try {
+      const c = await nuvem.adicionarConcorrente({
+        produtoId: estado.produtoId, canal: estado.canal, vendedor: form.elements.vendedor.value,
+        preco: lerNumero(form.elements.preco.value), link: form.elements.link.value,
+      });
+      todosConc = [...(todosConc ?? []), c];
+      fechar();
+      atualizar();
+    } catch (falha) {
+      erro(falha.message);
+    } finally {
+      enviar.disabled = false;
+    }
+  });
+}
+
+async function lerConcorrentes() {
+  if (lendoConc) return;
+  lendoConc = true;
+  try {
+    todosConc = await nuvem.concorrentes();
+  } catch (falha) {
+    todosConc = [];
+    mostrarAviso(falha.message, 'erro');
+  }
+  lendoConc = false;
+  atualizar();
+}
+
+// Ações (Buscar / Buscado em + Atualizar / Buscando) e a lista da última busca guardada do produto, com a caixinha de cada
+// anúncio (marcada = no cálculo). Só redesenha a lista quando a busca, o custo, o peso ou o canal mudam: desmarcar não a
+// redesenha (o foco fica na caixinha). -> os anúncios da busca, com { fora }, para o resumo do cartão.
+let desenhoAcoes = '';
+let desenhoBusca = '';
+function desenharBusca({ produto, canal, cmv, pesoG }) {
+  const caixa = $('#c-concorrentes');
+  const acoes = caixa.querySelector('.conc-acoes');
+  const lista = caixa.querySelector('.conc-busca');
+  const ml = canal.tipo === 'mercadolivre';
+  if (ml && !buscas.has(produto.id)) {
+    buscas.set(produto.id, undefined); // lendo
+    nuvem.ultimaBusca(produto.id).then((b) => {
+      buscas.set(produto.id, b);
+      atualizar();
+    });
+  }
+  const salva = ml ? buscas.get(produto.id) : null;
+  const mao = `<button type="button" class="botao pequeno" data-acao="novo-conc">${icone('plus')} Adicionar à mão</button>`;
+  const html = !ml || salva === undefined ? mao
+    : buscando.has(produto.id) ? `<p class="conc-buscando" role="status">${LEAO_BUSCANDO}<span>Buscando concorrentes…</span></p>${mao}`
+    : salva ? `<p class="conc-buscado"><span>Buscado em ${esc(quando(salva.buscadoEm))}</span><button type="button" class="botao pequeno" data-acao="buscar-ml">Atualizar</button></p>${mao}`
+    : `<button type="button" class="botao principal" data-acao="buscar-ml">Buscar concorrentes</button>${mao}`;
+  if (html !== desenhoAcoes) acoes.innerHTML = desenhoAcoes = html;
+  caixa.querySelector('.conc-aviso-apify').hidden = !ml;
+  caixa.querySelector('.conc-nome-fraco').hidden = !ml || qualidadeDoNome(produto.nome, produto.sku).boa;
+
+  // a busca guardada vem do banco, gravada por qualquer membro: candidatosDaBusca devolve cada campo ao tipo certo
+  const daBusca = candidatosDaBusca(salva);
+  lista.hidden = !salva || buscando.has(produto.id);
+  if (lista.hidden) {
+    desenhoBusca = '';
+    return daBusca;
+  }
+  const chave = JSON.stringify([produto.id, salva.buscadoEm, cmv, pesoG, estado.canal]);
+  if (chave === desenhoBusca) return daBusca;
+  desenhoBusca = chave;
+  lista.querySelector('.conc-instrucao').textContent = daBusca.length
+    ? `Anúncios do Mercado Livre para "${salva.termo}": todos entram no cálculo. Desmarque os que não são o mesmo produto que o seu.`
+    : `Nada encontrado no Mercado Livre para "${salva.termo}". Use "Adicionar à mão".`;
+  lista.querySelector('.conc-candidatos').innerHTML = daBusca.map((c) => {
+    const r = cmv > 0 ? calcularMargem({ preco: c.preco, cmv, canal, pesoG }) : null;
+    return `<li class="conc-candidato${c.fora ? ' fora' : ''}">
+      <label><input type="checkbox" data-chave="${esc(c.chave)}" ${c.fora ? '' : 'checked'}>
+        <span class="miniatura">${c.foto ? `<img src="${esc(c.foto)}" alt="" loading="lazy">` : icone('package')}</span>
+        <span class="conc-cand-info">
+          <span class="conc-cand-titulo">${esc(c.titulo)}</span>
+          <span class="conc-cand-meta"><span class="conc-vendedor">${esc(c.vendedor)}</span>${c.full ? '<span class="etiqueta conc-selo">Full</span>' : ''}${c.freteGratis ? '<span class="etiqueta conc-selo">Frete grátis</span>' : ''}${c.vendidos ? `<span class="conc-vendidos">+${Number(c.vendidos).toLocaleString('pt-BR')} vendidos</span>` : ''}</span>
+        </span>
+        <span class="conc-num conc-preco"><small>preço</small>${reais(c.preco)}</span>
+        ${r ? `<span class="conc-num conc-margem ${classeDaFaixa(r.margem)}"><small>margem</small>${margemPct(r.margem)}</span>
+        <span class="conc-num conc-lucro"><small>lucro</small>${reais(r.lucro)}</span>` : ''}
+      </label>
+      ${linkSeguro(c.link) ? `<a class="botao conc-link" href="${esc(c.link)}" target="_blank" rel="noopener noreferrer" title="Ver anúncio no Mercado Livre" aria-label="Ver anúncio de ${esc(c.vendedor)} no Mercado Livre (abre em nova aba)">${icone('external-link')}</a>` : ''}
+    </li>`;
+  }).join('');
+  return daBusca;
+}
+
+const dataCurta = (iso) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+function desenharConcorrentes({ produto, canal, cmv, pesoG, minimo }) {
+  const caixa = $('#c-concorrentes');
+  caixa.hidden = !produto || !nuvem.empresaAtual();
+  if (caixa.hidden) return;
+  const corpo = $('#c-conc-corpo');
+  if (ondeConc !== `${produto.id}|${estado.canal}`) fecharNovoConc();
+  ondeConc = `${produto.id}|${estado.canal}`;
+  const daBusca = desenharBusca({ produto, canal, cmv, pesoG });
+  if (todosConc === null) {
+    corpo.innerHTML = '<p class="dica">Carregando…</p>';
+    lerConcorrentes();
+    return;
+  }
+  const lista = todosConc.filter((c) => c.produtoId === produto.id && c.canal === estado.canal); // anotados à mão
+  const noCalculo = [...lista, ...daBusca.filter((c) => !c.fora)];
+  const total = lista.length + daBusca.length;
+  caixa.querySelector('.conc-contador').textContent = daBusca.length
+    ? `${total} concorrente${total === 1 ? '' : 's'}, ${daBusca.filter((c) => c.fora).length} fora do cálculo` : '';
+  if (!noCalculo.length) {
+    corpo.innerHTML = daBusca.length
+      ? '<p class="dica conc-vazio">Todos os anúncios da busca estão fora do cálculo. Marque os que são o mesmo produto que o seu.</p>'
+      : `<p class="dica conc-vazio">Nenhum concorrente anotado no ${esc(canal.nome)}. ${canal.tipo === 'mercadolivre' ? 'Busque no Mercado Livre ou anote' : 'Anote'} o preço de quem vende o mesmo produto e veja a margem e o lucro que você teria no preço dele.</p>`;
+    return;
+  }
+  const m = margensDosConcorrentes({ concorrentes: noCalculo, cmv, canal, pesoG, minimo });
+  const manuais = m.itens.filter((c) => c.id); // os da busca aparecem na lista dela, com a caixinha
+  const comCusto = cmv > 0; // sem custo, a margem no preço deles seria inventada
+  // mini-cartões: o preço e, com custo, a margem que teríamos vendendo nele
+  const subMargem = (preco) => {
+    if (!comCusto) return '';
+    const r = calcularMargem({ preco, cmv, canal, pesoG });
+    return `<span class="conc-num-sub ${classeDaFaixa(r.margem)}">margem ${margemPct(r.margem)}</span>`;
+  };
+  const numCartao = (rotulo, preco) =>
+    `<div class="conc-num-cartao"><span class="conc-num-rotulo">${rotulo}</span><strong class="conc-num-valor">${reais(preco)}</strong>${subMargem(preco)}</div>`;
+  const n = noCalculo.length;
+  // "abaixo do mínimo" só quando há preço mínimo (com custo); sem ele, um 0 enganaria
+  const abaixo = minimo > 0 ? `<div class="conc-num-cartao ${m.abaixoDoMinimo ? 'conc-abaixo' : 'conc-abaixo-zero'}"><span class="conc-num-rotulo">Abaixo do seu mínimo</span><strong class="conc-num-valor">${m.abaixoDoMinimo}</strong><span class="conc-num-sub">de ${n} concorrente${n === 1 ? '' : 's'}</span></div>` : '';
+  corpo.innerHTML = `
+    <div class="conc-resumo">${numCartao('Menor', m.menor)}${numCartao('Mediana', m.mediana)}${numCartao('Maior', m.maior)}${abaixo}</div>
+    ${comCusto ? '' : '<p class="dica">Informe o custo do produto para ver a margem e o lucro no preço de cada um.</p>'}
+    ${manuais.length ? `<ul class="conc-lista">${manuais.map((c) => `
+      <li class="conc-item">
+        <span class="conc-item-info"><span class="conc-vendedor">${esc(c.vendedor)}</span><time class="conc-data" datetime="${esc(c.criadoEm)}">${dataCurta(c.criadoEm)}</time></span>
+        <span class="conc-num conc-preco"><small>preço</small>${reais(c.preco)}</span>
+        ${comCusto ? `<span class="conc-num conc-margem ${classeDaFaixa(c.margem)}"><small>margem</small>${margemPct(c.margem)}</span>
+        <span class="conc-num conc-lucro"><small>lucro</small>${reais(c.lucro)}</span>` : ''}
+        ${linkSeguro(c.link) ? `<a class="botao conc-link" href="${esc(c.link)}" target="_blank" rel="noopener noreferrer" title="Ver anúncio" aria-label="Ver anúncio de ${esc(c.vendedor)} (abre em nova aba)">${icone('external-link')}</a>` : ''}
+        <button type="button" class="botao perigo" data-excluir-conc="${esc(c.id)}" data-vendedor="${esc(c.vendedor)}" aria-label="Excluir ${esc(c.vendedor)}" title="Excluir">${icone('trash-2')}</button>
+      </li>`).join('')}
+    </ul>` : ''}`;
 }
 
 function salvarPrecificacao() {

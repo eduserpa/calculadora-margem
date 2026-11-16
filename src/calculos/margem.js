@@ -40,6 +40,26 @@ export function calcularMargem({ preco, cmv, canal, pesoG = 300 }) {
 
 const MAIOR_PRECO_CENTAVOS = 100_000_000;
 
+// Preço logo abaixo de uma virada de faixa (frete, comissão ou taxa fixa) que dá MAIS lucro que o preço atual, ou null.
+// Ex.: no ML, R$ 199,99 em vez de R$ 205,00 quando o frete de R$ 200 em diante custa mais do que os R$ 5,01 a menos.
+// motivo = a parte que mais baixou ('freteCanal', 'taxaFixa' ou 'comissao') e economia = quanto ela baixou, em R$.
+export function precoMelhorAbaixo({ preco, cmv, canal, pesoG = 300 }) {
+  const fator = 1 - cupomDe(canal) / 100;
+  if (!(preco > 0) || !(fator > 0)) return null;
+  const atual = calcularMargem({ preco, cmv, canal, pesoG });
+  let melhor = null;
+  for (const ponto of pontosDeMudanca(canal)) {
+    const centavos = Math.ceil((ponto * 100) / fator) - 1; // último centavo do anúncio antes da virada (com cupom, o preço pago)
+    if (centavos <= 0 || centavos >= Math.round(preco * 100)) continue;
+    const r = calcularMargem({ preco: centavos / 100, cmv, canal, pesoG });
+    if (r.lucro > atual.lucro + 0.005 && (!melhor || r.lucro > melhor.lucro)) melhor = r;
+  }
+  if (!melhor) return null;
+  const queda = (parte) => atual[parte] - melhor[parte];
+  const motivo = ['freteCanal', 'taxaFixa', 'comissao'].reduce((a, b) => (queda(b) > queda(a) ? b : a));
+  return { preco: melhor.precoAnuncio, margem: melhor.margem, lucro: melhor.lucro, motivo, economia: queda(motivo) };
+}
+
 // Teto da margem no canal: num preço enorme e sem custo, o que é fixo (taxa fixa, frete com teto, embalagem) some e sobra
 // 100% menos tudo o que é % do preço (comissão da faixa mais alta, impostos, taxa financeira, afiliado...). A mesma conta da
 // margem, sem fórmula nova; 2 casas para não mostrar 75,9999.
