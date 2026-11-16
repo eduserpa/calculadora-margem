@@ -112,6 +112,7 @@ export function qualidadeDoNome(nome, sku = '') {
 }
 
 // Início: produto e canal em que o nosso preço salvo passa da mediana dos concorrentes, da maior diferença para a menor.
+// Só nos canais Mercado Livre, como o cartão da Calculadora (1.2.2): anotados à mão em outro canal ficam guardados, mas não contam.
 // salvos = precosSalvos() (produtos.js); concorrentes = linhas de nuvem.concorrentes().
 // buscas = buscas guardadas da empresa (nuvem.buscasGuardadas): os anúncios que ficaram no cálculo contam nos canais Mercado Livre.
 export function maisCaroQueConcorrencia(salvos, concorrentes, buscas = []) {
@@ -119,8 +120,9 @@ export function maisCaroQueConcorrencia(salvos, concorrentes, buscas = []) {
   concorrentes.forEach((c) => grupos.set(`${c.produtoId}|${c.canal}`, [...(grupos.get(`${c.produtoId}|${c.canal}`) ?? []), c]));
   const daBusca = new Map(buscas.map((b) => [b.produtoId, candidatosDaBusca(b).filter((c) => !c.fora)]));
   return salvos
+    .filter((s) => s.canal?.tipo === 'mercadolivre')
     .flatMap((s) => {
-      const lista = [...(grupos.get(`${s.produto.id}|${s.canalId}`) ?? []), ...(s.canal?.tipo === 'mercadolivre' ? daBusca.get(s.produto.id) ?? [] : [])];
+      const lista = [...(grupos.get(`${s.produto.id}|${s.canalId}`) ?? []), ...(daBusca.get(s.produto.id) ?? [])];
       const med = mediana(lista.map((c) => c.preco));
       return med && s.preco > med ? [{ ...s, mediana: med, diferenca: s.preco - med, quantos: lista.length }] : [];
     })

@@ -105,8 +105,8 @@ function desenhar() {
   desenharMaisCaro(precos);
 }
 
-// Produto e canal em que o nosso preço salvo passa da mediana dos concorrentes (anotados à mão e os da busca no ML que ficaram
-// no cálculo; só aparece se houver algum).
+// Produto em que o nosso preço salvo no Mercado Livre passa da mediana dos concorrentes (anotados à mão e os da busca que
+// ficaram no cálculo; só aparece se houver algum). Os outros canais não têm concorrentes na tela (1.2.2).
 async function desenharMaisCaro(precos) {
   if (!empresaAtual()) return;
   let lista;

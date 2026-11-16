@@ -1,11 +1,18 @@
 [
   {
+    "versao": "Alpha 1.2.2",
+    "data": "16/11/2026",
+    "itens": [
+      "Concorrentes aparecem só no Mercado Livre, e a lista Mais caro que a concorrência da Início também"
+    ]
+  },
+  {
     "versao": "Alpha 1.2.1",
     "data": "16/11/2026",
     "itens": [
       "Entrar ficou mais simples: no 1º acesso, digite o e-mail do convite e crie a sua senha em Entrar",
       "Receber link por e-mail virou um link discreto abaixo do Entrar",
-      "Avisos com cores: verde quando salva, amarelo para atenção, vermelho para erro e azul para dica",
+      "Avisos com cores: verde quando salva, amarelo para atenção, vermelho para erro e cinza para dica",
       "Usar este preço do Preço Mínimo em destaque",
       "O Calculéo abre mais rápido; se algo falhar ao abrir, aparece Tentar de novo em vez de ficar parado",
       "Empresas com muitos produtos e preços (mais de 1.000) carregam tudo",

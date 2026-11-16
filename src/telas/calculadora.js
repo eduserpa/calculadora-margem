@@ -570,7 +570,7 @@ function iniciarConcorrentes() {
       </form>
     </div>
     <div class="conc-acoes"></div>
-    <p class="dica conc-aviso-apify" hidden>Cada busca usa créditos do Apify (cerca de 20 por mês no plano grátis).</p>
+    <p class="dica conc-aviso-apify">Cada busca usa créditos do Apify (cerca de 20 por mês no plano grátis).</p>
     <div class="conc-busca" hidden>
       <p class="dica conc-instrucao"></p>
       <p class="dica conc-contador" role="status"></p>
@@ -746,23 +746,21 @@ function desenharBusca({ produto, canal, cmv, pesoG }) {
   const caixa = $('#c-concorrentes');
   const acoes = caixa.querySelector('.conc-acoes');
   const lista = caixa.querySelector('.conc-busca');
-  const ml = canal.tipo === 'mercadolivre';
-  if (ml && !buscas.has(produto.id)) {
+  if (!buscas.has(produto.id)) {
     buscas.set(produto.id, undefined); // lendo
     nuvem.ultimaBusca(produto.id).then((b) => {
       buscas.set(produto.id, b);
       atualizar();
     });
   }
-  const salva = ml ? buscas.get(produto.id) : null;
+  const salva = buscas.get(produto.id);
   const mao = `<button type="button" class="botao pequeno" data-acao="novo-conc">${icone('plus')} Adicionar à mão</button>`;
-  const html = !ml || salva === undefined ? mao
+  const html = salva === undefined ? mao
     : buscando.has(produto.id) ? `<p class="conc-buscando" role="status">${LEAO_BUSCANDO}<span>Buscando concorrentes…</span></p>${mao}`
     : salva ? `<p class="conc-buscado"><span>Buscado em ${esc(quando(salva.buscadoEm))}</span><button type="button" class="botao pequeno" data-acao="buscar-ml">Atualizar</button></p>${mao}`
     : `<button type="button" class="botao principal" data-acao="buscar-ml">Buscar concorrentes</button>${mao}`;
   if (html !== desenhoAcoes) acoes.innerHTML = desenhoAcoes = html;
-  caixa.querySelector('.conc-aviso-apify').hidden = !ml;
-  caixa.querySelector('.conc-nome-fraco').hidden = !ml || qualidadeDoNome(produto.nome, produto.sku).boa;
+  caixa.querySelector('.conc-nome-fraco').hidden = qualidadeDoNome(produto.nome, produto.sku).boa;
 
   // a busca guardada vem do banco, gravada por qualquer membro: candidatosDaBusca devolve cada campo ao tipo certo
   const daBusca = candidatosDaBusca(salva);
@@ -800,7 +798,9 @@ const dataCurta = (iso) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-d
 
 function desenharConcorrentes({ produto, canal, cmv, pesoG, minimo }) {
   const caixa = $('#c-concorrentes');
-  caixa.hidden = !produto || !nuvem.empresaAtual();
+  // Só no Mercado Livre (Eduardo, 1.2.2): nos outros canais o cartão some inteiro e nada é lido; o que foi anotado à mão
+  // neles continua guardado no banco.
+  caixa.hidden = !produto || !nuvem.empresaAtual() || canal.tipo !== 'mercadolivre';
   if (caixa.hidden) return;
   const corpo = $('#c-conc-corpo');
   if (ondeConc !== `${produto.id}|${estado.canal}`) fecharNovoConc();
@@ -819,7 +819,7 @@ function desenharConcorrentes({ produto, canal, cmv, pesoG, minimo }) {
   if (!noCalculo.length) {
     corpo.innerHTML = daBusca.length
       ? '<p class="dica conc-vazio">Todos os anúncios da busca estão fora do cálculo. Marque os que são o mesmo produto que o seu.</p>'
-      : `<p class="dica conc-vazio">Nenhum concorrente anotado no ${esc(canal.nome)}. ${canal.tipo === 'mercadolivre' ? 'Busque no Mercado Livre ou anote' : 'Anote'} o preço de quem vende o mesmo produto e veja a margem e o lucro que você teria no preço dele.</p>`;
+      : `<p class="dica conc-vazio">Nenhum concorrente anotado no ${esc(canal.nome)}. Busque no Mercado Livre ou anote o preço de quem vende o mesmo produto e veja a margem e o lucro que você teria no preço dele.</p>`;
     return;
   }
   const m = margensDosConcorrentes({ concorrentes: noCalculo, cmv, canal, pesoG, minimo });

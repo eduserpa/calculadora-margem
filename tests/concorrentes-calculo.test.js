@@ -27,18 +27,19 @@ test('margem e lucro de cada concorrente = calcularMargem no preço dele; resumo
   assert.equal(margensDosConcorrentes({ concorrentes: [], cmv: 1, canal: ml }).mediana, null);
 });
 
-test('mais caro que a concorrência: só onde o nosso preço passa da mediana, maior diferença primeiro', () => {
+test('mais caro que a concorrência: só no Mercado Livre, onde o nosso preço passa da mediana, maior diferença primeiro', () => {
   const p1 = { id: 'p1' };
   const p2 = { id: 'p2' };
+  const ML = { tipo: 'mercadolivre' };
   const salvos = [
-    { produto: p1, canalId: 'mercadolivre', preco: 250 }, // mediana 200: 25% mais caro
-    { produto: p1, canalId: 'shopee', preco: 90 }, // mediana 100: mais barato, fica fora
-    { produto: p2, canalId: 'mercadolivre', preco: 110 }, // mediana 100: 10% mais caro
-    { produto: p2, canalId: 'shein', preco: 500 }, // sem concorrente: fica fora
+    { produto: p1, canalId: 'mercadolivre', canal: ML, preco: 250 }, // mediana 200: 25% mais caro
+    { produto: p1, canalId: 'shopee', canal: { tipo: 'shopee' }, preco: 300 }, // mediana 100, mas fora do ML: não conta (1.2.2)
+    { produto: p2, canalId: 'mercadolivre', canal: ML, preco: 110 }, // mediana 100: 10% mais caro
+    { produto: p2, canalId: 'mercadolivre2', canal: ML, preco: 90 }, // 2ª conta do ML, mais barato: fica fora
   ];
   const conc = [
     { produtoId: 'p1', canal: 'mercadolivre', preco: 190 }, { produtoId: 'p1', canal: 'mercadolivre', preco: 210 },
-    { produtoId: 'p1', canal: 'shopee', preco: 100 },
+    { produtoId: 'p1', canal: 'shopee', preco: 100 }, { produtoId: 'p2', canal: 'mercadolivre2', preco: 100 },
     { produtoId: 'p2', canal: 'mercadolivre', preco: 100 },
   ];
   const r = maisCaroQueConcorrencia(salvos, conc);
