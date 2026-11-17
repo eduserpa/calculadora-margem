@@ -337,13 +337,21 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .t-suave { color: var(--suave); }
 
 /* Precificação + Resultado + Preço mínimo */
+/* Duas colunas no computador (Eduardo 17/11): Precificação + Preço mínimo à esquerda, Resultado + Análise à direita, cada uma do seu tamanho.
+   No celular as colunas somem (contents) e a ordem volta a ser Precificação, Resultado, Preço mínimo, Análise */
 .calc { display: grid; gap: 24px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.calc-col { display: contents; }
+@media (max-width: 899px) {
+  #c-resultado-cartao { order: 1; }
+  .calc .minimo { order: 2; }
+  .calc .analise { order: 3; }
+  .calc > .concorrentes { order: 4; }
+}
 @media (min-width: 900px) {
   .calc { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .calc { align-items: stretch; }
-  .calc > .minimo, .calc > .analise { align-self: start; }
+  .calc-col { display: grid; gap: 24px; align-content: start; }
 }
-.com-faixa { padding: 0; gap: 0; overflow: hidden; }
+.com-faixa { padding: 0; gap: 0; overflow: hidden; align-content: start; }
 .faixa-titulo { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 16px 24px; font-size: 20px; font-weight: 700; margin: 0; }
 .faixa-titulo h2 { font-size: 15px; }
 .faixa-titulo span { font-size: 12px; color: var(--suave); font-weight: 400; }
@@ -351,8 +359,8 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .com-faixa.azul .faixa-titulo { background: var(--azul-suave); color: var(--azul); }
 .com-faixa.verde { border: 2px solid var(--verde-linha); }
 .com-faixa.verde .faixa-titulo { background: var(--verde-suave); color: var(--verde); }
-.cartao-corpo { padding: 24px; display: grid; gap: 24px; }
-.caixa-azul { background: var(--azul-suave); border-radius: 10px; padding: 16px; display: grid; gap: 16px; }
+.cartao-corpo { padding: 24px; display: grid; gap: 24px; align-content: start; }
+.caixa-azul { background: var(--azul-suave); border-radius: 10px; padding: 16px; display: grid; gap: 16px; align-content: start; }
 .linha-barra { display: flex; align-items: center; gap: 10px; }
 .linha-barra .mini { width: 72px; padding: 0 8px; text-align: right; }
 .campo input.destaque { font-weight: 600; font-size: 15px; }
@@ -1043,9 +1051,9 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 600; font-variant-nu
 /* "Adicionar à mão": secundário MENOR que o Buscar no ML (Maestro 16/11): 32 visíveis, 44 de área no toque pelo ::after (como os botões só de ícone) */
 /* pequenos (32): só o Atualizar da linha "Buscado em" e os do nome fraco. "Adicionar à mão" tem a altura do "Buscar concorrentes"
    (40, 44 no toque; Eduardo 16/11): secundário, mesma base */
-:is(.conc-buscado, .conc-nome-fraco) .botao.pequeno { min-height: 32px; height: 32px; padding: 0 12px; gap: 6px; font-size: 13px; }
-:is(.conc-buscado, .conc-nome-fraco) .botao.pequeno::after { content: ""; position: absolute; inset: -6px 0; }
-@media (pointer: coarse) { :is(.conc-buscado, .conc-nome-fraco) .botao.pequeno { min-height: 32px; } }
+.conc-nome-fraco .botao.pequeno { min-height: 32px; height: 32px; padding: 0 12px; gap: 6px; font-size: 13px; }
+.conc-nome-fraco .botao.pequeno::after { content: ""; position: absolute; inset: -6px 0; }
+@media (pointer: coarse) { .conc-nome-fraco .botao.pequeno { min-height: 32px; } }  /* o Atualizar (.conc-buscado) tem a altura dos outros botões, como o Adicionar à mão */
 /* estados da busca (Hermione 16/11): "Buscado em … [Atualizar]" e "[leão] Buscando concorrentes…" no lugar do botão */
 :is(.conc-buscado, .conc-buscando) { display: flex; flex-wrap: wrap; align-items: center; gap: var(--e1) var(--e2); margin: 0; }
 .conc-buscado > span { color: var(--suave); font-size: 13px; }
@@ -1111,7 +1119,7 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 600; font-variant-nu
 .conc-novo > .erro, .conc-novo > .direita { grid-column: 1 / -1; }
 .conc-novo .direita { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--e1); }
 @media (max-width: 760px) { .conc-novo { grid-template-columns: minmax(0, 1fr); } }
-/* aviso de preço menor com mais lucro, no fim do Resultado: .aviso-tipo info */
+/* aviso de preço menor com mais lucro, no fim do Resultado: .aviso-tipo sucesso (oportunidade de ganhar mais) */
 .conc-aviso { margin-top: var(--e2); }
 /* Início: "Mais caro que a concorrência" */
 .conc-mais-caro li > span:first-child { flex: 1 1 auto; min-width: 10em; display: grid; gap: 2px; justify-items: start; }  /* o produto não espreme; o preço só desce se não couber */
@@ -1188,3 +1196,24 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 600; font-variant-nu
   .aviso-tipo { grid-template-columns: 16px minmax(0, 1fr); }
   .aviso-tipo > .botao { grid-column: 2; justify-self: start; }
 }
+
+/* Categoria do ML em 2 níveis (Configurar Mercado Livre): campo que abre a lista de categorias e, ao clicar, as subcategorias */
+.cat-botao { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: var(--alt); padding: 0 12px;
+  border: 1px solid var(--campo-borda); border-radius: var(--raio-campo); background: var(--campo-fundo); color: var(--texto); font: inherit; text-align: left; cursor: pointer; }
+.cat-botao .ic { flex: none; width: 16px; height: 16px; }
+.cat-botao[aria-expanded="true"] .ic { transform: rotate(180deg); }
+.cat-lista { list-style: none; margin: 4px 0 0; padding: 4px; max-height: 280px; overflow: auto; border: 1px solid var(--campo-borda); border-radius: var(--raio-campo); background: var(--superficie); }
+.cat-item { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 40px; padding: 8px 10px; border: 0; border-radius: 4px; background: none; color: var(--texto); font: inherit; text-align: left; cursor: pointer; }
+.cat-item[aria-current="true"] { font-weight: 600; background: var(--superficie-2); }
+.cat-item[data-acao="cat-voltar"] { color: var(--suave); font-weight: 600; border-bottom: 1px solid var(--linha); border-radius: 4px 4px 0 0; }
+@media (hover: hover) { .cat-item:hover { background: var(--superficie-2); } }
+.cat-item:focus-visible, .cat-botao:focus-visible { outline: 2px solid var(--roxo); outline-offset: 1px; }
+@media (pointer: coarse) { .cat-item, .cat-botao { min-height: var(--alt-toque); } }
+/* Busca de concorrentes: contador à esquerda e "Ordenar por" à direita; no celular, um embaixo do outro */
+.conc-topo-lista { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.conc-ordem { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--suave); }
+.conc-ordem select { min-height: var(--alt); }
+@media (max-width: 600px) { .conc-ordem { width: 100%; } .conc-ordem select { flex: 1; } }
+/* aviso de preço menor com mais lucro: o ícone é um cifrão (Lucide circle-dollar-sign), no lugar do check do sucesso */
+.aviso-tipo.conc-aviso { --av-ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8'/%3E%3Cpath d='M12 18V6'/%3E%3C/svg%3E"); }
+

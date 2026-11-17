@@ -66,7 +66,7 @@ export function candidatoSeguro(c) {
     itemId: texto(c?.itemId, 40) || null,
     titulo: texto(c?.titulo),
     foto: fotoSegura(c?.foto),
-    vendedor: texto(c?.vendedor, 120) || 'Vendedor não informado',
+    vendedor: (texto(c?.vendedor, 120) || 'Marca não informada').replace(/^Vendedor não informado$/, 'Marca não informada'), // a busca do ML (Apify) traz a MARCA do produto neste campo, não a loja
     preco: Math.max(0, n(c?.preco)),
     full: c?.full === true,
     freteGratis: c?.freteGratis === true,

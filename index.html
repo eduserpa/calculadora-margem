@@ -158,6 +158,7 @@
 
         <p class="dica-canal" id="c-sem-canal"><span class="seta" aria-hidden="true">↑</span> Clique num canal acima para ver o preço, a margem e o lucro</p>
         <div class="calc" id="c-calc">
+          <div class="calc-col">
           <div class="cartao com-faixa azul">
             <h2 class="faixa-titulo">Precificação</h2>
             <div class="cartao-corpo">
@@ -171,11 +172,6 @@
               </div>
               <label class="campo"><span id="c-por-rotulo">Preço POR (Final)</span><span class="passo-numero"><span class="passo-numero-un" aria-hidden="true">R$</span><input type="text" inputmode="decimal" id="c-por" class="destaque" placeholder="0,00"></span></label>
             </div>
-          </div>
-
-          <div class="cartao com-faixa verde" id="c-resultado-cartao">
-            <div class="faixa-titulo"><h2 id="c-resultado-titulo">Resultado</h2><span id="c-data"></span></div>
-            <div class="cartao-corpo" id="c-resultado" aria-live="polite"></div>
           </div>
 
           <div class="cartao minimo">
@@ -193,8 +189,16 @@
             <div class="aviso-tipo info dica-caixa"><p class="aviso-texto"><strong>Dica:</strong> uma margem entre 20% e 25% costuma dar folga para promoções e anúncios.</p></div>
             <div class="liquidacao" id="c-liquidacao"></div>
           </div>
+          </div>
+
+          <div class="calc-col">
+          <div class="cartao com-faixa verde" id="c-resultado-cartao">
+            <div class="faixa-titulo"><h2 id="c-resultado-titulo">Resultado</h2><span id="c-data"></span></div>
+            <div class="cartao-corpo" id="c-resultado" aria-live="polite"></div>
+          </div>
 
           <div class="cartao analise" id="c-analise"></div>
+          </div>
           <section class="cartao concorrentes" id="c-concorrentes" aria-labelledby="c-conc-titulo" hidden></section>
         </div>
         <div class="acoes-salvar" id="c-acoes">

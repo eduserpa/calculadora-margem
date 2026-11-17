@@ -54,6 +54,8 @@ function gravarImpostoDoProduto() {
 export async function abrirConfigurarCanal(idCanal, produtoEscolhido = null) {
   id = idCanal;
   rasc = structuredClone(canais()[id]);
+  catAberto = false;
+  catPai = null;
   produto = produtoEscolhido;
   impostoProprio = impostoDoProdutoNoCanal(produto, id);
   if (rasc.tipo === 'mercadolivre') rasc.comissao_propria = comissoesProprias(rasc); // um valor por tipo de anúncio
@@ -164,10 +166,7 @@ function opcoesMercadoLivre() {
     ${campoImposto()}
     <div class="secao">
       <p class="secao-titulo">Comissão menor de R$ ${campoReais(r.de)} a R$ ${campoReais(r.ate)} ${info([rasc.faixa_reduzida_fonte, rasc.faixa_reduzida_conferido_em])}</p>
-      <label class="campo"><span>Categoria do produto</span>
-        <input type="text" list="lista-categorias-ml" id="categoria-ml" value="${esc(rasc.categoria)}" placeholder="Digite para buscar na lista oficial..." autocomplete="off">
-        <datalist id="lista-categorias-ml"><option value="Outra categoria (sem redução)"></option>${(categorias ?? []).map((c) => `<option value="${esc(c[0])}"></option>`).join('')}</datalist>
-      </label>
+      ${seletorCategoria()}
       <div class="grade">${editando
         ? `${dinheiro('De (R$)', 'faixa_reduzida.de')}${dinheiro('Até (R$)', 'faixa_reduzida.ate')}${porcento(`Redução ${nome} (pontos)`, `faixa_reduzida.reducao.${tipo}`)}`
         : fixo(`Redução ${nome}`, pctFixo(r.reducao[tipo]))}</div>
@@ -251,11 +250,36 @@ const campoImpostoDoProduto = () => `
     <small class="erro" id="imposto-erro" role="alert" hidden></small>
   </div>`;
 
+// Categoria em 2 níveis num campo só: abre a lista de categorias; clicar numa categoria mostra as subcategorias dela.
+const OUTRA = 'Outra categoria (sem redução)';
+let catAberto = false; // lista aberta
+let catPai = null; // categoria cujas subcategorias estão à mostra (null = lista de categorias)
+function gruposDeCategoria() {
+  const grupos = new Map();
+  for (const c of categorias ?? []) {
+    const [pai, ...resto] = c[0].split(' > ');
+    if (!grupos.has(pai)) grupos.set(pai, []);
+    grupos.get(pai).push([c[0], resto.join(' > ') || pai]);
+  }
+  return grupos;
+}
+function seletorCategoria() {
+  const atual = rasc.categoria || '';
+  const grupos = gruposDeCategoria();
+  const item = (acao, v, rotulo, extra = '') => `<li><button type="button" class="cat-item" data-acao="${acao}" data-v="${esc(v)}"${v === atual ? ' aria-current="true"' : ''}>${esc(rotulo)}${extra}</button></li>`;
+  const lista = !catAberto ? '' : catPai
+    ? `<ul class="cat-lista">${item('cat-voltar', '', `‹ ${catPai}`)}${(grupos.get(catPai) ?? []).map(([v, r]) => item('cat-escolher', v, r)).join('')}</ul>`
+    : `<ul class="cat-lista">${item('cat-escolher', OUTRA, OUTRA)}${[...grupos.keys()].map((p) => item('cat-pai', p, p, ' <span aria-hidden="true">›</span>')).join('')}</ul>`;
+  return `<div class="campo"><span id="cat-rotulo">Categoria do produto</span>
+        <button type="button" class="cat-botao" data-acao="cat-abrir" aria-expanded="${catAberto}" aria-labelledby="cat-rotulo cat-valor"><span id="cat-valor">${atual ? esc(atual.replace(/ > /g, ' › ')) : 'Escolha a categoria do produto…'}</span>${icone('chevron-down')}</button>
+        ${lista}
+      </div>`;
+}
+
 // ---------- eventos ----------
 
 function aoDigitar(e) {
   const el = e.target;
-  if (el.id === 'categoria-ml') return escolherCategoria(el.value, false);
   if (el.id === 'imposto-produto') {
     // só número (15, 12,5, 15%); letras ("abc", "1O") não viram 0% nem 1%: ficam NaN e o Salvar mostra o erro no campo
     const t = el.value.replace(/\s/g, '');
@@ -274,7 +298,7 @@ function aoDigitar(e) {
 // Troca que muda o formulário (opção ligada, tipo, reputação): redesenha.
 function aoTrocar(e) {
   const el = e.target;
-  if (el.id === 'categoria-ml') return escolherCategoria(el.value, true);
+  if (el.id === 'categoria-ml') return el.value ? escolherCategoria(el.value, true) : undefined;
   if (!el.dataset?.c) return;
   if (el.type === 'checkbox') definir(el.dataset.c, el.checked);
   else if (el.type === 'radio' || el.tagName === 'SELECT') definir(el.dataset.c, el.value);
@@ -286,7 +310,7 @@ function escolherCategoria(nome, redesenhar) {
   rasc.categoria = nome;
   const achada = (categorias ?? []).find((c) => c[0] === nome);
   if (achada) rasc.faixa_reduzida.reducao = { premium: achada[1], classico: achada[2] };
-  else if (nome === 'Outra categoria (sem redução)') rasc.faixa_reduzida.reducao = { premium: 0, classico: 0 };
+  else if (nome === OUTRA) rasc.faixa_reduzida.reducao = { premium: 0, classico: 0 };
   else return;
   if (redesenhar || achada || nome.startsWith('Outra')) desenhar();
 }
@@ -296,6 +320,10 @@ function aoClicar(e) {
   if (!b) return;
   const acao = b.dataset.acao;
   if (acao === 'cancelar') return janela().close();
+  if (acao === 'cat-abrir') { catAberto = !catAberto; catPai = catAberto && rasc.categoria && rasc.categoria !== OUTRA ? rasc.categoria.split(' > ')[0] : null; }
+  if (acao === 'cat-pai') catPai = b.dataset.v;
+  if (acao === 'cat-voltar') catPai = null;
+  if (acao === 'cat-escolher') { catAberto = false; catPai = null; escolherCategoria(b.dataset.v, false); }
   if (acao === 'imposto-padrao') {
     impostoProprio = null;
     desenhar();
@@ -317,4 +345,5 @@ function aoClicar(e) {
   }
   if (acao === 'tirar-faixa') rasc.faixas.splice(Number(b.dataset.i), 1);
   desenhar();
+  if (acao.startsWith('cat-')) $(catAberto ? '.cat-lista .cat-item' : '.cat-botao', janela())?.focus(); // o foco segue a lista depois de redesenhar
 }

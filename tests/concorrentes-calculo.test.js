@@ -64,7 +64,7 @@ test('candidatosDoApify: tira os nossos, lê o preço brasileiro, Full, vendidos
   ]);
   assert.deepEqual(r.map((c) => [c.vendedor, c.preco, c.full, c.freteGratis, c.vendidos]), [
     ['GADSTORE', 1234.56, true, true, 500],
-    ['Vendedor não informado', 50.1, false, false, 0],
+    ['Marca não informada', 50.1, false, false, 0],
   ]);
   assert.equal(r[0].titulo, 'Dispenser Inox');
   assert.equal(r[0].foto, 'https://http2.mlstatic.com/a.webp');
@@ -105,7 +105,7 @@ test('candidatoSeguro: busca guardada adulterada não vira HTML nem javascript: 
     vendidos: '<img src=x onerror="window.__xss=1">', link: 'javascript:alert(1)', full: 'sim', freteGratis: 1,
     foto: 'https://exemplo.com/x.webp',
   });
-  assert.deepEqual(c, { produtoCatalogo: null, itemId: null, titulo: '', foto: null, vendedor: 'Vendedor não informado', preco: 0, full: false, freteGratis: false, link: null, vendidos: 0 });
+  assert.deepEqual(c, { produtoCatalogo: null, itemId: null, titulo: '', foto: null, vendedor: 'Marca não informada', preco: 0, full: false, freteGratis: false, link: null, vendidos: 0 });
   assert.equal(candidatoSeguro({ link: 'https://www.mercadolivre.com.br/x" onmouseover="alert(1)' }).link, null, 'aspas no link');
   assert.equal(candidatoSeguro({ foto: 'https://http2.mlstatic.com/D_NQ.webp' }).foto, 'https://http2.mlstatic.com/D_NQ.webp');
   assert.equal(candidatoSeguro({ foto: 'http://http2.mlstatic.com/D_NQ.webp' }).foto, null, 'foto só https');

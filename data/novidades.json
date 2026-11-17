@@ -1,5 +1,16 @@
 [
   {
+    "versao": "Alpha 1.2.4",
+    "data": "17/11/2026",
+    "itens": [
+      "Calculadora em duas colunas no computador: Precificação e Preço Mínimo de um lado, Resultado e Análise do outro, sem espaço vazio",
+      "Categoria do Mercado Livre em dois níveis: escolha a categoria e depois a subcategoria",
+      "Concorrentes: ordenar por preço, margem ou lucro",
+      "Resultados da busca mostram a marca do produto",
+      "Aviso de preço menor com mais lucro em verde, com cifrão"
+    ]
+  },
+  {
     "versao": "Alpha 1.2.3",
     "data": "16/11/2026",
     "itens": [

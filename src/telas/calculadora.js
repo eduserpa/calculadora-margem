@@ -534,7 +534,7 @@ const PARTE = { freteCanal: (c) => `o frete do ${c.nome} fica`, taxaFixa: () => 
 function htmlPrecoMelhor(preco, cmv, canal, pesoG) {
   const m = precoMelhorAbaixo({ preco, cmv, canal, pesoG });
   if (!m) return '';
-  return `<div class="aviso-tipo info conc-aviso"><p class="aviso-texto">A ${reais(m.preco)} ${PARTE[m.motivo](canal)} ${reais(m.economia)} mais barato: margem ${margemPct(m.margem)} e lucro ${reais(m.lucro)}.</p>
+  return `<div class="aviso-tipo sucesso conc-aviso"><p class="aviso-texto">A ${reais(m.preco)} ${PARTE[m.motivo](canal)} ${reais(m.economia)} mais barato: margem ${margemPct(m.margem)} e lucro ${reais(m.lucro)}.</p>
     <button type="button" class="botao pequeno" data-acao="usar-melhor" data-preco="${m.preco}">Usar este preço</button></div>`;
 }
 
@@ -579,7 +579,13 @@ function iniciarConcorrentes() {
     <p class="dica conc-aviso-apify">Cada busca usa créditos do Apify (cerca de 20 por mês no plano grátis).</p>
     <div class="conc-busca" hidden>
       <p class="dica conc-instrucao"></p>
-      <p class="dica conc-contador" role="status"></p>
+      <div class="conc-topo-lista"><p class="dica conc-contador" role="status"></p>
+        <label class="conc-ordem"><span>Ordenar por</span><select id="c-conc-ordem">
+          <option value="">Relevância no Mercado Livre</option>
+          <option value="preco:1">Preço: menor para maior</option><option value="preco:-1">Preço: maior para menor</option>
+          <option value="margem:1">Margem: menor para maior</option><option value="margem:-1">Margem: maior para menor</option>
+          <option value="lucro:1">Lucro: menor para maior</option><option value="lucro:-1">Lucro: maior para menor</option>
+        </select></label></div>
       <ul class="conc-candidatos"></ul>
     </div>
     <form class="conc-novo" novalidate hidden>
@@ -610,6 +616,11 @@ function iniciarConcorrentes() {
   fecharNovoConc = fechar;
   // Desmarcar tira o anúncio do cálculo (e marcar devolve). A tela muda na hora; a escolha é guardada logo depois.
   busca.addEventListener('change', async (e) => {
+    if (e.target.id === 'c-conc-ordem') {
+      ordemBusca = e.target.value;
+      desenhoBusca = '';
+      return atualizar();
+    }
     const caixinha = e.target.closest('input[data-chave]');
     const id = estado.produtoId;
     const salva = buscas.get(id);
@@ -748,6 +759,7 @@ async function lerConcorrentes() {
 // redesenha (o foco fica na caixinha). -> os anúncios da busca, com { fora }, para o resumo do cartão.
 let desenhoAcoes = '';
 let desenhoBusca = '';
+let ordemBusca = ''; // '' = relevância do ML; 'preco:1', 'margem:-1'... (só a tela; não muda o que entra no cálculo)
 function desenharBusca({ produto, canal, cmv, pesoG }) {
   const caixa = $('#c-concorrentes');
   const acoes = caixa.querySelector('.conc-acoes');
@@ -775,26 +787,32 @@ function desenharBusca({ produto, canal, cmv, pesoG }) {
     desenhoBusca = '';
     return daBusca;
   }
-  const chave = JSON.stringify([produto.id, salva.buscadoEm, cmv, pesoG, estado.canal]);
+  const chave = JSON.stringify([produto.id, salva.buscadoEm, cmv, pesoG, estado.canal, ordemBusca]);
   if (chave === desenhoBusca) return daBusca;
   desenhoBusca = chave;
   lista.querySelector('.conc-instrucao').textContent = daBusca.length
     ? `Anúncios do Mercado Livre para "${salva.termo}": todos entram no cálculo. Desmarque os que não são o mesmo produto que o seu.`
     : `Nada encontrado no Mercado Livre para "${salva.termo}". Use "Adicionar à mão".`;
-  lista.querySelector('.conc-candidatos').innerHTML = daBusca.map((c) => {
-    const r = cmv > 0 ? calcularMargem({ preco: c.preco, cmv, canal, pesoG }) : null;
+  const comConta = daBusca.map((c) => ({ c, r: cmv > 0 ? calcularMargem({ preco: c.preco, cmv, canal, pesoG }) : null }));
+  if (ordemBusca) {
+    const [campo, sentido] = ordemBusca.split(':');
+    const valor = ({ c, r }) => (campo === 'preco' ? c.preco : r ? (campo === 'margem' ? r.margem : r.lucro) : -Infinity);
+    comConta.sort((a, b) => (valor(a) - valor(b)) * Number(sentido));
+  }
+  lista.querySelector('#c-conc-ordem').value = ordemBusca;
+  lista.querySelector('.conc-candidatos').innerHTML = comConta.map(({ c, r }) => {
     return `<li class="conc-candidato${c.fora ? ' fora' : ''}">
       <label><input type="checkbox" data-chave="${esc(c.chave)}" ${c.fora ? '' : 'checked'}>
         <span class="miniatura">${c.foto ? `<img src="${esc(c.foto)}" alt="" loading="lazy">` : icone('package')}</span>
         <span class="conc-cand-info">
           <span class="conc-cand-titulo">${esc(c.titulo)}</span>
-          <span class="conc-cand-meta"><span class="conc-vendedor">${esc(c.vendedor)}</span>${c.full ? '<span class="etiqueta conc-selo">Full</span>' : ''}${c.freteGratis ? '<span class="etiqueta conc-selo">Frete grátis</span>' : ''}${c.vendidos ? `<span class="conc-vendidos">+${Number(c.vendidos).toLocaleString('pt-BR')} vendidos</span>` : ''}</span>
+          <span class="conc-cand-meta"><span class="conc-vendedor">Marca: ${esc(c.vendedor)}</span>${c.full ? '<span class="etiqueta conc-selo">Full</span>' : ''}${c.freteGratis ? '<span class="etiqueta conc-selo">Frete grátis</span>' : ''}${c.vendidos ? `<span class="conc-vendidos">+${Number(c.vendidos).toLocaleString('pt-BR')} vendidos</span>` : ''}</span>
         </span>
         <span class="conc-num conc-preco"><small>preço</small>${reais(c.preco)}</span>
         ${r ? `<span class="conc-num conc-margem ${classeDaFaixa(r.margem)}"><small>margem</small>${margemPct(r.margem)}</span>
         <span class="conc-num conc-lucro"><small>lucro</small>${reais(r.lucro)}</span>` : ''}
       </label>
-      ${linkSeguro(c.link) ? `<a class="botao conc-link" href="${esc(c.link)}" target="_blank" rel="noopener noreferrer" title="Ver anúncio no Mercado Livre" aria-label="Ver anúncio de ${esc(c.vendedor)} no Mercado Livre (abre em nova aba)">${icone('external-link')}</a>` : ''}
+      ${linkSeguro(c.link) ? `<a class="botao conc-link" href="${esc(c.link)}" target="_blank" rel="noopener noreferrer" title="Ver anúncio no Mercado Livre" aria-label="Ver anúncio (marca ${esc(c.vendedor)}) no Mercado Livre (abre em nova aba)">${icone('external-link')}</a>` : ''}
     </li>`;
   }).join('');
   return daBusca;
