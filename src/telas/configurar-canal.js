@@ -26,6 +26,13 @@ export function iniciarConfigurarCanal() {
   j.addEventListener('input', aoDigitar);
   j.addEventListener('change', aoTrocar);
   j.addEventListener('click', aoClicar);
+  // Enter na busca da categoria escolhe o 1º resultado em vez de salvar a janela
+  // e Esc fecha só a lista (não a janela)
+  j.addEventListener('keydown', (e) => {
+    if (e.target.id !== 'cat-busca') return;
+    if (e.key === 'Enter') { e.preventDefault(); if (catBusca.trim()) $('.cat-lista .cat-item[data-acao="cat-escolher"]', j)?.click(); }
+    if (e.key === 'Escape') { e.preventDefault(); $('.cat-fechar', j)?.click(); }
+  });
   j.addEventListener('submit', (e) => {
     e.preventDefault();
     if (rasc.faixas) rasc.faixas.sort((a, b) => (a.ate ?? Infinity) - (b.ate ?? Infinity));
@@ -254,6 +261,8 @@ const campoImpostoDoProduto = () => `
 const OUTRA = 'Outra categoria (sem redução)';
 let catAberto = false; // lista aberta
 let catPai = null; // categoria cujas subcategorias estão à mostra (null = lista de categorias)
+let catBusca = ''; // o que foi digitado no campo de busca da lista (Eduardo 17/11): com texto, a lista vira os resultados das 2 camadas
+const semAcento = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 function gruposDeCategoria() {
   const grupos = new Map();
   for (const c of categorias ?? []) {
@@ -263,16 +272,30 @@ function gruposDeCategoria() {
   }
   return grupos;
 }
-function seletorCategoria() {
+function listaCategorias() {
   const atual = rasc.categoria || '';
   const grupos = gruposDeCategoria();
   const item = (acao, v, rotulo, extra = '') => `<li><button type="button" class="cat-item" data-acao="${acao}" data-v="${esc(v)}"${v === atual ? ' aria-current="true"' : ''}>${esc(rotulo)}${extra}</button></li>`;
-  const lista = !catAberto ? '' : catPai
+  const palavras = semAcento(catBusca).split(/\s+/).filter(Boolean);
+  if (palavras.length) {  // busca: todas as palavras em qualquer parte do caminho "Categoria › Subcategoria"
+    const achadas = [OUTRA, ...(categorias ?? []).map((c) => c[0])].filter((v) => palavras.every((p) => semAcento(v).includes(p)));
+    return `<ul class="cat-lista">${achadas.length ? achadas.map((v) => item('cat-escolher', v, v.replace(/ > /g, ' › '))).join('') : '<li class="cat-vazio">Nenhuma categoria com esse nome</li>'}</ul>`;
+  }
+  return catPai
     ? `<ul class="cat-lista">${item('cat-voltar', '', `‹ ${catPai}`)}${(grupos.get(catPai) ?? []).map(([v, r]) => item('cat-escolher', v, r)).join('')}</ul>`
     : `<ul class="cat-lista">${item('cat-escolher', OUTRA, OUTRA)}${[...grupos.keys()].map((p) => item('cat-pai', p, p, ' <span aria-hidden="true">›</span>')).join('')}</ul>`;
+}
+function seletorCategoria() {
+  const atual = rasc.categoria || '';
+  const valor = atual ? esc(atual.replace(/ > /g, ' › ')) : '';
+  // um campo só (Eduardo 17/11): fechado é o botão com a categoria; aberto, o próprio campo vira a busca (a categoria atual fica de dica)
+  const campo = catAberto
+    ? `<div class="cat-campo"><input type="text" id="cat-busca" class="cat-busca" role="combobox" aria-expanded="true" aria-autocomplete="list" aria-labelledby="cat-rotulo" value="${esc(catBusca)}" placeholder="${valor || 'Digite para buscar a categoria'}" autocomplete="off">
+        <button type="button" class="cat-fechar" data-acao="cat-abrir" aria-label="Fechar a lista">${icone('chevron-down')}</button></div>`
+    : `<button type="button" class="cat-botao" data-acao="cat-abrir" aria-expanded="false" aria-labelledby="cat-rotulo cat-valor"><span id="cat-valor">${valor || 'Escolha a categoria do produto…'}</span>${icone('chevron-down')}</button>`;
   return `<div class="campo"><span id="cat-rotulo">Categoria do produto</span>
-        <button type="button" class="cat-botao" data-acao="cat-abrir" aria-expanded="${catAberto}" aria-labelledby="cat-rotulo cat-valor"><span id="cat-valor">${atual ? esc(atual.replace(/ > /g, ' › ')) : 'Escolha a categoria do produto…'}</span>${icone('chevron-down')}</button>
-        ${lista}
+        ${campo}
+        ${catAberto ? listaCategorias() : ''}
       </div>`;
 }
 
@@ -280,6 +303,7 @@ function seletorCategoria() {
 
 function aoDigitar(e) {
   const el = e.target;
+  if (el.id === 'cat-busca') { catBusca = el.value; return void ($('.cat-lista', janela()).outerHTML = listaCategorias()); }  // só a lista: o campo não perde o foco
   if (el.id === 'imposto-produto') {
     // só número (15, 12,5, 15%); letras ("abc", "1O") não viram 0% nem 1%: ficam NaN e o Salvar mostra o erro no campo
     const t = el.value.replace(/\s/g, '');
@@ -320,10 +344,10 @@ function aoClicar(e) {
   if (!b) return;
   const acao = b.dataset.acao;
   if (acao === 'cancelar') return janela().close();
-  if (acao === 'cat-abrir') { catAberto = !catAberto; catPai = catAberto && rasc.categoria && rasc.categoria !== OUTRA ? rasc.categoria.split(' > ')[0] : null; }
+  if (acao === 'cat-abrir') { catAberto = !catAberto; catBusca = ''; catPai = catAberto && rasc.categoria && rasc.categoria !== OUTRA ? rasc.categoria.split(' > ')[0] : null; }
   if (acao === 'cat-pai') catPai = b.dataset.v;
   if (acao === 'cat-voltar') catPai = null;
-  if (acao === 'cat-escolher') { catAberto = false; catPai = null; escolherCategoria(b.dataset.v, false); }
+  if (acao === 'cat-escolher') { catAberto = false; catPai = null; catBusca = ''; escolherCategoria(b.dataset.v, false); }
   if (acao === 'imposto-padrao') {
     impostoProprio = null;
     desenhar();
@@ -345,5 +369,5 @@ function aoClicar(e) {
   }
   if (acao === 'tirar-faixa') rasc.faixas.splice(Number(b.dataset.i), 1);
   desenhar();
-  if (acao.startsWith('cat-')) $(catAberto ? '.cat-lista .cat-item' : '.cat-botao', janela())?.focus(); // o foco segue a lista depois de redesenhar
+  if (acao.startsWith('cat-')) $(acao === 'cat-abrir' && catAberto ? '#cat-busca' : catAberto ? '.cat-lista .cat-item' : '.cat-botao', janela())?.focus(); // ao abrir já dá para digitar; depois o foco segue a lista
 }

@@ -1202,6 +1202,14 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 600; font-variant-nu
   border: 1px solid var(--campo-borda); border-radius: var(--raio-campo); background: var(--campo-fundo); color: var(--texto); font: inherit; text-align: left; cursor: pointer; }
 .cat-botao .ic { flex: none; width: 16px; height: 16px; }
 .cat-botao[aria-expanded="true"] .ic { transform: rotate(180deg); }
+/* busca da categoria (Eduardo 17/11): aberto, o campo da categoria vira a busca, com a setinha para fechar no mesmo lugar */
+.cat-campo { position: relative; }
+.campo input.cat-busca { width: 100%; padding-right: 44px; }
+.campo input.cat-busca::placeholder { color: var(--texto); opacity: .55; }
+.cat-fechar { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 44px; height: 100%; padding: 0; border: 0; background: none; color: var(--texto); cursor: pointer; }
+.cat-fechar .ic { width: 16px; height: 16px; transform: rotate(180deg); }
+.cat-fechar:focus-visible { outline: 2px solid var(--roxo); outline-offset: -2px; }
+.cat-vazio { padding: 8px 10px; color: var(--suave); }
 .cat-lista { list-style: none; margin: 4px 0 0; padding: 4px; max-height: 280px; overflow: auto; border: 1px solid var(--campo-borda); border-radius: var(--raio-campo); background: var(--superficie); }
 .cat-item { display: flex; justify-content: space-between; align-items: center; width: 100%; min-height: 40px; padding: 8px 10px; border: 0; border-radius: 4px; background: none; color: var(--texto); font: inherit; text-align: left; cursor: pointer; }
 .cat-item[aria-current="true"] { font-weight: 600; background: var(--superficie-2); }
