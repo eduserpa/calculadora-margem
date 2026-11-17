@@ -11,6 +11,8 @@ import { iniciarInicio } from './telas/inicio.js';
 import { iniciarNovidades } from './telas/novidades.js';
 import './telas/dica.js'; // balão dos (i): um listener só, no document
 import { iniciarNuvemTelas } from './telas/empresa.js'; // equipe, histórico e empresa: chamar depois do login e dos dados carregados
+import { iniciarPlataforma } from './telas/plataforma.js'; // só aparece para os donos da plataforma (o banco decide)
+import { iniciarAviso } from './telas/aviso.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -145,31 +147,103 @@ function mostrarLogin(texto = '', logada = false) {
   $('#login-msg').textContent = texto;
 }
 
+// Depois de mandar um link (confirmar o cadastro, esqueci a senha, link de acesso): o MESMO cartão troca o formulário por uma frase
+// (regra do Eduardo: login enxuto). "Reenviar" (link de texto) só aparece 60 s depois de cada envio; "Voltar" devolve o formulário.
+const FRASE_LOGIN = 'Bora calcular essa margem?';
+// confirmou o cadastro e ainda não criou a senha (fechou a aba no meio): a tela de criar a senha volta, mas só para ESTA pessoa
+// (guarda o id dela: num computador dividido, quem entrar depois não cai na tela de outra pessoa)
+const CHAVE_SENHA_PENDENTE = 'calculadora-margem.criar-senha';
+const lembrarCriarSenha = (quem) => {
+  try {
+    if (quem) localStorage.setItem(CHAVE_SENHA_PENDENTE, quem);
+    else localStorage.removeItem(CHAVE_SENHA_PENDENTE);
+  } catch {
+    // sem armazenamento: vale só nesta visita
+  }
+};
+const faltaCriarSenha = (quem) => {
+  try {
+    return Boolean(quem) && localStorage.getItem(CHAVE_SENHA_PENDENTE) === quem;
+  } catch {
+    return false;
+  }
+};
+const ESPERA_REENVIAR = 60000;
+let relogioReenviar = null;
+function mostrarEnviado(texto, reenviar = null, jaPode = false) {
+  const r = $('#login-reenviar');
+  clearTimeout(relogioReenviar);
+  $('#login-form').hidden = true;
+  $('#login-mascote').src = 'assets/mascote/email.webp';
+  $('#login-frase').textContent = 'Confira o seu e-mail.';
+  $('#login-msg').textContent = texto;
+  $('#login-voltar').hidden = false;
+  r.hidden = true;
+  if (!reenviar) return;
+  const liberar = () => (r.hidden = false);
+  if (jaPode) liberar();
+  else relogioReenviar = setTimeout(liberar, ESPERA_REENVIAR);
+  r.onclick = async () => {
+    r.hidden = true;
+    try {
+      await reenviar();
+      $('#login-msg').textContent = `${texto} Mandamos de novo.`;
+    } catch (erro) {
+      $('#login-msg').textContent = erro.message;
+    }
+    relogioReenviar = setTimeout(liberar, ESPERA_REENVIAR);
+  };
+}
+
+function voltarAoLogin() {
+  clearTimeout(relogioReenviar);
+  $('#login-reenviar').hidden = true;
+  $('#login-voltar').hidden = true;
+  $('#login-form').hidden = false;
+  $('#login-entrar').disabled = false;
+  $('#login-mascote').src = 'assets/mascote/login.webp';
+  $('#login-frase').textContent = FRASE_LOGIN;
+  $('#login-msg').textContent = '';
+  $('#login-email').focus();
+}
+
 function iniciarLogin() {
   const msg = (texto) => ($('#login-msg').textContent = texto);
+  // o e-mail do próprio login (sem tela nova): vazio, pede e põe o cursor nele
+  const emailDigitado = (oQue) => {
+    const campo = $('#login-email');
+    if (campo.value.trim()) return campo.value;
+    msg(`Digite o seu e-mail e toque de novo em "${oQue}".`);
+    campo.focus();
+    return null;
+  };
   $('#login-sair').addEventListener('click', nuvem.sair);
+  $('#login-voltar').addEventListener('click', voltarAoLogin);
   $('#login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     $('#login-entrar').disabled = true;
     msg('Entrando...');
     try {
-      await nuvem.entrarComSenha($('#login-email').value, $('#login-senha').value);
-      location.reload();
+      const r = await nuvem.entrarComSenha($('#login-email').value, $('#login-senha').value);
+      if (!r?.confirmar) return location.reload();
+      $('#login-entrar').disabled = false;
+      mostrarEnviado(`Enviamos um link para ${r.confirmar}. Abra o e-mail para entrar.`, () => nuvem.reenviarConfirmacao(r.confirmar), r.jaPode);
     } catch (erro) {
       msg(erro.message);
       $('#login-entrar').disabled = false;
     }
   });
+  // sem SMTP próprio o Supabase só manda e-mail para quem é do projeto: "Esqueci a senha" e "Receber link por e-mail" ficam escondidos
   $('#login-esqueci').hidden = !ESQUECI_SENHA;
+  $('#login-link').hidden = !ESQUECI_SENHA;
   $('#login-esqueci').addEventListener('click', async () => {
-    if (!$('#login-email').value.trim()) return msg('Digite o seu e-mail primeiro.');
+    const email = emailDigitado('Esqueci a senha');
+    if (!email) return;
     msg('Mandando...');
     try {
-      await nuvem.esqueciSenha($('#login-email').value);
-      $('#login-mascote').src = 'assets/mascote/email.webp';
-      $('#login-frase').textContent = 'Link enviado! Confira seu e-mail.';
-      msg('Abra o e-mail e clique no link para criar uma senha nova.');
-      $('#login-form').hidden = true;
+      await nuvem.esqueciSenha(email);
+      // neutro: não conta se o e-mail tem conta
+      mostrarEnviado('Se este e-mail tiver conta no Calculéo, mandamos um link para criar uma senha nova.', () => nuvem.esqueciSenha(email));
     } catch (erro) {
       msg(erro.message);
     }
@@ -183,11 +257,35 @@ function iniciarLogin() {
       msg(erro.message);
     }
   });
+  // senha + confirmação (Eduardo 17/11): o olhinho mostra as duas; "Salvar" só com as duas iguais e com 8 ou mais; diferentes, o
+  // aviso aparece quando a 2ª já tem o tamanho da 1ª (enquanto digita, não acusa)
+  const senha = $('#nova-senha'), senha2 = $('#nova-senha-2');
+  const conferirSenhas = () => {
+    const iguais = senha.value === senha2.value;
+    $('#nova-senha-erro').hidden = iguais || senha2.value.length < Math.min(senha.value.length, 8);
+    $('#nova-senha-salvar').disabled = !iguais || senha.value.length < 8;
+  };
+  senha.addEventListener('input', conferirSenhas);
+  senha2.addEventListener('input', conferirSenhas);
+  senha2.addEventListener('blur', () => senha2.value && ($('#nova-senha-erro').hidden = senha.value === senha2.value));
+  $('#nova-senha-olho').addEventListener('click', (e) => {
+    const campo = $('#nova-senha'), b = e.currentTarget, ver = campo.type === 'password';
+    campo.type = ver ? 'text' : 'password';
+    senha2.type = campo.type;
+    b.setAttribute('aria-pressed', String(ver));
+    b.setAttribute('aria-label', ver ? 'Esconder senha' : 'Mostrar senha');
+    b.querySelector('use').setAttribute('href', `assets/icones.svg#${ver ? 'eye-off' : 'eye'}`);
+  });
   $('#nova-senha-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    if (senha.value !== senha2.value) {
+      $('#nova-senha-erro').hidden = false;
+      return senha2.focus();
+    }
     msg('Salvando...');
     try {
-      await nuvem.trocarSenha($('#nova-senha').value);
+      await nuvem.trocarSenha($('#nova-senha').value, { mesmaVale: $('#nova-senha-form').dataset.cadastro === '1' });
+      lembrarCriarSenha(null);
       history.replaceState(null, '', location.pathname);
       location.reload();
     } catch (erro) {
@@ -195,14 +293,12 @@ function iniciarLogin() {
     }
   });
   $('#login-link').addEventListener('click', async () => {
-    if (!$('#login-email').value.trim()) return msg('Digite o seu e-mail primeiro.');
+    const email = emailDigitado('Receber link por e-mail');
+    if (!email) return;
     msg('Mandando...');
     try {
-      await nuvem.mandarLink($('#login-email').value);
-      $('#login-mascote').src = 'assets/mascote/email.webp';
-      $('#login-frase').textContent = 'Link enviado! Confira seu e-mail.';
-      msg('Abra o e-mail neste aparelho e clique no link para entrar.');
-      $('#login-form').hidden = true;
+      await nuvem.mandarLink(email);
+      mostrarEnviado('Se este e-mail tiver conta no Calculéo, mandamos um link para entrar. Abra o e-mail neste aparelho.', () => nuvem.mandarLink(email)); // neutro
     } catch (erro) {
       msg(erro.message);
     }
@@ -278,8 +374,29 @@ function temSessaoGuardada() {
   }
 }
 
+// Só a Plataforma, sem empresa ativa (dono da plataforma que nunca teve empresa, excluiu ou suspendeu a dele): o resto do app
+// precisa de empresa e fica de fora; no menu, só a Plataforma e o Sair.
+async function abrirSoPlataforma() {
+  $('#login').hidden = true;
+  $('#abrindo').hidden = true;
+  $('.app').hidden = false;
+  document.querySelectorAll('.menu .aba, .menu .menu-titulo, #exportar, #importar-botao, .versao').forEach((el) => (el.hidden = true));
+  $('#sair').addEventListener('click', nuvem.sair);
+  ligar('menu lateral', iniciarLateral);
+  ligar('avisos', iniciarAviso);
+  await iniciarPlataforma(); // o caminho já é /plataforma: a tela aparece no aviso 'tela' que ela dá
+}
+
 async function iniciar() {
-  const recuperando = /type=recovery/.test(location.hash); // voltou pelo link de "Esqueci a senha" (antes do login limpar o endereço)
+  // volta dos links de e-mail (lida antes de o Supabase limpar o endereço): o # diz o tipo; link vencido ou já usado vem com error_code
+  const volta = new URLSearchParams(location.hash.slice(1) || location.search.slice(1));
+  // link secreto do convite ou da senha nova (gerar-link, sem e-mail): #link=<token>&tipo=<invite|magiclink|recovery>
+  const linkSecreto = volta.get('link'), tipoLink = volta.get('tipo');
+  const recuperando = volta.get('type') === 'recovery' || (linkSecreto && tipoLink === 'recovery'); // "Esqueci a senha" ou link de senha nova
+  // confirmação do cadastro e link do convite (invite, ou magiclink de conta sem senha): cria a senha. type=magiclink do
+  // "Receber link por e-mail" (conta que já tem senha) entra direto
+  const confirmou = /^(signup|invite)$/.test(volta.get('type') ?? '') || (linkSecreto && /^(invite|magiclink)$/.test(tipoLink ?? ''));
+  const linkRuim = volta.has('error_code') || volta.get('error') === 'access_denied';
   // As telas trocam primeiro, para nunca aparecerem todas juntas.
   ligarRotas(); // /produtos, Voltar/Avançar e o /#produtos antigo
   window.addEventListener('tela', mostrarTela);
@@ -287,16 +404,48 @@ async function iniciar() {
   $('#versao-num').textContent = VERSAO; // a versão mora em src/config.js
   iniciarLogin();
   // Sem sessão guardada e sem link de login no endereço: o login aparece na hora, sem esperar a biblioteca do Supabase.
-  if (!temSessaoGuardada() && !/access_token|[?&]code=|type=recovery/.test(location.href)) return mostrarLogin();
+  if (linkRuim) {
+    history.replaceState(null, '', location.pathname);
+    if (!temSessaoGuardada()) return mostrarLogin('Este link venceu ou já foi usado. Peça um novo a quem te convidou.');
+  }
+  if (linkSecreto) {
+    history.replaceState(null, '', location.pathname); // o token sai do endereço já (vale uma vez só)
+    try {
+      await nuvem.entrarPeloLink(linkSecreto, tipoLink);
+    } catch (x) {
+      return mostrarLogin(x.rede ? 'Não deu para abrir o link agora. Confira a internet e tente de novo.' : 'Este link venceu ou já foi usado. Peça um novo a quem te convidou.');
+    }
+  } else if (!temSessaoGuardada() && !/access_token|[?&]code=|type=recovery/.test(location.href)) return mostrarLogin();
   try {
-    if (!(await nuvem.pessoaLogada())) return mostrarLogin();
-    if (recuperando) {
-      mostrarLogin('Escolha a sua senha nova (pelo menos 8 caracteres).');
+    const logada = await nuvem.pessoaLogada();
+    if (!logada) return mostrarLogin();
+    const quem = logada.id ?? logada.email; // de quem é a "senha a criar" guardada
+    // senha nova (Esqueci a senha) ou a senha do cadastro recém-confirmado: na confirmação ela é pedida de novo, porque a conta
+    // pode ter sido criada por outra pessoa com este e-mail e a senha DELA; quem tem o e-mail é quem define a senha
+    const criarSenha = confirmou || (!recuperando && faltaCriarSenha(quem));
+    if (recuperando || criarSenha) {
+      if (criarSenha) lembrarCriarSenha(quem);
+      mostrarLogin(!criarSenha ? 'Crie a sua senha nova (pelo menos 8 caracteres).'
+        : volta.get('type') === 'signup' ? 'E-mail confirmado! Agora crie a sua senha (pelo menos 8 caracteres).' // só a volta da confirmação por e-mail
+          : 'Bem-vindo ao Calculéo! Crie a sua senha (pelo menos 8 caracteres).'); // link do convite
       $('#login-form').hidden = true;
       $('#nova-senha-form').hidden = false;
+      $('#nova-senha-form').dataset.cadastro = criarSenha ? '1' : '';
       return $('#nova-senha').focus();
     }
     if (!(await nuvem.prepararEmpresa())) {
+      const [suspensas, plataforma] = await Promise.all([nuvem.empresasSuspensas(), nuvem.acessoPlataforma()]);
+      // dono da plataforma sem empresa ativa: a Plataforma abre mesmo assim (nunca se tranca fora suspendendo a própria empresa)
+      if (plataforma === 'sim' || plataforma === 'precisa_mfa') {
+        if (telaAtual() === 'plataforma') return abrirSoPlataforma();
+        $('#login-sair').insertAdjacentHTML('beforebegin', '<button type="button" class="botao" id="login-plataforma">Abrir a Plataforma</button>');
+        $('#login-plataforma').addEventListener('click', () => (history.pushState(null, '', '/plataforma'), abrirSoPlataforma()));
+      }
+      // empresa suspensa pela plataforma: diz qual e não oferece criar outra (senão a suspensão vira só "cria uma nova")
+      if (suspensas.length) {
+        const nomes = new Intl.ListFormat('pt-BR').format(suspensas);  // "Loren Metais e Conceito Metais"
+        return mostrarLogin(`${suspensas.length > 1 ? `As empresas ${nomes} estão suspensas` : `A empresa ${nomes} está suspensa`}. Fale com o suporte.`, true);
+      }
       // sem empresa (nunca teve ou excluiu a última): cria a sua aqui mesmo
       mostrarLogin('Crie a sua empresa ou peça um convite ao admin.', true);
       $('#criar-empresa-form').hidden = false;
@@ -331,6 +480,7 @@ async function iniciar() {
     $('#importar-botao').addEventListener('click', () => $('#importar').click());
   });
   ligar('equipe, histórico e empresa', iniciarNuvemTelas);
+  ligar('plataforma', () => iniciarPlataforma().catch((e) => console.error('plataforma', e))); // sem a correção 17 no banco: nada aparece
   oferecerLevarDados();
   if (nuvem.souDono()) levarFotosParaStorage();
 }

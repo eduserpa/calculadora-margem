@@ -7,9 +7,10 @@ import { lerNumero, campo, esc } from '../formato.js';
 import { icone } from '../icones.js';
 import { capa } from '../fotos.js';
 import { imgMascote2x, htmlCarregando } from './mascote.js';
-import { iniciarEquipe, resumoEquipe } from './equipe.js';
+import { iniciarEquipe, resumoEquipe, PAPEL } from './equipe.js';
 import { iniciarHistorico } from './historico.js';
 import { iniciarAviso } from './aviso.js';
+import { copiar as copiarTexto } from './link.js';
 import { campoNumero } from './numero.js';
 
 const $ = (s) => document.querySelector(s);
@@ -27,7 +28,6 @@ export async function iniciarNuvemTelas() {
   }
 }
 
-const PAPEL = { dono: 'Admin', membro: 'Membro' };
 // Avatar da empresa (Eduardo 13/11): iniciais das 2 primeiras palavras ("Conceito Metais" -> CM); cor pela posição na lista (lima, grafite claro, roxo suave)
 const iniciais = (nome) => (String(nome).trim().split(/\s+/).slice(0, 2).map((p) => p[0] ?? '').join('') || '?').toUpperCase();
 // Com foto (logo, correção 09), a foto no lugar das iniciais.
@@ -75,7 +75,7 @@ function desenharEmpresas() {
   const papel = PAPEL[e.papel] ?? esc(e.papel);
   const item = (x, i) => `
     <li role="none"><button type="button" role="menuitemradio" tabindex="-1" aria-checked="${x.id === e.id}" data-empresa="${esc(x.id)}">
-      ${avatar(x, i)}<span class="selo-nome">${esc(x.nome)}</span><span class="selo-papel">${PAPEL[x.papel] ?? esc(x.papel)}</span><span class="menu-marca" aria-hidden="true">${x.id === e.id ? icone('check') : ''}</span>
+      ${avatar(x, i)}<span class="selo-nome">${esc(x.nome)}${x.codigo ? `<small class="selo-codigo" aria-label="código ${esc(x.codigo)}">${esc(x.codigo)}</small>` : ''}</span><span class="selo-papel">${PAPEL[x.papel] ?? esc(x.papel)}</span><span class="menu-marca" aria-hidden="true">${x.id === e.id ? icone('check') : ''}</span>
     </button></li>`;
   $('#barra-empresa').innerHTML = `
     <div class="selo-caixa">
@@ -103,6 +103,7 @@ function desenharCartaoEmpresa() {
       <div class="empresa-titulo">
         <h2>${esc(e.nome)}</h2>
         <p class="dica">Você é ${papel}<span id="empresa-resumo">${resumo ? ` · ${esc(resumo)}` : ''}</span></p>
+        ${e.codigo ? `<p class="dica empresa-codigo">Código da empresa: <code>${esc(e.codigo)}</code><button type="button" class="botao pequeno" data-acao="copiar-codigo" aria-label="Copiar o código da empresa" title="Copiar">${icone('copy')}</button></p>` : ''}
       </div>
       ${e.papel === 'dono' ? `<button type="button" class="botao" data-acao="editar-empresa">${icone('pencil')} Editar</button>` : ''}
     </div>
@@ -304,6 +305,8 @@ function aoClicarEmpresa(ev) {
   const acao = ev.target.closest('[data-acao]')?.dataset.acao;
   if (acao === 'nova-empresa') janelaNovaEmpresa();
   if (acao === 'editar-empresa') janelaEditarEmpresa();
+  // o código (que nunca muda) identifica a empresa para o suporte, mesmo se o nome mudar
+  if (acao === 'copiar-codigo') copiarTexto(atualE().codigo).then((ok) => estadoEmpresa(ok ? `Código ${atualE().codigo} copiado.` : `Código da empresa: ${atualE().codigo}`));
 }
 
 function ligarSelo() {

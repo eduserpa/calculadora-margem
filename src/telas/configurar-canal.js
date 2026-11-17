@@ -1,23 +1,25 @@
 // Janela "Configurar <canal>": a regra do canal (fixa; o lápis libera para editar), depois impostos, custos por unidade e promoção.
 // Aberta da Calculadora com um produto escolhido, o campo "Impostos (%)" é o desse produto neste canal (ex.: DIFAL no ML):
 // já vem com o que vale hoje; mudar grava só nele (produto.impostosCanal); igual ao padrão não grava. Sem produto (Taxas dos
-// Canais), o campo muda o padrão do canal para todos, como antes.
+// Canais), o campo muda o padrão do canal para todos, como antes. A "Categoria do produto" do ML segue a mesma ideia (correção 20):
+// com produto, é a dele (produto.categoriaMl; sem = a do canal); sem produto, é o padrão do canal.
 import { icone } from '../icones.js';
 import { dados, salvar, canais, canaisDePadrao } from '../dados.js';
 import { quadroDaRegra, notaDoMercadoLivre, tipoDeVenda, faixasEmTexto, data } from '../canais-texto.js';
 import { lerNumero, campo, campoReais, esc } from '../formato.js';
 import { comissoesProprias } from '../calculos/canal.js';
 import { campoNumero } from './numero.js';
-import { impostoDoProdutoNoCanal } from '../produtos.js';
+import { impostoDoProdutoNoCanal, canalDoProduto } from '../produtos.js';
+import { OUTRA, categoriasMl, carregarCategoriasMl } from '../categorias-ml.js';
 
 const $ = (s, raiz = document) => raiz.querySelector(s);
 const janela = () => $('#janela-canal');
 let id = '';
 let rasc = null;
 let editando = false; // regra do canal liberada pelo lápis
-let categorias = null; // lista oficial do ML, carregada quando a janela do ML abre
 let produto = null; // escolhido na Calculadora: o imposto da janela é o dele neste canal
 let impostoProprio = null; // o imposto só deste produto neste canal (null = o padrão do canal)
+let catProduto = null; // a categoria do ML só deste produto (null = a do canal)
 
 const REPUTACOES = { verde: 'Verde ou MercadoLíder', sem: 'Sem reputação', amarela: 'Amarela', laranja: 'Laranja', vermelha: 'Vermelha' };
 
@@ -41,20 +43,20 @@ export function iniciarConfigurarCanal() {
       return $('#imposto-produto', j).focus();
     }
     dados.canais = { ...structuredClone(canais()), [id]: rasc };
-    if (produto && impostoProprio !== impostoDoProdutoNoCanal(produto, id)) gravarImpostoDoProduto();
+    if (produto && (impostoProprio !== impostoDoProdutoNoCanal(produto, id) || catProduto !== (produto.categoriaMl ?? null))) gravarNoProduto();
     salvar();
     j.close();
   });
 }
 
-// Só o imposto deste produto neste canal muda (os outros canais e produtos ficam como estão).
-function gravarImpostoDoProduto() {
+// Só o imposto deste produto neste canal e a categoria do ML dele mudam (os outros canais e produtos ficam como estão).
+function gravarNoProduto() {
   dados.produtos = dados.produtos.map((p) => {
     if (p.id !== produto.id) return p;
     const impostosCanal = { ...(p.impostosCanal ?? {}) };
     if (impostoProprio == null) delete impostosCanal[id];
     else impostosCanal[id] = impostoProprio;
-    return { ...p, impostosCanal, atualizadoEm: new Date().toISOString() };
+    return { ...p, impostosCanal, categoriaMl: catProduto, atualizadoEm: new Date().toISOString() };
   });
 }
 
@@ -65,16 +67,11 @@ export async function abrirConfigurarCanal(idCanal, produtoEscolhido = null) {
   catPai = null;
   produto = produtoEscolhido;
   impostoProprio = impostoDoProdutoNoCanal(produto, id);
+  catProduto = produto?.categoriaMl ?? null;
   if (rasc.tipo === 'mercadolivre') rasc.comissao_propria = comissoesProprias(rasc); // um valor por tipo de anúncio
   if (rasc.tipo_vendedor) rasc.tipo_vendedor = 'cnpj'; // a empresa vende como CNPJ
   editando = false;
-  if (rasc.tipo === 'mercadolivre' && !categorias) {
-    try {
-      categorias = (await (await fetch('data/ml-categorias.json')).json()).categorias;
-    } catch {
-      categorias = [];
-    }
-  }
+  if (rasc.tipo === 'mercadolivre') await carregarCategoriasMl();
   desenhar();
   janela().showModal();
   // 1º campo da janela (no ML, a escolha marcada de Clássico/Premium, lá em cima)
@@ -150,10 +147,14 @@ function faixasEditaveis(infoFonte = '') {
     </div>`;
 }
 
+// O canal como fica para o produto escolhido (a redução da categoria dele); sem produto, o próprio canal.
+const vista = () => (produto ? canalDoProduto(rasc, { ...produto, categoriaMl: catProduto }, id) : rasc);
+const catAtual = () => (produto && catProduto) || rasc.categoria || '';
+
 function opcoesMercadoLivre() {
   const tipo = rasc.tipo_anuncio === 'premium' ? 'premium' : 'classico';
   const nome = tipo === 'premium' ? 'Premium' : 'Clássico';
-  const r = rasc.faixa_reduzida;
+  const r = vista().faixa_reduzida;
   const rep = rasc.reputacao || 'verde';
   const semTabela = !['verde', 'sem'].includes(rep) && !rasc.frete_por_reputacao?.[rep];
   return `
@@ -162,7 +163,7 @@ function opcoesMercadoLivre() {
       <div class="alternar separado" role="radiogroup" aria-label="Tipo de anúncio">
         ${radio('tipo_anuncio', 'classico', 'Clássico', tipo === 'classico')}${radio('tipo_anuncio', 'premium', 'Premium', tipo === 'premium')}
       </div>
-      <p class="dica" id="nota-ml">${esc(notaDoMercadoLivre(rasc))}</p>
+      <p class="dica" id="nota-ml">${esc(notaDoMercadoLivre(vista()))}</p>
     </div>
     ${barraDaRegra()}
     <div class="secao">
@@ -175,7 +176,7 @@ function opcoesMercadoLivre() {
       <p class="secao-titulo">Comissão menor de R$ ${campoReais(r.de)} a R$ ${campoReais(r.ate)} ${info([rasc.faixa_reduzida_fonte, rasc.faixa_reduzida_conferido_em])}</p>
       ${seletorCategoria()}
       <div class="grade">${editando
-        ? `${dinheiro('De (R$)', 'faixa_reduzida.de')}${dinheiro('Até (R$)', 'faixa_reduzida.ate')}${porcento(`Redução ${nome} (pontos)`, `faixa_reduzida.reducao.${tipo}`)}`
+        ? `${dinheiro('De (R$)', 'faixa_reduzida.de')}${dinheiro('Até (R$)', 'faixa_reduzida.ate')}${produto && catProduto ? fixo(`Redução ${nome}`, pctFixo(r.reducao[tipo])) : porcento(`Redução ${nome} (pontos)`, `faixa_reduzida.reducao.${tipo}`)}`
         : fixo(`Redução ${nome}`, pctFixo(r.reducao[tipo]))}</div>
     </div>
     <label class="campo"><span>Reputação da conta</span>
@@ -258,14 +259,13 @@ const campoImpostoDoProduto = () => `
   </div>`;
 
 // Categoria em 2 níveis num campo só: abre a lista de categorias; clicar numa categoria mostra as subcategorias dela.
-const OUTRA = 'Outra categoria (sem redução)';
 let catAberto = false; // lista aberta
 let catPai = null; // categoria cujas subcategorias estão à mostra (null = lista de categorias)
 let catBusca = ''; // o que foi digitado no campo de busca da lista (Eduardo 17/11): com texto, a lista vira os resultados das 2 camadas
 const semAcento = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 function gruposDeCategoria() {
   const grupos = new Map();
-  for (const c of categorias ?? []) {
+  for (const c of categoriasMl ?? []) {
     const [pai, ...resto] = c[0].split(' > ');
     if (!grupos.has(pai)) grupos.set(pai, []);
     grupos.get(pai).push([c[0], resto.join(' > ') || pai]);
@@ -273,20 +273,24 @@ function gruposDeCategoria() {
   return grupos;
 }
 function listaCategorias() {
-  const atual = rasc.categoria || '';
+  const atual = catAtual();
   const grupos = gruposDeCategoria();
   const item = (acao, v, rotulo, extra = '') => `<li><button type="button" class="cat-item" data-acao="${acao}" data-v="${esc(v)}"${v === atual ? ' aria-current="true"' : ''}>${esc(rotulo)}${extra}</button></li>`;
   const palavras = semAcento(catBusca).split(/\s+/).filter(Boolean);
   if (palavras.length) {  // busca: todas as palavras em qualquer parte do caminho "Categoria › Subcategoria"
-    const achadas = [OUTRA, ...(categorias ?? []).map((c) => c[0])].filter((v) => palavras.every((p) => semAcento(v).includes(p)));
+    const achadas = [OUTRA, ...(categoriasMl ?? []).map((c) => c[0])].filter((v) => palavras.every((p) => semAcento(v).includes(p)));
     return `<ul class="cat-lista">${achadas.length ? achadas.map((v) => item('cat-escolher', v, v.replace(/ > /g, ' › '))).join('') : '<li class="cat-vazio">Nenhuma categoria com esse nome</li>'}</ul>`;
   }
   return catPai
     ? `<ul class="cat-lista">${item('cat-voltar', '', `‹ ${catPai}`)}${(grupos.get(catPai) ?? []).map(([v, r]) => item('cat-escolher', v, r)).join('')}</ul>`
     : `<ul class="cat-lista">${item('cat-escolher', OUTRA, OUTRA)}${[...grupos.keys()].map((p) => item('cat-pai', p, p, ' <span aria-hidden="true">›</span>')).join('')}</ul>`;
 }
+// com produto: de onde vem a categoria dele e "voltar ao padrão"; sem produto: é o padrão do canal
+const origemCategoria = () => (!produto ? 'Padrão para produtos sem categoria.' : !catProduto
+  ? `Padrão do canal. Mudar aqui vale só para “${esc(produto.nome)}”.`
+  : `Só deste produto · <button type="button" class="link-botao" data-acao="cat-padrao">voltar ao padrão (${esc((rasc.categoria || 'sem categoria').replace(/ > /g, ' › '))})</button>`);
 function seletorCategoria() {
-  const atual = rasc.categoria || '';
+  const atual = catAtual();
   const valor = atual ? esc(atual.replace(/ > /g, ' › ')) : '';
   // um campo só (Eduardo 17/11): fechado é o botão com a categoria; aberto, o próprio campo vira a busca (a categoria atual fica de dica)
   const campo = catAberto
@@ -296,7 +300,8 @@ function seletorCategoria() {
   return `<div class="campo"><span id="cat-rotulo">Categoria do produto</span>
         ${campo}
         ${catAberto ? listaCategorias() : ''}
-      </div>`;
+      </div>
+      <small class="dica cat-origem">${origemCategoria()}</small>`;
 }
 
 // ---------- eventos ----------
@@ -316,7 +321,7 @@ function aoDigitar(e) {
   definir(el.dataset.c, el.hasAttribute('data-num') ? lerNumero(el.value) : el.value);
   if (el.dataset.c === 'impostos') rasc.impostosProprio = el.value.trim() !== ''; // vazio: vale o imposto da empresa
   const nota = $('#nota-ml', janela());
-  if (nota) nota.textContent = notaDoMercadoLivre(rasc);
+  if (nota) nota.textContent = notaDoMercadoLivre(vista());
 }
 
 // Troca que muda o formulário (opção ligada, tipo, reputação): redesenha.
@@ -331,8 +336,12 @@ function aoTrocar(e) {
 }
 
 function escolherCategoria(nome, redesenhar) {
+  if (produto) { // só a do produto: o padrão do canal fica como está
+    catProduto = nome;
+    return desenhar();
+  }
   rasc.categoria = nome;
-  const achada = (categorias ?? []).find((c) => c[0] === nome);
+  const achada = (categoriasMl ?? []).find((c) => c[0] === nome);
   if (achada) rasc.faixa_reduzida.reducao = { premium: achada[1], classico: achada[2] };
   else if (nome === OUTRA) rasc.faixa_reduzida.reducao = { premium: 0, classico: 0 };
   else return;
@@ -344,7 +353,8 @@ function aoClicar(e) {
   if (!b) return;
   const acao = b.dataset.acao;
   if (acao === 'cancelar') return janela().close();
-  if (acao === 'cat-abrir') { catAberto = !catAberto; catBusca = ''; catPai = catAberto && rasc.categoria && rasc.categoria !== OUTRA ? rasc.categoria.split(' > ')[0] : null; }
+  if (acao === 'cat-abrir') { catAberto = !catAberto; catBusca = ''; catPai = catAberto && catAtual() && catAtual() !== OUTRA ? catAtual().split(' > ')[0] : null; }
+  if (acao === 'cat-padrao') catProduto = null;
   if (acao === 'cat-pai') catPai = b.dataset.v;
   if (acao === 'cat-voltar') catPai = null;
   if (acao === 'cat-escolher') { catAberto = false; catPai = null; catBusca = ''; escolherCategoria(b.dataset.v, false); }
@@ -369,5 +379,5 @@ function aoClicar(e) {
   }
   if (acao === 'tirar-faixa') rasc.faixas.splice(Number(b.dataset.i), 1);
   desenhar();
-  if (acao.startsWith('cat-')) $(acao === 'cat-abrir' && catAberto ? '#cat-busca' : catAberto ? '.cat-lista .cat-item' : '.cat-botao', janela())?.focus(); // ao abrir já dá para digitar; depois o foco segue a lista
+  if (acao.startsWith('cat-')) $(acao === 'cat-padrao' ? '.cat-botao' : acao === 'cat-abrir' && catAberto ? '#cat-busca' : catAberto ? '.cat-lista .cat-item' : '.cat-botao', janela())?.focus(); // ao abrir já dá para digitar; depois o foco segue a lista
 }

@@ -1,5 +1,17 @@
 [
   {
+    "versao": "Alpha 1.3.0",
+    "data": "17/11/2026",
+    "itens": [
+      "Convite por link: o admin copia o link ou manda no WhatsApp; a pessoa abre e cria a senha (vale 24 horas e uma vez)",
+      "Link de senha nova gerado pelo admin da empresa, para quem esqueceu a senha",
+      "Criar senha com confirmação",
+      "Código da empresa na tela Empresa e no menu de empresas, para falar com o suporte",
+      "Categoria do Mercado Livre salva por produto; sem categoria, vale a do canal",
+      "Buscas de concorrentes: contador do mês e busca só com o nome do produto corrigido"
+    ]
+  },
+  {
     "versao": "Alpha 1.2.5",
     "data": "17/11/2026",
     "itens": [

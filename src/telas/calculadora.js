@@ -567,8 +567,8 @@ function iniciarConcorrentes() {
     </div>
     <div id="c-conc-corpo"></div>
     <div class="conc-nome-fraco" hidden>
-      <div class="aviso-tipo atencao"><p class="aviso-texto">O nome deste produto é curto ou tem só código, então os concorrentes podem vir menos precisos.</p>
-        <button type="button" class="botao pequeno" data-acao="corrigir-nome">Corrigir nome</button></div>
+      <div class="aviso-tipo atencao"><p class="aviso-texto">O nome deste produto é curto ou tem só código: a busca no Mercado Livre traria anúncios que não são o seu produto.</p>
+        <button type="button" class="botao pequeno principal" data-acao="corrigir-nome">Corrigir nome</button></div>
       <form class="conc-renomear" novalidate hidden>
         <label class="campo"><span>Nome do produto</span><input type="text" name="nome" autocomplete="off" required></label>
         <p class="erro" role="alert" hidden></p>
@@ -686,7 +686,7 @@ function iniciarConcorrentes() {
   // Busca pelo nome do produto e guarda (substitui a anterior). Trocar de produto no meio não atrapalha: fica no produto certo.
   async function buscarNoML() {
     const { produto } = custoEPeso();
-    if (!produto || buscando.has(produto.id)) return;
+    if (!produto || buscando.has(produto.id) || !qualidadeDoNome(produto.nome, produto.sku).boa) return; // nome fraco: o botão já vem desligado
     buscando.add(produto.id);
     atualizar();
     try {
@@ -697,6 +697,7 @@ function iniciarConcorrentes() {
       mostrarAviso(falha.message, 'erro');
     }
     buscando.delete(produto.id);
+    cota = undefined; // a busca (ou a recusa por limite) mudou a cota: relê
     atualizar();
     if (estado.produtoId === produto.id) (busca.querySelector('input[data-chave]') ?? acoes.querySelector('[data-acao="buscar-ml"]'))?.focus();
   }
@@ -758,6 +759,18 @@ async function lerConcorrentes() {
 // anúncio (marcada = no cálculo). Só redesenha a lista quando a busca, o custo, o peso ou o canal mudam: desmarcar não a
 // redesenha (o foco fica na caixinha). -> os anúncios da busca, com { fora }, para o resumo do cartão.
 let desenhoAcoes = '';
+// cota de buscas da empresa (correção 19): undefined = ainda não lida; null = sem limite (ou banco sem a função); relida depois de buscar
+let cota;
+let lendoCota = false;
+function lerCota() {
+  if (lendoCota) return;
+  lendoCota = true;
+  nuvem.cotaBuscas().catch(() => null).then((c) => {
+    cota = c;
+    lendoCota = false;
+    atualizar();
+  });
+}
 let desenhoBusca = '';
 let ordemBusca = ''; // '' = relevância do ML; 'preco:1', 'margem:-1'... (só a tela; não muda o que entra no cálculo)
 function desenharBusca({ produto, canal, cmv, pesoG }) {
@@ -772,11 +785,21 @@ function desenharBusca({ produto, canal, cmv, pesoG }) {
     });
   }
   const salva = buscas.get(produto.id);
+  if (cota === undefined) lerCota();
+  // limite de buscas do mês (Eduardo 17/11): "x de y" embaixo dos botões; no limite (também o 0) o Buscar/Atualizar desligam e o
+  // "Adicionar à mão" continua. Sem limite, nada aparece.
+  const noLimite = cota?.limite != null && cota.usadas >= cota.limite;
+  // nome fraco (só código, curto): a busca não sai (Eduardo 17/11: gastava crédito com resultado que não serve); corrigir o nome liga
+  const nomeFraco = !qualidadeDoNome(produto.nome, produto.sku).boa;
+  const desliga = noLimite || nomeFraco ? ' disabled' : '';
+  const linhaCota = (nomeFraco ? '<p class="conc-cota dica">Corrija o nome do produto para buscar concorrentes.</p>' : '') + (cota?.limite == null ? ''
+    : noLimite ? '<p class="conc-cota erro" role="status">Sua empresa chegou ao limite de buscas deste mês. Fale com o suporte do Calculéo.</p>'
+      : `<p class="conc-cota dica">${cota.usadas} de ${cota.limite} buscas usadas este mês</p>`);
   const mao = `<button type="button" class="botao pequeno" data-acao="novo-conc">${icone('plus')} Adicionar à mão</button>`;
   const html = salva === undefined ? mao
     : buscando.has(produto.id) ? `<p class="conc-buscando" role="status">${LEAO_BUSCANDO}<span>Buscando concorrentes…</span></p>${mao}`
-    : salva ? `<p class="conc-buscado"><span>Buscado em ${esc(quando(salva.buscadoEm))}</span><button type="button" class="botao pequeno" data-acao="buscar-ml">Atualizar</button></p>${mao}`
-    : `<button type="button" class="botao principal" data-acao="buscar-ml">Buscar concorrentes</button>${mao}`;
+    : salva ? `<p class="conc-buscado"><span>Buscado em ${esc(quando(salva.buscadoEm))}</span><button type="button" class="botao pequeno" data-acao="buscar-ml"${desliga}>Atualizar</button></p>${mao}${linhaCota}`
+    : `<button type="button" class="botao principal" data-acao="buscar-ml"${desliga}>Buscar concorrentes</button>${mao}${linhaCota}`;
   if (html !== desenhoAcoes) acoes.innerHTML = desenhoAcoes = html;
   caixa.querySelector('.conc-nome-fraco').hidden = qualidadeDoNome(produto.nome, produto.sku).boa;
 

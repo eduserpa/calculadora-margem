@@ -6,14 +6,40 @@
 
 -- ---------- empresas, pessoas e convites ----------
 
+-- Código da empresa (correção 17): 6 letras e números sem os que confundem (0/O, 1/I/L), sorteado (não revela quantas
+-- empresas há). Sorteia de novo se já existir. Nunca muda (gatilho codigo_nao_muda).
+create function novo_codigo_empresa() returns text
+language plpgsql volatile security definer set search_path = public
+as $$
+declare c text;
+begin
+  loop
+    select string_agg(substr('ABCDEFGHJKMNPQRSTUVWXYZ23456789', 1 + floor(random() * 31)::int, 1), '') into c from generate_series(1, 6);
+    exit when not exists (select 1 from empresas where codigo = c);
+  end loop;
+  return c;
+end $$;
+
 create table empresas (
   id uuid primary key default gen_random_uuid(),
+  codigo text not null unique default novo_codigo_empresa() constraint codigo_da_empresa check (codigo ~ '^[A-HJKMNP-Z2-9]{6}$'), -- ex.: K7QP9M
   nome text not null,
   -- foto (logo): endereço público no Storage (fotos/<empresa>/empresa/<hash>.webp) ou null (o app mostra as iniciais).
   -- Só uma foto da pasta da própria empresa, nunca um endereço qualquer de fora. Trocar e tirar: só o admin (RLS dono_renomeia).
   foto text constraint foto_da_empresa check (foto is null or foto ~ ('^https://[a-z0-9]+\.supabase\.co/storage/v1/object/public/fotos/' || id || '/empresa/[^/]+$')),
-  criado_em timestamptz not null default now()
+  criado_em timestamptz not null default now(),
+  suspensa boolean not null default false, -- suspensa pelo painel da plataforma: ninguém dela lê nem grava (correção 17)
+  limite_buscas_mes int default 20 check (limite_buscas_mes is null or limite_buscas_mes >= 0) -- buscas de concorrentes no mês; null = sem limite; nova nasce com 20 (correção 17)
 );
+
+create function codigo_nao_muda() returns trigger
+language plpgsql set search_path = public
+as $$
+begin
+  if new.codigo is distinct from old.codigo then raise exception 'o código da empresa não muda'; end if;
+  return new;
+end $$;
+create trigger codigo_nao_muda before update of codigo on empresas for each row execute function codigo_nao_muda();
 
 create table membros (
   empresa_id uuid not null references empresas on delete cascade,
@@ -33,14 +59,16 @@ create table convites (
   primary key (empresa_id, email)
 );
 
--- Empresas da pessoa logada (vazio sem login).
+-- Empresas da pessoa logada (vazio sem login), sem as suspensas (correção 17). Todas as RLS e funções da empresa passam
+-- por aqui ou por sou_dono.
 create function minhas_empresas() returns setof uuid
 language sql stable security definer set search_path = public
-as $$ select empresa_id from membros where usuario_id = auth.uid() $$;
+as $$ select m.empresa_id from membros m join empresas e on e.id = m.empresa_id where m.usuario_id = auth.uid() and not e.suspensa $$;
 
 create function sou_dono(empresa uuid) returns boolean
 language sql stable security definer set search_path = public
-as $$ select exists (select 1 from membros where empresa_id = empresa and usuario_id = auth.uid() and papel = 'dono') $$;
+as $$ select exists (select 1 from membros m join empresas e on e.id = m.empresa_id
+  where m.empresa_id = empresa and m.usuario_id = auth.uid() and m.papel = 'dono' and not e.suspensa) $$;
 
 -- E-mail de quem está logado (para o histórico e os convites).
 create function meu_email() returns text
@@ -127,6 +155,7 @@ create table produtos (
   largura_cm numeric not null default 0 check (largura_cm >= 0),
   altura_cm numeric not null default 0 check (altura_cm >= 0),
   impostos_canal jsonb not null default '{}' check (impostos_validos(impostos_canal)), -- imposto só deste produto, por canal (correção 14)
+  categoria_ml text check (categoria_ml is null or length(trim(categoria_ml)) between 1 and 300), -- categoria do Mercado Livre deste produto ('Pai > Sub' da lista oficial); null = a do canal (correção 20)
   fotos text[] not null default '{}',
   atualizado_em timestamptz not null default now(),
   unique (empresa_id, id) -- para kit e precificação apontarem só para produto da mesma empresa
@@ -194,13 +223,24 @@ create table buscas_concorrentes (
 create table buscas_feitas (
   id bigint generated always as identity primary key,
   empresa_id uuid not null references empresas on delete cascade,
-  produto_id uuid not null,
+  produto_id uuid, -- null: o produto foi apagado; a busca continua contando para a empresa (correção 17)
   feita_em timestamptz not null default now(),
-  foreign key (empresa_id, produto_id) references produtos (empresa_id, id) on delete cascade
+  constraint buscas_feitas_produto foreign key (empresa_id, produto_id) references produtos (empresa_id, id) on delete set null (produto_id)
 );
 create index buscas_feitas_empresa on buscas_feitas (empresa_id, feita_em);
--- 'ok' (contou a busca) | 'fora' (não é da empresa) | 'produto' (buscado há menos de 10 min) | 'dia' (30 em 24 h)
-create or replace function registrar_busca(empresa uuid, produto uuid) returns text
+-- Para a tela dizer "A empresa X está suspensa" no lugar de "sem empresa": só os nomes das suspensas da própria pessoa.
+create function minhas_empresas_suspensas() returns setof text
+language sql stable security definer set search_path = public
+as $$ select e.nome from membros m join empresas e on e.id = m.empresa_id where m.usuario_id = auth.uid() and e.suspensa order by e.nome $$;
+
+-- Começo do mês no horário de Brasília (as buscas do mês contam daqui).
+create function inicio_do_mes() returns timestamptz
+language sql stable set search_path = public
+as $$ select date_trunc('month', now() at time zone 'America/Sao_Paulo') at time zone 'America/Sao_Paulo' $$;
+
+-- 'ok' (contou a busca) | 'fora' (não é da empresa) | 'so_admin' | 'produto' (buscado há menos de 10 min)
+-- | 'mes' (limite do mês da empresa, correção 17) | 'dia' (30 em 24 h)
+create function registrar_busca(empresa uuid, produto uuid) returns text
 language plpgsql security definer set search_path = public
 as $$
 begin
@@ -210,11 +250,29 @@ begin
   if exists (select 1 from buscas_feitas where empresa_id = empresa and produto_id = produto and feita_em > now() - interval '10 minutes') then
     return 'produto';
   end if;
+  if (select limite_buscas_mes from empresas where id = empresa) <= (select count(*) from buscas_feitas where empresa_id = empresa and feita_em >= inicio_do_mes()) then
+    return 'mes'; -- limite null: a comparação dá null e passa
+  end if;
   if (select count(*) from buscas_feitas where empresa_id = empresa and feita_em > now() - interval '24 hours') >= 30 then
     return 'dia';
   end if;
   insert into buscas_feitas (empresa_id, produto_id) values (empresa, produto);
   return 'ok';
+end $$;
+
+-- Cota de buscas de concorrentes da empresa, para a tela mostrar "x de y buscas este mês" e desligar o botão no limite
+-- (correção 19). Para quem é da empresa (e ela não está suspensa); para os outros, nada. limite null = sem limite.
+-- Conta como o registrar_busca: buscas da empresa desde o começo do mês (horário de Brasília); no limite, ele devolve 'mes'.
+create function minha_cota_buscas(empresa uuid) returns table (limite int, usadas_mes int)
+language plpgsql stable security definer set search_path = public
+as $$
+#variable_conflict use_column
+begin
+  if empresa is null or empresa not in (select minhas_empresas()) then return; end if;
+  return query
+    select e.limite_buscas_mes,
+      (select count(*) from buscas_feitas b where b.empresa_id = e.id and b.feita_em >= inicio_do_mes())::int
+    from empresas e where e.id = empresa;
 end $$;
 
 -- ---------- histórico (gravado pelo próprio banco) ----------
@@ -323,6 +381,7 @@ as $$
     (14, 'Comprimento', valor_br('cm', to_jsonb(a.comprimento_cm)), valor_br('cm', to_jsonb(d.comprimento_cm))),
     (15, 'Largura', valor_br('cm', to_jsonb(a.largura_cm)), valor_br('cm', to_jsonb(d.largura_cm))),
     (16, 'Altura', valor_br('cm', to_jsonb(a.altura_cm)), valor_br('cm', to_jsonb(d.altura_cm))),
+    (18, 'Categoria do Mercado Livre', coalesce(nullif(a.categoria_ml, ''), 'padrão do canal'), coalesce(nullif(d.categoria_ml, ''), 'padrão do canal')),
     (99, 'Foto trocada', case when a.fotos is distinct from d.fotos then 'sim' end, null)
     union all
     select 17, 'Imposto (' || nome_do_canal(d.empresa_id, k) || ')',
@@ -499,12 +558,12 @@ begin
   for o in select * from produtos where empresa_id = origem and tipo_custo <> 'kit' and (ids is null or id = any(ids)) loop
     if sku_unico(origem, o.sku) and sku_unico(destino, o.sku) then
       update produtos d set nome = o.nome, tipo_custo = o.tipo_custo, custo = o.custo, peso_g = o.peso_g,
-        comprimento_cm = o.comprimento_cm, largura_cm = o.largura_cm, altura_cm = o.altura_cm, impostos_canal = o.impostos_canal, fotos = o.fotos, atualizado_em = now()
+        comprimento_cm = o.comprimento_cm, largura_cm = o.largura_cm, altura_cm = o.altura_cm, impostos_canal = o.impostos_canal, categoria_ml = o.categoria_ml, fotos = o.fotos, atualizado_em = now()
       where d.empresa_id = destino and lower(trim(d.sku)) = lower(trim(o.sku));
       atualizados := atualizados + 1;
     else
-      insert into produtos (empresa_id, nome, sku, tipo_custo, custo, peso_g, comprimento_cm, largura_cm, altura_cm, impostos_canal, fotos)
-      values (destino, o.nome, o.sku, o.tipo_custo, o.custo, o.peso_g, o.comprimento_cm, o.largura_cm, o.altura_cm, o.impostos_canal, o.fotos);
+      insert into produtos (empresa_id, nome, sku, tipo_custo, custo, peso_g, comprimento_cm, largura_cm, altura_cm, impostos_canal, categoria_ml, fotos)
+      values (destino, o.nome, o.sku, o.tipo_custo, o.custo, o.peso_g, o.comprimento_cm, o.largura_cm, o.altura_cm, o.impostos_canal, o.categoria_ml, o.fotos);
       novos := novos + 1;
     end if;
   end loop;
@@ -520,24 +579,32 @@ create function foto_em_uso(url text) returns boolean
 language sql stable security definer set search_path = public
 as $$ select exists (select 1 from produtos where fotos @> array[url]) or exists (select 1 from empresas where foto = url) $$;  -- pelo índice produtos_fotos
 
--- Excluir empresa (janela Editar empresa): só o admin dela. Tudo numa transação: se algo falhar, nada some.
+-- Apaga a empresa e tudo dela, numa transação (se algo falhar, nada some). Sem conferir quem pede: quem chama confere
+-- (excluir_empresa: o dono; plataforma_excluir_empresa: o admin da plataforma). Sem grant para ninguém.
 -- Filhas de empresas, todas com "on delete cascade": membros, convites, produtos, itens_kit, precificacoes, config_canais e historico.
 -- Mas a cascata sozinha não serve: o kit aponta para o produto com "restrict" (não apaga produto que está num kit) e os gatilhos
 -- do histórico anotam a exclusão de cada produto e taxa numa empresa que está saindo. Por isso, em ordem:
 -- itens de kit, preços, produtos e taxas (os gatilhos anotam), o histórico (com essas anotações) e, por fim, a empresa
--- (membros e convites vão pela cascata).
--- As fotos (Storage, pasta fotos/<empresa>/) o app apaga antes de chamar esta função.
-create function excluir_empresa(empresa uuid) returns void
+-- (membros, convites, concorrentes e buscas vão pela cascata).
+create function apagar_dados_empresa(empresa uuid) returns void
 language plpgsql security definer set search_path = public
 as $$
 begin
-  if not sou_dono(empresa) then raise exception 'só o admin pode excluir a empresa'; end if;
   delete from itens_kit where empresa_id = empresa;
   delete from precificacoes where empresa_id = empresa;
   delete from produtos where empresa_id = empresa;
   delete from config_canais where empresa_id = empresa;
   delete from historico where empresa_id = empresa;
   delete from empresas where id = empresa;
+end $$;
+
+-- Excluir empresa (janela Editar empresa): só o admin dela.
+create function excluir_empresa(empresa uuid) returns void
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if not sou_dono(empresa) then raise exception 'só o admin pode excluir a empresa'; end if;
+  perform apagar_dados_empresa(empresa);
 end $$;
 
 -- Fotos da pasta fotos/<empresa>/ que produtos de OUTRAS empresas ainda usam (o "Clonar" copia o endereço): o app não apaga
@@ -550,6 +617,306 @@ as $$
   where sou_dono(empresa) and empresa_id <> empresa and f like '%/storage/v1/object/public/fotos/' || empresa || '/%'
   order by 1 -- o app lê em blocos de 1000
 $$;
+
+-- ---------- painel da plataforma (correção 17) ----------
+-- Só para os donos do Calculéo: na lista admins_plataforma E com as 2 etapas (JWT aal2). As tabelas não têm permissão para
+-- ninguém; toda função começa conferindo sou_admin_plataforma(). O painel não vê produtos, preços nem margens.
+
+-- Quem administra a plataforma. Só o SQL Editor grava aqui (trecho no fim do arquivo).
+create table admins_plataforma (
+  usuario_id uuid primary key references auth.users on delete cascade,
+  email text,
+  criado_em timestamptz not null default now()
+);
+
+-- O que o painel fez (toda função de escrita grava uma linha).
+create table auditoria_plataforma (
+  id bigserial primary key,
+  quando timestamptz not null default now(),
+  usuario_id uuid,
+  email text,
+  acao text not null,
+  detalhe text not null default ''
+);
+
+-- ---------- quem é admin da plataforma ----------
+-- plpgsql: auth.jwt() só é procurada na hora de rodar.
+
+-- Na lista E com as 2 etapas (aal2 no JWT, assinado pelo Supabase).
+create function sou_admin_plataforma() returns boolean
+language plpgsql stable security definer set search_path = public
+as $$
+begin
+  return exists (select 1 from admins_plataforma where usuario_id = auth.uid()) and coalesce(auth.jwt() ->> 'aal', '') = 'aal2';
+end $$;
+
+-- Para o app mostrar ou não o menu: 'nao' | 'precisa_mfa' | 'sim'. A única do painel que não dá erro.
+create function meu_acesso_plataforma() returns text
+language plpgsql stable security definer set search_path = public
+as $$
+begin
+  if not exists (select 1 from admins_plataforma where usuario_id = auth.uid()) then return 'nao'; end if;
+  if coalesce(auth.jwt() ->> 'aal', '') <> 'aal2' then return 'precisa_mfa'; end if;
+  return 'sim';
+end $$;
+
+-- Linha da auditoria (só as funções do painel chamam; sem grant para ninguém).
+create function anotar_plataforma(acao text, detalhe text) returns void
+language sql security definer set search_path = public
+as $$ insert into auditoria_plataforma (usuario_id, email, acao, detalhe) values (auth.uid(), meu_email(), acao, detalhe) $$;
+
+-- "Nome (CÓDIGO)" da empresa para a auditoria; empresa que não existe dá erro.
+create function nome_da_empresa(empresa uuid) returns text
+language plpgsql stable security definer set search_path = public
+as $$
+declare n text;
+begin
+  select nome || ' (' || codigo || ')' into n from empresas where id = empresa;
+  if not found then raise exception 'empresa não encontrada'; end if;
+  return n;
+end $$;
+
+-- E-mail em minúsculas, sem espaço, com cara de e-mail.
+create function email_valido(email text) returns text
+language plpgsql immutable set search_path = public
+as $$
+declare e text := lower(trim(email));
+begin
+  if e is null or e !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception 'e-mail inválido'; end if;
+  return e;
+end $$;
+
+-- ---------- painel: leitura ----------
+
+create function plataforma_empresas()
+returns table (id uuid, nome text, codigo text, criado_em timestamptz, suspensa boolean, limite_buscas_mes int, buscas_mes int,
+  pessoas int, convites int, produtos int, ultimo_acesso timestamptz)
+language plpgsql stable security definer set search_path = public
+as $$
+#variable_conflict use_column
+begin
+  if not sou_admin_plataforma() then raise exception 'sem permissão'; end if;
+  return query
+    select e.id, e.nome, e.codigo, e.criado_em, e.suspensa, e.limite_buscas_mes,
+      (select count(*) from buscas_feitas b where b.empresa_id = e.id and b.feita_em >= inicio_do_mes())::int,
+      (select count(*) from membros m where m.empresa_id = e.id)::int,
+      (select count(*) from convites c where c.empresa_id = e.id)::int,
+      (select count(*) from produtos p where p.empresa_id = e.id)::int,
+      (select max(u.last_sign_in_at) from membros m join auth.users u on u.id = m.usuario_id where m.empresa_id = e.id)
+    from empresas e
+    order by e.nome, e.id;
+end $$;
+
+create function plataforma_pessoas(empresa uuid)
+returns table (tipo text, usuario_id uuid, email text, papel text, desde timestamptz, ultimo_acesso timestamptz)
+language plpgsql stable security definer set search_path = public
+as $$
+#variable_conflict use_column
+begin
+  if not sou_admin_plataforma() then raise exception 'sem permissão'; end if;
+  return query
+    select 'membro'::text, m.usuario_id, m.email, m.papel, m.entrou_em, u.last_sign_in_at
+    from membros m left join auth.users u on u.id = m.usuario_id where m.empresa_id = empresa
+    union all
+    select 'convite'::text, null::uuid, c.email, c.papel, c.convidado_em, null::timestamptz
+    from convites c where c.empresa_id = empresa
+    order by 1 desc, 3; -- membros primeiro, depois convites; por e-mail
+end $$;
+
+create function plataforma_auditoria(qtd int default 100)
+returns table (quando timestamptz, email text, acao text, detalhe text)
+language plpgsql stable security definer set search_path = public
+as $$
+#variable_conflict use_column
+begin
+  if not sou_admin_plataforma() then raise exception 'sem permissão'; end if;
+  return query
+    select a.quando, a.email, a.acao, a.detalhe from auditoria_plataforma a
+    order by a.quando desc, a.id desc limit least(greatest(coalesce(qtd, 100), 1), 1000);
+end $$;
+
+-- ---------- painel: escrita (cada uma grava na auditoria) ----------
+
+-- Cria a empresa e convida o dono (ele entra como dono no primeiro login com esse e-mail).
+create function plataforma_criar_empresa(nome text, email_dono text, limite_buscas int default 20) returns uuid
+language plpgsql security definer set search_path = public
+as $$
+declare nova uuid; e text;
+begin
+  if not sou_admin_plataforma() then raise exception 'sem permissão'; end if;
+  if nullif(trim(nome), '') is null then raise exception 'dê um nome à empresa'; end if;
+  if limite_buscas < 0 then raise exception 'o limite de buscas não pode ser negativo'; end if;
+  e := email_valido(email_dono);
+  insert into empresas (nome, limite_buscas_mes) values (trim(nome), limite_buscas) returning id into nova;
+  insert into convites (empresa_id, email, papel) values (nova, e, 'dono');
+  perform anotar_plataforma('Empresa criada', nome_da_empresa(nova) || ' · dono: ' || e || ' · limite: ' || coalesce(limite_buscas::text, 'sem limite'));
+  return nova;
+end $$;
+
+-- Convite. Convidar de novo o mesmo e-mail só troca o papel do convite (sem erro).
+create function plataforma_convidar(empresa uuid, email text, papel text default 'membro') returns void
+language plpgsql security definer set search_path = public
+as $$
+declare n text; e text;
+begin
+  if not sou_admin_plataforma() then raise exception 'sem permissão'; end if;
+  n := nome_da_empresa(empresa); e := email_valido(email);
+  if papel is null or papel not in ('dono', 'membro') then raise exception 'papel inválido'; end if;
+  if exists (select 1 from membros m where m.empresa_id = empresa and lower(m.email) = e) then raise exception 'essa pessoa já está na empresa'; end if;
+  insert into convites (empresa_id, email, papel) values (empresa, e, papel)
+    on conflict on constraint convites_pkey do update set papel = excluded.papel;
+  perform anotar_plataforma('Convite enviado', n || ' · ' || e || ' (' || papel || ')');
+end $$;
+
+create function plataforma_cancelar_convite(empresa uuid, email text) returns void
+language plpgsql security definer set search_path = public
+as $$
+declare n text; e text := lower(trim(email));
+begin
+  if not sou_admin_plataforma() then raise exception 'sem permissão'; end if;
+  n := nome_da_empresa(empresa);
+  delete from convites c where c.empresa_id = empresa and c.email = e;
+  if not found then raise exception 'convite não encontrado'; end if;
+  perform anotar_plataforma('Convite cancelado', n || ' · ' || e);
+end $$;
+
+-- Tira a pessoa da empresa. A empresa nunca fica sem dono (mesma regra do mudar_papel).
+create function plataforma_remover_pessoa(empresa uuid, usuario uuid) returns void
+language plpgsql security definer set search_path = public
+as $$
+declare n text; atual text; alvo text;
+begin
+  if not sou_admin_plataforma() then raise exception 'sem permissão'; end if;
+  n := nome_da_empresa(empresa);
+  perform 1 from membros where empresa_id = empresa and papel = 'dono' for update; -- trava os donos: duas remoções ao mesmo tempo não zeram
+  select m.papel, m.email into atual, alvo from membros m where m.empresa_id = empresa and m.usuario_id = usuario;
+  if not found then raise exception 'essa pessoa não está na empresa'; end if;
+  if atual = 'dono' and (select count(*) from membros m where m.empresa_id = empresa and m.papel = 'dono') = 1 then
+    raise exception 'a empresa precisa de pelo menos um dono';
+  end if;
+  delete from membros m where m.empresa_id = empresa and m.usuario_id = usuario;
+  perform anotar_plataforma('Pessoa removida', n || ' · ' || alvo || ' (' || atual || ')');
+end $$;
+
+create function plataforma_suspender(empresa uuid, suspender boolean) returns void
+language plpgsql security definer set search_path = public
+as $$
+declare n text;
+begin
+  if not sou_admin_plataforma() then raise exception 'sem permissão'; end if;
+  n := nome_da_empresa(empresa);
+  if suspender is null then raise exception 'diga se suspende ou reativa'; end if;
+  update empresas set suspensa = suspender where id = empresa;
+  perform anotar_plataforma(case when suspender then 'Empresa suspensa' else 'Empresa reativada' end, n);
+end $$;
+
+-- null = sem limite.
+create function plataforma_limite_buscas(empresa uuid, limite int) returns void
+language plpgsql security definer set search_path = public
+as $$
+declare n text; antes int;
+begin
+  if not sou_admin_plataforma() then raise exception 'sem permissão'; end if;
+  n := nome_da_empresa(empresa);
+  if limite < 0 then raise exception 'o limite de buscas não pode ser negativo'; end if;
+  select limite_buscas_mes into antes from empresas where id = empresa;
+  update empresas set limite_buscas_mes = limite where id = empresa;
+  perform anotar_plataforma('Limite de buscas alterado', n || ' · ' || coalesce(antes::text, 'sem limite') || ' → ' || coalesce(limite::text, 'sem limite'));
+end $$;
+
+-- ---------- excluir empresa pela plataforma (correção 18) ----------
+
+-- Foto do bucket "fotos" que não é de mais ninguém: a pasta é de uma empresa que já não existe e nenhum produto nem logo de
+-- outra empresa usa o endereço (o Clonar copia o endereço). Só essas o admin da plataforma pode ver e apagar no Storage.
+create function foto_orfa(caminho text) returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select not exists (select 1 from empresas e where e.id::text = (storage.foldername(caminho))[1])
+    and not exists (select 1 from produtos p, unnest(p.fotos) f where f like '%/storage/v1/object/public/fotos/' || caminho)
+    and not exists (select 1 from empresas e where e.foto like '%/storage/v1/object/public/fotos/' || caminho)
+$$;
+
+-- Exclui uma empresa SUSPENSA, com tudo dela, sem volta. A confirmação é o código da empresa, conferido aqui (não só na tela).
+-- A linha da auditoria fica. As contas das pessoas (Auth) ficam (podem estar em outras empresas).
+-- Devolve as fotos da pasta dela que ninguém mais usa (caminhos no bucket "fotos"), para o app apagar do Storage. Em lista
+-- (text[]), não em linhas: a resposta do Supabase corta em 1000 linhas e esta função não pode ser chamada de novo.
+create function plataforma_excluir_empresa(empresa uuid, confirmacao text) returns text[]
+language plpgsql security definer set search_path = public
+as $$
+declare e record;
+begin
+  if not sou_admin_plataforma() then raise exception 'sem permissão'; end if;
+  select x.nome, x.codigo, x.suspensa into e from empresas x where x.id = empresa;
+  if not found then raise exception 'empresa não encontrada'; end if;
+  if not e.suspensa then raise exception 'suspenda a empresa antes de excluir'; end if;
+  if upper(trim(coalesce(confirmacao, ''))) <> e.codigo then raise exception 'o código não confere'; end if;
+  perform anotar_plataforma('Empresa excluída', e.nome || ' (' || e.codigo || ')');
+  perform apagar_dados_empresa(empresa);
+  return array(select o.name from storage.objects o
+    where o.bucket_id = 'fotos' and o.name like empresa::text || '/%' and foto_orfa(o.name) order by 1);
+end $$;
+
+-- ---------- convite por link secreto (Edge Function gerar-link) ----------
+-- A gerar-link chama estas funções com o JWT de quem pede: quem pode é o banco que decide. Só depois ela usa a chave de
+-- serviço para gerar o link no Auth (sem mandar e-mail).
+
+-- Admin da plataforma (2 etapas) ou dono da empresa.
+create function pode_gerar_link(empresa uuid) returns boolean
+language sql stable security definer set search_path = public
+as $$ select sou_admin_plataforma() or sou_dono(empresa) $$;
+
+-- O link entra na conta da pessoa. Para não virar roubo de conta: o admin da plataforma pode para qualquer um, menos para
+-- outro admin; o dono, só para quem não tem empresa nem convite fora das que ele é dono (senão ele entrava nelas também).
+-- Link para admin da plataforma: só o próprio, com as 2 etapas.
+create function link_pode_entrar(alvo uuid, e text) returns boolean
+language plpgsql stable security definer set search_path = public
+as $$
+begin
+  if exists (select 1 from admins_plataforma a where a.usuario_id = alvo) then return alvo = auth.uid() and sou_admin_plataforma(); end if;
+  if sou_admin_plataforma() then return true; end if;
+  return not exists (select 1 from membros m where m.usuario_id = alvo and not sou_dono(m.empresa_id))
+    and not exists (select 1 from convites c where c.email = e and not sou_dono(c.empresa_id));
+end $$;
+
+-- Grava o convite (mesmas regras do convidar) e diz qual link gerar: 'invite' (conta nova ou nunca confirmada),
+-- 'magiclink' (conta confirmada sem senha) ou null (já tem senha: entra com ela; o convite fica salvo, sem link).
+create function preparar_link_convite(empresa uuid, email text, papel text default 'membro') returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare n text; e text; alvo uuid; confirmada boolean; com_senha boolean; tipo text;
+begin
+  if not pode_gerar_link(empresa) then raise exception 'sem permissão'; end if;
+  n := nome_da_empresa(empresa); e := email_valido(email);
+  if papel is null or papel not in ('dono', 'membro') then raise exception 'papel inválido'; end if;
+  if exists (select 1 from membros m where m.empresa_id = empresa and lower(m.email) = e) then raise exception 'essa pessoa já está na empresa'; end if;
+  select u.id, u.email_confirmed_at is not null, coalesce(u.encrypted_password, '') <> '' into alvo, confirmada, com_senha
+    from auth.users u where lower(u.email) = e;
+  tipo := case when com_senha then null when confirmada then 'magiclink' else 'invite' end;
+  if tipo is not null and not link_pode_entrar(alvo, e) then raise exception 'link não permitido'; end if;
+  insert into convites (empresa_id, email, papel) values (empresa, e, papel)
+    on conflict on constraint convites_pkey do update set papel = excluded.papel;
+  if sou_dono(empresa) then perform anotar(empresa, 'Convite enviado', e || ' (' || papel || ')' || case when tipo is null then '' else ' · link' end);
+  else perform anotar_plataforma('Convite enviado', n || ' · ' || e || ' (' || papel || ')' || case when tipo is null then '' else ' · link' end);
+  end if;
+  return jsonb_build_object('email', e, 'tipo', tipo);
+end $$;
+
+-- Link de senha nova para quem já está na empresa.
+create function preparar_link_senha(empresa uuid, usuario uuid) returns jsonb
+language plpgsql security definer set search_path = public
+as $$
+declare n text; e text;
+begin
+  if not pode_gerar_link(empresa) then raise exception 'sem permissão'; end if;
+  n := nome_da_empresa(empresa);
+  select lower(u.email) into e from membros m join auth.users u on u.id = m.usuario_id where m.empresa_id = empresa and m.usuario_id = usuario;
+  if e is null then raise exception 'essa pessoa não está na empresa'; end if;
+  if not link_pode_entrar(usuario, e) then raise exception 'link não permitido'; end if;
+  if sou_dono(empresa) then perform anotar(empresa, 'Link de senha nova', e);
+  else perform anotar_plataforma('Link de senha nova', n || ' · ' || e);
+  end if;
+  return jsonb_build_object('email', e, 'tipo', 'recovery');
+end $$;
 
 -- ---------- permissões ----------
 -- anon (sem login): nada. authenticated: só o que o app usa, sempre filtrado pela RLS abaixo.
@@ -568,10 +935,27 @@ grant select, insert, update, delete on produtos, itens_kit, precificacoes, conf
 grant select, insert, delete on concorrentes to authenticated;
 grant select, insert, update, delete on buscas_concorrentes to authenticated;
 grant execute on function registrar_busca(uuid, uuid) to authenticated; -- buscas_feitas: sem grant, só pela função
+revoke execute on function minha_cota_buscas(uuid) from public, anon;
+grant execute on function minha_cota_buscas(uuid) to authenticated; -- a tela mostra a cota (correção 19)
 grant execute on function impostos_validos(jsonb) to authenticated; -- o check de produtos.impostos_canal roda como quem grava
 -- o hook roda como o Auth do Supabase
 grant usage on schema public to supabase_auth_admin;
 grant execute on function antes_de_criar_usuario(jsonb) to supabase_auth_admin;
+-- painel da plataforma (correção 17): tabelas sem grant; funções só para logado (conferem o admin por dentro)
+revoke all on admins_plataforma, auditoria_plataforma from public, anon, authenticated;
+revoke all on sequence auditoria_plataforma_id_seq from public, anon, authenticated;
+-- O Supabase dá execute em função nova para anon e authenticated: tira de todas e devolve só o que o app chama.
+revoke execute on function minhas_empresas_suspensas(), inicio_do_mes(), sou_admin_plataforma(), meu_acesso_plataforma(), anotar_plataforma(text, text),
+  nome_da_empresa(uuid), email_valido(text), plataforma_empresas(), plataforma_pessoas(uuid), plataforma_auditoria(int),
+  plataforma_criar_empresa(text, text, int), plataforma_convidar(uuid, text, text), plataforma_cancelar_convite(uuid, text),
+  plataforma_remover_pessoa(uuid, uuid), plataforma_suspender(uuid, boolean), plataforma_limite_buscas(uuid, int), novo_codigo_empresa(), codigo_nao_muda(), pode_gerar_link(uuid), link_pode_entrar(uuid, text),
+  preparar_link_convite(uuid, text, text), preparar_link_senha(uuid, uuid), apagar_dados_empresa(uuid), plataforma_excluir_empresa(uuid, text)
+  from public, anon, authenticated;
+grant execute on function minhas_empresas_suspensas(), sou_admin_plataforma(), meu_acesso_plataforma(), plataforma_empresas(), plataforma_pessoas(uuid),
+  plataforma_auditoria(int), plataforma_criar_empresa(text, text, int), plataforma_convidar(uuid, text, text),
+  plataforma_cancelar_convite(uuid, text), plataforma_remover_pessoa(uuid, uuid), plataforma_suspender(uuid, boolean),
+  plataforma_limite_buscas(uuid, int), pode_gerar_link(uuid), preparar_link_convite(uuid, text, text), preparar_link_senha(uuid, uuid),
+  plataforma_excluir_empresa(uuid, text), foto_orfa(text) to authenticated; -- foto_orfa: as regras do Storage chamam com o login de quem pede
 
 -- ---------- RLS ----------
 
@@ -586,6 +970,8 @@ alter table historico enable row level security;
 alter table concorrentes enable row level security;
 alter table buscas_concorrentes enable row level security;
 alter table buscas_feitas enable row level security;
+alter table admins_plataforma enable row level security; -- sem policy: ninguém direto
+alter table auditoria_plataforma enable row level security;
 
 create policy ver_minhas_empresas on empresas for select to authenticated
   using (id in (select minhas_empresas()));
@@ -632,3 +1018,9 @@ insert into storage.buckets (id, name, public) values ('fotos', 'fotos', true);
 create policy fotos_da_empresa on storage.objects for all to authenticated
   using (bucket_id = 'fotos' and (storage.foldername(name))[1] in (select e::text from minhas_empresas() e))
   with check (bucket_id = 'fotos' and (storage.foldername(name))[1] in (select e::text from minhas_empresas() e));
+-- Admin da plataforma (2 etapas): vê e apaga só as fotos órfãs (de empresa excluída e sem uso em outra), para limpar o Storage
+-- depois do plataforma_excluir_empresa. O Storage pede as duas (ver e apagar) para remover. (correção 18)
+create policy plataforma_ve_fotos_orfas on storage.objects for select to authenticated
+  using (bucket_id = 'fotos' and sou_admin_plataforma() and foto_orfa(name));
+create policy plataforma_apaga_fotos_orfas on storage.objects for delete to authenticated
+  using (bucket_id = 'fotos' and sou_admin_plataforma() and foto_orfa(name));

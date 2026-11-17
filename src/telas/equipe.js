@@ -1,19 +1,39 @@
 // Tela Empresa (endereço /empresa; no código, "equipe"), parte das pessoas: uma lista só com quem está na empresa e os
 // convites pendentes. O admin convida (janela), muda o papel e remove; o membro só vê a lista.
 // Quem barra o membro é o banco (RLS); aqui o membro só não vê os botões. O cabeçalho da empresa é do empresa.js.
-import { equipe, convidar, cancelarConvite, removerMembro, mudarPapel, pessoaLogada } from '../nuvem.js';
+import { equipe, convidar, cancelarConvite, removerMembro, mudarPapel, pessoaLogada, gerarLink, empresaAtual } from '../nuvem.js';
 import { esc } from '../formato.js';
 import { icone } from '../icones.js';
 import { telaAtual } from '../rotas.js';
 import { mostrarErro } from './erro.js';
 import { htmlVazio, htmlCarregando } from './mascote.js';
 import { mostrarAviso } from './aviso.js';
+import { abrirLink } from './link.js';
 
 const $ = (s) => document.querySelector(s);
-const PAPEL = { dono: 'Admin', membro: 'Membro' };
+export const PAPEL = { dono: 'Admin', membro: 'Membro' }; // o nome do papel na tela (empresa.js e plataforma.js usam este)
+
+// "Convidar" com um e-mail que já tem convite: marca o papel que o convite tem e avisa (antes vinha Membro e rebaixava o Admin)
+export function lembrarPapel(j, convites) {
+  const campo = j.querySelector('[name=email]');
+  const aviso = document.createElement('p');
+  aviso.className = 'dica';
+  aviso.hidden = true;
+  campo.closest('.campo').after(aviso);
+  campo.addEventListener('input', () => {
+    const e = campo.value.trim().toLowerCase();
+    const c = convites().find((x) => (x.tipo ?? 'convite') === 'convite' && x.email === e);
+    aviso.hidden = !c;
+    if (!c) return;
+    const r = j.querySelector(`[name=papel][value="${c.papel}"]`);
+    if (r) r.checked = true;
+    aviso.textContent = `Este e-mail já tem convite como ${PAPEL[c.papel] ?? c.papel}. Mudar o papel aqui troca o papel do convite.`;
+  });
+}
 const dia = (iso) => (iso ? new Date(iso).toLocaleDateString('pt-BR') : '');
 const contar = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
 let eu = '';
+let convitesAtuais = []; // os da última lista: o "Convidar" marca o papel de um convite que já existe
 let resumo = ''; // "3 pessoas · 1 convite pendente", para o cabeçalho da empresa
 
 // O cabeçalho (empresa.js) mostra o resumo ao se redesenhar; aqui ele é atualizado quando a lista muda.
@@ -42,6 +62,10 @@ function estado(texto, erro = false) {
   el.classList.toggle('erro', erro);
 }
 
+// Link de senha nova (sem e-mail): o admin manda pelo WhatsApp para quem esqueceu a senha
+const botaoLinkSenha = (m) => `<button type="button" class="botao pequeno" data-senha-nova="${esc(m.usuarioId)}" data-email="${esc(m.email)}">Gerar link de senha nova</button>`;
+const nomeDaEmpresa = () => document.querySelector('#empresa-cartao h2')?.textContent.trim() ?? '';
+
 const botaoRemover = (m) =>
   `<button type="button" class="botao pequeno perigo" data-remover="${esc(m.usuarioId)}" data-email="${esc(m.email)}" aria-label="Remover ${esc(m.email)}" title="Remover">${icone('trash-2')}</button>`;
 
@@ -55,6 +79,7 @@ async function desenhar() {
     mostrarErro(lista, erro.message, () => desenhar(), 'Não deu para carregar a equipe');
     return;
   }
+  convitesAtuais = e.convites;
   resumo = contar(e.membros.length, 'pessoa', 'pessoas') + (e.convites.length ? ` · ${contar(e.convites.length, 'convite pendente', 'convites pendentes')}` : '');
   const r = $('#empresa-resumo');
   if (r) r.textContent = ` · ${resumo}`;
@@ -73,7 +98,7 @@ async function desenhar() {
       <span class="avatar-pessoa" aria-hidden="true">${esc(m.email[0]?.toUpperCase() ?? '?')}</span>
       <span class="pessoa-nome"><span><strong>${esc(m.email)}</strong>${souEu ? ' (você)' : ''}</span>
         <small class="dica">Na empresa desde ${dia(m.entrouEm)}</small></span>
-      <span class="pessoa-acoes">${papel(m)}${e.souDono && !souEu ? botaoRemover(m) : ''}</span>
+      <span class="pessoa-acoes">${papel(m)}${e.souDono && !souEu ? botaoLinkSenha(m) + botaoRemover(m) : ''}</span>
     </li>`;
   };
   const convite = (c) => `
@@ -81,7 +106,7 @@ async function desenhar() {
       <span class="avatar-pessoa" aria-hidden="true">${esc(c.email[0]?.toUpperCase() ?? '?')}</span>
       <span class="pessoa-nome"><strong>${esc(c.email)}</strong>
         <small class="dica">Convite pendente · ${PAPEL[c.papel] ?? esc(c.papel)} · enviado em ${dia(c.convidadoEm)}</small></span>
-      <span class="pessoa-acoes"><button type="button" class="botao pequeno" data-cancelar="${esc(c.email)}">Cancelar convite</button></span>
+      <span class="pessoa-acoes">${e.souDono ? `<button type="button" class="botao pequeno" data-novo-link="${esc(c.email)}" data-papel="${esc(c.papel)}">Gerar novo link</button>` : ''}<button type="button" class="botao pequeno" data-cancelar="${esc(c.email)}">Cancelar convite</button></span>
     </li>`;
   lista.innerHTML = `
     <div class="cartao-topo">
@@ -107,7 +132,7 @@ function janelaConvite() {
         <div class="campo"><span id="convite-papel-rotulo">Papel</span>
           <div class="alternar" role="radiogroup" aria-labelledby="convite-papel-rotulo"><label><input type="radio" name="papel" value="membro" checked><span>Membro</span></label><label><input type="radio" name="papel" value="dono"><span>Admin</span></label></div>
         </div>
-        <p class="dica">No 1º acesso, a pessoa abre o Calculéo, digita este e-mail e cria uma senha com pelo menos 8 caracteres em "Entrar".</p>
+        <p class="dica">Depois você recebe um link para mandar à pessoa (WhatsApp ou como preferir). Ele vale 24 horas e uma vez só.</p>
         <p class="erro" role="alert" hidden></p>
       </div>
       <div class="janela-base"><div class="direita">
@@ -131,10 +156,22 @@ function janelaConvite() {
     const botao = j.querySelector('[type=submit]');
     botao.disabled = true;
     try {
-      await convidar(email, j.querySelector('[name=papel]:checked').value);
+      const papel = j.querySelector('[name=papel]:checked').value;
+      let link = null, semFuncao = false;
+      try {
+        link = await gerarLink({ tipo: 'convite', empresa: empresaAtual(), email, papel }); // grava o convite e devolve o link secreto
+      } catch (x) {
+        if (!x.semFuncao) throw x;
+        semFuncao = true;
+        await convidar(email, papel); // sem a gerar-link publicada no Supabase: o convite de antes
+      }
+      await desenhar();
+      if (!semFuncao) {
+        estado(`Convite para ${email} feito (${PAPEL[papel]}).`);
+        return abrirLink(j, async () => link, { tipo: 'convite', email, empresa: nomeDaEmpresa() }); // o link, ou "já tem conta" (fica aberta)
+      }
       j.close();
       estado(`Convite feito. Avise ${email}: é só abrir o Calculéo, digitar este e-mail e criar uma senha com pelo menos 8 caracteres em "Entrar".`);
-      await desenhar();
       $('#equipe-lista [data-acao=convidar]')?.focus();
     } catch (x) {
       erro(x.message);
@@ -143,6 +180,7 @@ function janelaConvite() {
   };
   j.showModal();
   j.querySelector('[name=email]').focus();
+  lembrarPapel(j, () => convitesAtuais);
 }
 
 // Mudar papel não grava na hora: a própria linha pergunta, com Salvar e Cancelar (sem caixa do navegador).
@@ -203,6 +241,13 @@ async function aoClicar(ev) {
   if (acao === 'convidar') return janelaConvite();
   if (acao === 'cancelar-papel') return cancelarPapel();
   if (acao === 'salvar-papel') return salvarPapel(ev.target.closest('[data-confirmar-papel]'));
+  const l = ev.target.closest('[data-novo-link], [data-senha-nova]');
+  if (l) {
+    const senha = Boolean(l.dataset.senhaNova), email = l.dataset.novoLink || l.dataset.email;
+    // erro (rede, 401, 5xx): na própria janela, com "Tentar de novo"
+    return abrirLink($('#janela-convite'), () => gerarLink(senha ? { tipo: 'senha', empresa: empresaAtual(), usuario: l.dataset.senhaNova } : { tipo: 'convite', empresa: empresaAtual(), email, papel: l.dataset.papel }),
+      { tipo: senha ? 'senha' : 'convite', email, empresa: nomeDaEmpresa() });
+  }
   const b = ev.target.closest('[data-remover], [data-cancelar]');
   if (!b) return;
   try {

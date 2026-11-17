@@ -70,50 +70,74 @@ export async function pessoaLogada() {
   return pessoa;
 }
 
-// Manda o link de acesso. A conta só é criada para quem tem convite (o hook do banco recusa os outros).
-export async function mandarLink(email) {
-  const { error } = await (await supa()).auth.signInWithOtp({
-    email: email.trim().toLowerCase(),
-    options: { shouldCreateUser: true, emailRedirectTo: `${location.origin}/` },
-  });
-  if (!error) return;
-  throw new Error(/não foi convidado|signups? not allowed|not found|otp_disabled|hook/i.test(error.message)
-    ? 'Este e-mail não tem acesso. Peça um convite a quem é admin da empresa no Calculéo.'
-    : /rate|seconds|security purposes/i.test(error.message)
-      ? 'Já mandamos um link há pouco. Espere 1 minuto e tente de novo.'
-      : 'Não deu para mandar o link agora. Confira o e-mail e tente de novo.');
+// Manda o link de acesso por e-mail (precisa de SMTP; ver config.ESQUECI_SENHA). Só para quem JÁ tem conta: conta nova só nasce pelo
+// link do convite. A resposta é a mesma com e sem conta (a tela também), para não contar quem tem conta. (auth só nos testes)
+export async function mandarLink(email, auth) {
+  auth ??= (await supa()).auth;
+  const { error } = await auth.signInWithOtp({ email: email.trim().toLowerCase(), options: { shouldCreateUser: false, emailRedirectTo: VOLTA() } });
+  if (!error || /signups? not allowed|not found|user not found|não foi convidado|hook/i.test(error.message)) return;
+  throw new Error(/rate|seconds|security purposes/i.test(error.message) ? 'Espere 1 minuto para pedir outro e-mail.' : 'Não deu para mandar o link agora. Confira o e-mail e tente de novo.');
 }
+
+// Para onde os links de e-mail voltam (confirmação, senha nova, link de acesso): a página inicial deste site. Precisa estar nas
+// Redirect URLs do Supabase. (globalThis: nos testes, em Node, não há location)
+const VOLTA = () => `${globalThis.location?.origin ?? ''}/`;
 
 // Entrar com e-mail e senha. No 1º acesso a pessoa ainda não tem conta, então o login falha e tentamos criar a conta com o
 // mesmo e-mail e senha: o hook do banco só deixa quem tem convite. Se a conta já existe, é senha errada; a mensagem é a
 // mesma do login, para não contar quem tem conta. (auth só nos testes.)
+// Com "Confirm email" ligado no Supabase, a conta nasce sem sessão e o Supabase manda o link: devolve { confirmar: email }
+// (a tela diz "Enviamos um link"); quem volta antes de confirmar recebe { confirmar, jaPode } (pode pedir outro na hora).
+// Sem a confirmação ligada, entra direto (devolve null).
 export async function entrarComSenha(email, senha, auth) {
   if (String(senha).length < 8) throw new Error('A senha precisa ter pelo menos 8 caracteres.');
   auth ??= (await supa()).auth;
   const dados = { email: email.trim().toLowerCase(), password: senha };
   let { data, error } = await auth.signInWithPassword(dados);
-  if (/invalid login|invalid credentials/i.test(error?.message ?? '')) ({ data, error } = await auth.signUp(dados));
-  if (!error && data.session) return;
+  if (/email not confirmed/i.test(error?.message ?? '')) return { confirmar: dados.email, jaPode: true };
+  if (/invalid login|invalid credentials/i.test(error?.message ?? '')) ({ data, error } = await auth.signUp({ ...dados, options: { emailRedirectTo: VOLTA() } }));
+  if (!error && data.session) return null;
+  // conta que já existe: com a confirmação ligada, o Supabase não dá erro (para não contar quem tem conta) e devolve um usuário
+  // sem identidades. É senha errada, com a mesma frase do login.
+  if (!error && data.user && !data.user.identities?.length) throw new Error('E-mail ou senha incorretos.');
+  if (!error && data.user) return { confirmar: dados.email };
   const m = error?.message ?? '';
-  throw new Error(/não foi convidado|hook|signups? not allowed/i.test(m) ? 'Este e-mail não tem acesso. Peça um convite ao admin.'
+  // cadastro aberto desligado (conta nova só pelo link do convite): e-mail sem conta tem a mesma frase da senha errada
+  throw new Error(/signups? not allowed|signup is disabled/i.test(m) ? 'E-mail ou senha incorretos.'
+    : /não foi convidado|hook/i.test(m) ? 'Este e-mail não tem acesso. Peça um convite ao admin.'
     : /already registered|already exists|invalid login|invalid credentials/i.test(m) ? 'E-mail ou senha incorretos.'
       : /password/i.test(m) ? 'Senha fraca. Use pelo menos 8 caracteres, misturando letras e números.'
           : /rate|seconds/i.test(m) ? 'Muitas tentativas. Espere 1 minuto e tente de novo.'
-            : !error ? 'A conta foi criada, mas precisa ser confirmada por e-mail. Avise o admin da empresa.'
               : 'Não deu para entrar agora. Confira a internet e tente de novo.');
 }
 
-// Esqueci a senha: manda o link para criar uma nova (precisa de SMTP próprio no Supabase; ver config.ESQUECI_SENHA).
-export async function esqueciSenha(email) {
-  const { error } = await (await supa()).auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: `${location.origin}/` });
-  if (error) throw new Error(/rate|seconds/i.test(error.message) ? 'Já mandamos um link há pouco. Espere 1 minuto e tente de novo.' : 'Não deu para mandar o link agora. Confira o e-mail e tente de novo.');
+// "Reenviar" da tela de confirmação: manda de novo o link de confirmar o cadastro. (auth só nos testes.)
+export async function reenviarConfirmacao(email, auth) {
+  auth ??= (await supa()).auth;
+  const { error } = await auth.resend({ type: 'signup', email: email.trim().toLowerCase(), options: { emailRedirectTo: VOLTA() } });
+  if (error) throw new Error(/rate|seconds|security purposes/i.test(error.message) ? 'Espere 1 minuto para pedir outro e-mail.' : 'Não deu para reenviar agora. Tente de novo em instantes.');
 }
 
-// Quem voltou pelo link de "Esqueci a senha" já está logado e escolhe a senha nova.
-export async function trocarSenha(senha) {
+// Esqueci a senha: manda o link para criar uma nova (precisa de SMTP próprio no Supabase; ver config.ESQUECI_SENHA). O Supabase
+// responde igual para e-mail com e sem conta; a tela também não conta. (auth só nos testes.)
+export async function esqueciSenha(email, auth) {
+  auth ??= (await supa()).auth;
+  const { error } = await auth.resetPasswordForEmail(email.trim().toLowerCase(), { redirectTo: VOLTA() });
+  if (error) throw new Error(/rate|seconds|security purposes/i.test(error.message) ? 'Espere 1 minuto para pedir outro e-mail.' : 'Não deu para mandar o link agora. Confira o e-mail e tente de novo.');
+}
+
+// Quem voltou pelo link de "Esqueci a senha" (ou do de confirmar o cadastro) já está logado e escolhe a senha.
+// mesmaVale: na confirmação do cadastro a pessoa costuma repetir a senha que acabou de escolher; ali isso não é erro.
+export async function trocarSenha(senha, { mesmaVale = false } = {}, auth) {
   if (String(senha).length < 8) throw new Error('A senha precisa ter pelo menos 8 caracteres.');
-  const { error } = await (await supa()).auth.updateUser({ password: senha });
-  if (error) throw new Error(/different|same/i.test(error.message) ? 'Use uma senha diferente da antiga.' : 'Não deu para salvar a senha nova. Peça outro link e tente de novo.');
+  auth ??= (await supa()).auth;
+  const { error } = await auth.updateUser({ password: senha });
+  if (!error || (mesmaVale && /different|same/i.test(error.message))) {
+    // senha definida por quem tem o e-mail: derruba as outras sessões (a de quem tenha criado a conta com a senha dele, por exemplo)
+    await auth.signOut({ scope: 'others' }).catch(() => {});
+    return;
+  }
+  throw new Error(/different|same/i.test(error.message) ? 'Use uma senha diferente da antiga.' : /weak|password/i.test(error.message) ? 'Senha fraca. Use pelo menos 8 caracteres, misturando letras e números.' : 'Não deu para salvar a senha. Peça outro link e tente de novo.');
 }
 
 export async function sair() {
@@ -138,10 +162,17 @@ export async function prepararEmpresa() {
   return empresaId;
 }
 
+// Nomes das empresas SUSPENSAS em que a própria pessoa é membro (correção 17), para dizer por que ela ficou sem empresa.
+// Banco sem a função (ou sem internet): lista vazia, e vale o "sem empresa" de sempre.
+export async function empresasSuspensas() {
+  const { data, error } = await (await supa()).rpc('minhas_empresas_suspensas');
+  return error ? [] : (data ?? []).map(String);
+}
+
 export async function minhasEmpresas() {
   const r = await (await supa()).from('membros').select('papel, empresa_id, empresas(*)').eq('usuario_id', pessoa.id);
   falhou('Não deu para ler suas empresas.')(r);
-  return r.data.map((m) => ({ id: m.empresa_id, nome: m.empresas?.nome ?? '', papel: m.papel, foto: m.empresas?.foto ?? null })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  return r.data.map((m) => ({ id: m.empresa_id, nome: m.empresas?.nome ?? '', papel: m.papel, foto: m.empresas?.foto ?? null, codigo: m.empresas?.codigo ?? '' })).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
 }
 
 export const empresaAtual = () => empresaId;
@@ -261,8 +292,7 @@ export async function equipe() {
 }
 
 export async function convidar(email, papel = 'membro') {
-  const limpo = String(email).trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(limpo)) throw new Error('Digite um e-mail válido.');
+  const limpo = emailLimpo(email);
   const { error } = await (await supa()).from('convites').insert({ empresa_id: empresaId, email: limpo, papel });
   if (!error) return;
   throw new Error(error.code === '23505' ? 'Este e-mail já foi convidado.' : /row-level security/i.test(error.message) ? 'Só o admin da empresa pode convidar.' : 'Não deu para convidar agora.');
@@ -295,6 +325,134 @@ export async function removerMembro(usuarioId) {
   if (!r.data.length) throw new Error('Só o admin pode remover pessoas (e não a si mesmo).');
 }
 
+// ---------- convite e senha nova por LINK SECRETO (sem e-mail; Eduardo 17/11) ----------
+// A Edge Function gerar-link confere no banco quem pode (admin da plataforma, ou admin da própria empresa), grava o convite e
+// devolve o link (vale 24 h e uma vez; gerar outro cancela o anterior). pedido: { tipo: 'convite', empresa, email, papel } ou
+// { tipo: 'senha', empresa, usuario }. O link é deste site (<origem>/#link=<token>&tipo=…), não o do Supabase: a prévia do WhatsApp
+// abre o link e gastaria a única vez; quem gasta é o app, ao abrir (entrarPeloLink). null = a pessoa já tem conta com senha (o convite
+// ficou salvo e ela entra com o e-mail e a senha dela). Sem a função publicada no Supabase, o erro vem com semFuncao. (functions só nos testes)
+export async function gerarLink(pedido, functions) {
+  functions ??= (await supa()).functions;
+  const corpo = { ...pedido };
+  if (corpo.tipo === 'convite') corpo.email = emailLimpo(corpo.email);
+  const { data, error } = await functions.invoke('gerar-link', { body: corpo });
+  if (error) {
+    const status = error.context?.status; // sem status: não chegou na função (internet)
+    const resposta = await error.context?.json?.().catch(() => null); // a função explica em { erro }
+    const x = new Error(resposta?.erro ?? (status === 404 ? 'O convite por link ainda não foi ligado no Supabase.'
+      : status ? `Não deu para gerar o link agora (erro ${status}). Tente de novo; se continuar, avise o suporte.`
+        : 'Não deu para gerar o link agora. Confira a internet e tente de novo.'));
+    x.semFuncao = status === 404; // só a função que não existe vira o convite de antes; 401, 5xx e rede aparecem na janela
+    throw x;
+  }
+  if (!data) throw new Error('Não deu para gerar o link agora. Tente de novo.');
+  return data.link ?? null;
+}
+
+// Volta do link secreto (#link=<token>&tipo=<invite|magiclink|recovery>): troca o token por uma sessão. Vencido, já usado ou mexido: erro.
+export async function entrarPeloLink(token, tipo, auth) {
+  if (!['invite', 'magiclink', 'recovery'].includes(tipo) || !token) throw new Error('link inválido');
+  auth ??= (await supa()).auth;
+  const { error } = await auth.verifyOtp({ token_hash: token, type: tipo });
+  if (!error) return;
+  // sem internet ou servidor fora: o link continua valendo (a pessoa abre de novo); só 4xx é link vencido, usado ou mexido
+  const x = new Error('link vencido');
+  x.rede = !error.status || error.status >= 500 || /fetch|network|retryable/i.test(`${error.name} ${error.message}`);
+  throw x;
+}
+
+// ---------- plataforma (donos da plataforma; correção 17) ----------
+// Quem decide é o banco: toda função plataforma_* começa com sou_admin_plataforma() (lista + login com código, aal2).
+// Aqui só se chama e se traduz o erro. meu_acesso_plataforma() é a única que não lança: 'nao' | 'precisa_mfa' | 'sim'.
+
+export async function acessoPlataforma() {
+  const { data, error } = await (await supa()).rpc('meu_acesso_plataforma');
+  if (!error) return data;
+  // banco sem a correção 17 (função não existe): como 'nao'; sem internet ou falha: 'erro' (a tela oferece "Tentar de novo")
+  return /PGRST202|42883/.test(error.code ?? '') || /could not find the function/i.test(error.message ?? '') ? 'nao' : 'erro';
+}
+
+// 2 etapas (TOTP do Supabase): com fator já confirmado, só o id (o código vai no desafio); sem, cadastra um novo e devolve o QR.
+// anterior = o que esta função devolveu antes, nesta página: se ainda está pendente, volta o mesmo QR (o que a pessoa já leu continua valendo).
+export async function fatorDoAutenticador(anterior = null) {
+  const s = await supa();
+  const { data, error } = await s.auth.mfa.listFactors();
+  if (error) throw new Error('Não deu para falar com o login. Recarregue a página.');
+  const pronto = (data.totp ?? []).find((f) => f.status === 'verified');
+  if (pronto) return { id: pronto.id };
+  if (anterior?.qr && (data.all ?? []).some((f) => f.id === anterior.id && f.status !== 'verified')) return anterior;
+  // sobra de um cadastro que não terminou (QR lido e código nunca digitado): sai, senão o nome repetido barra o novo
+  for (const f of (data.all ?? []).filter((x) => x.factor_type === 'totp' && x.status !== 'verified')) await s.auth.mfa.unenroll({ factorId: f.id });
+  const r = await s.auth.mfa.enroll({ factorType: 'totp', friendlyName: 'Calculéo' });
+  if (r.error) throw new Error('Não deu para gerar o QR agora. Tente de novo em instantes.');
+  // a biblioteca devolve 'data:image/svg+xml;utf-8,<svg …>' cru: um '#' (cor) cortaria a imagem; vai codificado
+  const svg = String(r.data.totp.qr_code).replace(/^data:image\/svg\+xml;[^,]*,/, '');
+  return { id: r.data.id, qr: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, chave: r.data.totp.secret };
+}
+
+export async function confirmarCodigo(fatorId, codigo) {
+  const c = String(codigo).replace(/\D/g, '');
+  if (c.length !== 6) throw new Error('Digite os 6 números do código.');
+  const { error } = await (await supa()).auth.mfa.challengeAndVerify({ factorId: fatorId, code: c });
+  if (error) throw new Error(/invalid|expired|code/i.test(error.message) ? 'Código errado ou vencido. Digite o código que está aparecendo agora no app.' : 'Não deu para confirmar agora. Tente de novo.');
+}
+
+// textos exatos das exceções do banco (correcao-17, Ellie) -> frase da tela
+const ERROS_PLATAFORMA = [
+  [/sem permissão/, 'Sem permissão. Abra a Plataforma de novo e confirme o código do autenticador.'],
+  [/e-mail inválido/, 'Digite um e-mail válido, por exemplo nome@empresa.com.br.'],
+  [/dê um nome/, 'Dê um nome à empresa.'],
+  [/papel inválido/, 'Escolha Membro ou Admin.'],
+  [/não pode ser negativo/, 'O limite de buscas não pode ser negativo.'],
+  [/empresa não encontrada/, 'Essa empresa não existe mais. Recarregue a lista.'],
+  [/já está na empresa/, 'Essa pessoa já está na empresa.'],
+  [/convite não encontrado/, 'Esse convite já não existe. Recarregue a lista.'],
+  [/não está na empresa/, 'Essa pessoa não está mais na empresa.'],
+  [/pelo menos um dono/, 'A empresa precisa ter pelo menos um admin.'],
+  [/suspenda a empresa/, 'Suspenda a empresa antes de excluir.'],
+  [/código não confere/, 'O código não confere. Digite o código da empresa, como aparece ao lado do nome.'],
+];
+async function plataforma(funcao, args, padrao) {
+  const { data, error } = await (await supa()).rpc(funcao, args);
+  if (error) throw new Error(ERROS_PLATAFORMA.find(([re]) => re.test(error.message))?.[1] ?? padrao);
+  return data;
+}
+// e-mail de convite: sem espaço, minúsculo, com cara de e-mail (equipe e plataforma)
+function emailLimpo(email) {
+  const e = String(email ?? '').trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e)) throw new Error('Digite um e-mail válido, por exemplo nome@empresa.com.br.');
+  return e;
+}
+
+export const plataformaEmpresas = async () => (await plataforma('plataforma_empresas', {}, 'Não deu para ler as empresas.')).map((r) => ({
+  id: r.id, nome: r.nome, codigo: r.codigo ?? '', criadaEm: r.criado_em, suspensa: r.suspensa, limite: r.limite_buscas_mes, buscasMes: r.buscas_mes ?? 0,
+  pessoas: r.pessoas ?? 0, convites: r.convites ?? 0, produtos: r.produtos ?? 0, ultimoAcesso: r.ultimo_acesso,
+}));
+export const plataformaPessoas = async (empresa) => (await plataforma('plataforma_pessoas', { empresa }, 'Não deu para ler as pessoas desta empresa.')).map((r) => ({
+  tipo: r.tipo, usuarioId: r.usuario_id, email: r.email, papel: r.papel, desde: r.desde, ultimoAcesso: r.ultimo_acesso,
+}));
+export const plataformaCriarEmpresa = async ({ nome, email, limite }) =>
+  plataforma('plataforma_criar_empresa', { nome: String(nome ?? '').trim(), email_dono: emailLimpo(email), limite_buscas: limite }, 'Não deu para criar a empresa agora.');
+export const plataformaConvidar = async (empresa, email, papel = 'membro') => plataforma('plataforma_convidar', { empresa, email: emailLimpo(email), papel }, 'Não deu para convidar agora.');
+export const plataformaCancelarConvite = (empresa, email) => plataforma('plataforma_cancelar_convite', { empresa, email }, 'Não deu para cancelar o convite.');
+export const plataformaRemoverPessoa = (empresa, usuario) => plataforma('plataforma_remover_pessoa', { empresa, usuario }, 'Não deu para remover agora.');
+export const plataformaSuspender = (empresa, suspender) => plataforma('plataforma_suspender', { empresa, suspender }, suspender ? 'Não deu para suspender agora.' : 'Não deu para reativar agora.');
+export const plataformaLimiteBuscas = (empresa, limite) => plataforma('plataforma_limite_buscas', { empresa, limite }, 'Não deu para mudar o limite agora.');
+// Exclui uma empresa SUSPENSA (correção 18), sem volta: o banco confere o código, apaga tudo dela e devolve as fotos que só ela
+// usava, que saem do Storage aqui (o admin da plataforma só pode apagar foto órfã). Falhar a limpeza das fotos não desfaz a exclusão.
+export async function plataformaExcluirEmpresa(empresa, codigo) {
+  const fotos = (await plataforma('plataforma_excluir_empresa', { empresa, confirmacao: String(codigo ?? '').trim().toUpperCase() }, 'Não deu para excluir a empresa agora.')) ?? [];
+  // a empresa JÁ saiu (não chamar de novo): foto que não sair fica no armazenamento, e a tela avisa
+  const pasta = (await supa()).storage.from('fotos');
+  let ficaram = 0;
+  for (const lote of em(fotos, 100)) {
+    const r = await pasta.remove(lote).catch((error) => ({ error }));
+    if (r?.error) ficaram += lote.length;
+  }
+  return { fotos: fotos.length, ficaram };
+}
+export const plataformaRegistro = (qtd = 100) => plataforma('plataforma_auditoria', { qtd }, 'Não deu para ler o registro.');
+
 // ---------- concorrentes (anotados à mão; correção 12) ----------
 
 const doBanco = (r) => ({ id: r.id, produtoId: r.produto_id, canal: r.canal, vendedor: r.vendedor, preco: Number(r.preco), link: r.link, criadoEm: r.criado_em, criadoPor: r.criado_por });
@@ -322,28 +480,27 @@ export async function removerConcorrente(id) {
   falhou('Não deu para excluir o concorrente agora.')(await (await supa()).from('concorrentes').delete().eq('id', id));
 }
 
-// Busca de concorrentes no ML pelo Apify (quem lê o ML são os servidores do Apify; o token nunca vem para o navegador).
-// Produção: Edge Function buscar-concorrentes (APIFY_TOKEN nos Secrets; confere login e empresa).
-// DEMO: no servidor local (127.0.0.1:8090) vai pelo POST /api/buscar-concorrentes do servidor_calculeo.py (token só lá).
-// Os dois devolvem { itens } do Apify; candidatosDoApify tira os nossos e monta os candidatos. A busca fica guardada por
-// produto (correção 13), substituindo a anterior.
+// Busca de concorrentes no ML pelo Apify (quem lê o ML são os servidores do Apify; o token nunca vem para o navegador), pela Edge
+// Function buscar-concorrentes (APIFY_TOKEN nos Secrets; confere login, empresa e o limite de buscas, e registra a busca). Também no
+// servidor local (127.0.0.1:8090): o teste passa pela mesma trava de produção (Maestro 17/11; o atalho direto no Apify pulava o limite).
+// Devolve { itens } do Apify; candidatosDoApify tira os nossos e monta os candidatos. A busca fica guardada por produto (correção 13),
+// substituindo a anterior.
 // -> { termo, resultados: [{ produtoCatalogo, itemId, titulo, foto, vendedor, preco, full, freteGratis, link, vendidos }], buscadoEm, naoGuardou? }
-const DEMO_APIFY = globalThis.location?.hostname === '127.0.0.1'; // globalThis: nos testes (Node) não há location
+// Cota de buscas do mês da empresa em uso (correção 19): { limite, usadas }; limite null = sem limite. Sem a função no banco: null.
+export async function cotaBuscas() {
+  const { data, error } = await (await supa()).rpc('minha_cota_buscas', { empresa: empresaId });
+  if (error || !data?.length) return null;
+  return { limite: data[0].limite ?? null, usadas: data[0].usadas_mes ?? 0 };
+}
+
 export async function buscarConcorrentesNoML({ produtoId, termo }) {
   let itens;
-  if (DEMO_APIFY) {
-    const r = await fetch('/api/buscar-concorrentes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ termo }) });
-    const corpo = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(corpo.erro ?? 'A busca de concorrentes falhou. Tente de novo em instantes.');
-    itens = corpo.itens;
-  } else {
-    const { data, error } = await (await supa()).functions.invoke('buscar-concorrentes', { body: { empresa: empresaId, produto: produtoId, termo } });
-    if (error) {
-      const corpo = await error.context?.json?.().catch(() => null); // a função explica o erro em { erro }
-      throw new Error(corpo?.erro ?? 'A busca de concorrentes ainda não está disponível. Use "Adicionar à mão" por enquanto.');
-    }
-    itens = data.itens;
+  const { data, error } = await (await supa()).functions.invoke('buscar-concorrentes', { body: { empresa: empresaId, produto: produtoId, termo } });
+  if (error) {
+    const corpo = await error.context?.json?.().catch(() => null); // a função explica o erro em { erro }
+    throw new Error(corpo?.erro ?? 'A busca de concorrentes ainda não está disponível. Use "Adicionar à mão" por enquanto.');
   }
+  itens = data.itens;
   const busca = { termo, resultados: candidatosDoApify(itens), buscadoEm: new Date().toISOString() };
   // sem "excluidos" no envio: os anúncios que a pessoa tirou do cálculo continuam fora depois do Atualizar
   const r = await (await supa()).from('buscas_concorrentes').upsert({
@@ -427,6 +584,7 @@ export function paraLinhas(d, empresa) {
     largura_cm: num(p.largura),
     altura_cm: num(p.altura),
     impostos_canal: p.impostosCanal ?? {}, // imposto só deste produto, por canal (correção 14)
+    categoria_ml: p.categoriaMl || null, // categoria do ML só deste produto; null = a do canal (correção 20)
     fotos: p.fotos ?? [],
     atualizado_em: p.atualizadoEm ?? new Date().toISOString(),
   }));
@@ -461,6 +619,7 @@ export function deLinhas(t) {
     largura: num(r.largura_cm),
     altura: num(r.altura_cm),
     impostosCanal: r.impostos_canal ?? {},
+    categoriaMl: r.categoria_ml ?? null,
     fotos: r.fotos ?? [],
     atualizadoEm: r.atualizado_em,
   }));

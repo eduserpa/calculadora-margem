@@ -1,4 +1,5 @@
 // Custo e peso de um produto cadastrado (usa as funções de src/calculos).
+import { reducaoDaCategoria } from './categorias-ml.js';
 import { custoRevenda, custoFabricacao, custoKit } from './calculos/custo-produto.js';
 import { pesoParaFrete } from './calculos/peso.js';
 import { dados, canais } from './dados.js';
@@ -31,9 +32,18 @@ export const impostoDoProdutoNoCanal = (produto, canalId) => {
   const v = produto?.impostosCanal?.[canalId];
   return v == null ? null : Number(v);
 };
+// No Mercado Livre, a categoria do produto (produto.categoriaMl; null = a do canal) dá a redução da comissão de R$ 150 a R$ 700.
 export const canalDoProduto = (canal, produto, canalId) => {
+  if (!canal) return canal;
   const imposto = impostoDoProdutoNoCanal(produto, canalId);
-  return canal && imposto != null ? { ...canal, impostos: imposto, impostoDoProduto: true } : canal;
+  const categoria = canal.tipo === 'mercadolivre' && produto?.categoriaMl;
+  const reducao = categoria && canal.faixa_reduzida && reducaoDaCategoria(categoria);
+  if (imposto == null && !reducao) return canal;
+  return {
+    ...canal,
+    ...(imposto != null && { impostos: imposto, impostoDoProduto: true }),
+    ...(reducao && { categoria, faixa_reduzida: { ...canal.faixa_reduzida, reducao }, categoriaDoProduto: true }),
+  };
 };
 
 // Cada preço salvo na Calculadora (produto × canal) com a conta feita: { produto, canalId, canal, preco, cmv, pesoG, r }.
@@ -70,6 +80,7 @@ export function produtoVazio() {
     largura: 0,
     altura: 0,
     impostosCanal: {}, // imposto só deste produto num canal: { mercadolivre: 15 }; sem o canal = o do canal/empresa
+    categoriaMl: null, // categoria do Mercado Livre só deste produto ('Pai > Sub'); null = a do canal
   };
 }
 

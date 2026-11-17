@@ -37,7 +37,7 @@ async function banco(comCorrecao) {
   }
   await db.exec(`
     insert into auth.users values ('${ANA}', 'ana@a.com'), ('${BIA}', 'bia@a.com'), ('${LEO}', 'leo@b.com');
-    insert into empresas (id, nome) values ('${A}', 'Loren Metais'), ('${B}', 'Outra');
+    insert into empresas (id, nome, limite_buscas_mes) values ('${A}', 'Loren Metais', null), ('${B}', 'Outra', null); -- sem o limite do mês (correção 17): aqui é o do dia
     insert into membros (empresa_id, usuario_id, email, papel) values
       ('${A}', '${ANA}', 'ana@a.com', 'dono'), ('${A}', '${BIA}', 'bia@a.com', 'membro'), ('${B}', '${LEO}', 'leo@b.com', 'dono');
     insert into produtos (id, empresa_id, nome, sku, tipo_custo) values ('${PIA}', '${A}', 'Pia Inox', 'P-1', 'revenda');
@@ -87,7 +87,8 @@ for (const [nome, comCorrecao] of [['schema.sql novo', false], ['correções 12,
     await db.exec(`update buscas_feitas set feita_em = now() - interval '25 hours'`);
     assert.equal(await registrar(ANA, P3), 'ok', 'mais de 24 h atrás não conta');
     await como(db, ANA, `delete from produtos where id = '${PIA}'`);
-    assert.equal((await db.query(`select count(*)::int as n from buscas_feitas where produto_id = '${PIA}'`)).rows[0].n, 0, 'vai junto com o produto');
+    assert.equal((await db.query(`select count(*)::int as n from buscas_feitas where produto_id = '${PIA}'`)).rows[0].n, 0, 'sem o produto apagado');
+    assert.ok((await db.query(`select count(*)::int as n from buscas_feitas where produto_id is null`)).rows[0].n > 0, 'a busca continua contando (correção 17)');
   });
   test(`buscas guardadas: ${nome}`, async () => {
     const db = await banco(comCorrecao);

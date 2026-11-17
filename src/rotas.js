@@ -1,6 +1,6 @@
 // Telas por endereço normal (/produtos), com Voltar e Avançar do navegador. O endereço antigo (/#produtos, de favoritos e
 // links já enviados) vira o novo. O # que o Supabase põe na volta do e-mail (#access_token=…, #type=recovery) não é tela.
-const TELA_DO_CAMINHO = { inicio: 'inicio', calculadora: 'calculadora', produtos: 'produtos', taxas: 'configuracoes', configuracoes: 'configuracoes', equipe: 'equipe', empresa: 'equipe', historico: 'historico', novidades: 'novidades' };
+const TELA_DO_CAMINHO = { inicio: 'inicio', calculadora: 'calculadora', produtos: 'produtos', taxas: 'configuracoes', configuracoes: 'configuracoes', equipe: 'equipe', empresa: 'equipe', historico: 'historico', novidades: 'novidades', plataforma: 'plataforma' };
 const CAMINHO_DA_TELA = { configuracoes: 'taxas', equipe: 'empresa' }; // onde o caminho não é o nome da tela
 
 export const caminhoDaTela = (tela) => `/${CAMINHO_DA_TELA[tela] ?? tela}`;

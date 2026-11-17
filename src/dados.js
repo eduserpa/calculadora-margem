@@ -2,6 +2,8 @@
 // Com login, ficam na nuvem (src/nuvem.js troca o `guardado`); sem ele, no navegador (localStorage).
 // Exportar/importar um arquivo .json serve de cópia de segurança e para levar a outro lugar.
 
+import { carregarCategoriasMl } from './categorias-ml.js';
+
 const CHAVE = 'calculadora-margem.v1';
 
 // Onde os dados ficam. ler() devolve { produtos, canais, precificacoes, empresa } ou null; gravar() lança erro se não conseguir.
@@ -38,7 +40,7 @@ export async function carregar() {
     if (guardado !== noNavegador) throw erro; // nuvem fora do ar: quem chamou avisa
     // navegador sem acesso ao armazenamento: segue só na memória
   }
-  const resposta = await fetch('data/canais.json');
+  const [resposta] = await Promise.all([fetch('data/canais.json'), carregarCategoriasMl()]);
   canaisPadrao = (await resposta.json()).canais;
 }
 

@@ -2,7 +2,7 @@
 // Supabase Auth de mentira com as mensagens de erro de verdade.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { entrarComSenha } from '../src/nuvem.js';
+import { entrarComSenha, reenviarConfirmacao, esqueciSenha, trocarSenha } from '../src/nuvem.js';
 
 const SESSAO = { data: { session: { user: {} } }, error: null };
 const erro = (message) => ({ data: { session: null }, error: { message } });
@@ -61,4 +61,56 @@ test('login: outra falha do login (internet, limite) não tenta criar conta', as
   auth.signInWithPassword = async () => erro('Request rate limit reached. Try again in 60 seconds');
   await assert.rejects(entrarComSenha('bia@a.com', 'senha1234', auth), /Espere 1 minuto/);
   assert.deepEqual(auth.chamou, []);
+});
+
+// ---------- confirmação de e-mail (Confirm email ligado no Supabase) e Esqueci a senha (Wednesday 17/11) ----------
+const SEM_SESSAO = (identities = [{ id: 'i' }]) => ({ data: { session: null, user: { identities } }, error: null });
+
+test('confirmação ligada: 1º acesso do convidado não entra; a tela diz "Enviamos um link" e o link volta para o site', async () => {
+  const auth = authFalso({}, ['bia@a.com']);
+  let opcoes;
+  auth.signUp = async ({ options }) => (auth.chamou.push('criar'), (opcoes = options), SEM_SESSAO());
+  assert.deepEqual(await entrarComSenha(' Bia@A.com ', 'nova-senha', auth), { confirmar: 'bia@a.com' });
+  assert.deepEqual(auth.chamou, ['login', 'criar']);
+  assert.ok('emailRedirectTo' in opcoes);
+});
+
+test('confirmação ligada: conta que já existe com senha errada diz só "E-mail ou senha incorretos" (não conta que existe)', async () => {
+  const auth = authFalso({ 'ana@a.com': 'senha1234' });
+  auth.signUp = async () => SEM_SESSAO([]); // o Supabase devolve um usuário sem identidades em vez de erro
+  await assert.rejects(entrarComSenha('ana@a.com', 'outra-senha', auth), { message: 'E-mail ou senha incorretos.' });
+});
+
+test('confirmação ligada: quem volta sem ter confirmado vai para a mesma tela e pode pedir outro link na hora', async () => {
+  const auth = authFalso({});
+  auth.signInWithPassword = async () => erro('Email not confirmed');
+  assert.deepEqual(await entrarComSenha('bia@a.com', 'nova-senha', auth), { confirmar: 'bia@a.com', jaPode: true });
+});
+
+test('reenviar: manda de novo o link de cadastro; limite do Supabase vira "Espere 1 minuto"', async () => {
+  let pedido;
+  await reenviarConfirmacao(' Bia@A.com ', { resend: async (p) => ((pedido = p), { error: null }) });
+  assert.equal(pedido.type, 'signup');
+  assert.equal(pedido.email, 'bia@a.com');
+  await assert.rejects(reenviarConfirmacao('bia@a.com', { resend: async () => ({ error: { message: 'For security purposes, you can only request this after 52 seconds.' } }) }), /Espere 1 minuto/);
+});
+
+test('esqueci a senha: e-mail limpo e a mesma resposta para quem tem e quem não tem conta', async () => {
+  let enviado;
+  await esqueciSenha(' Ana@A.com ', { resetPasswordForEmail: async (e) => ((enviado = e), { error: null }) });
+  assert.equal(enviado, 'ana@a.com');
+  await assert.rejects(esqueciSenha('ana@a.com', { resetPasswordForEmail: async () => ({ error: { message: 'Request rate limit reached' } }) }), /Espere 1 minuto/);
+});
+
+test('senha nova: derruba as outras sessões depois de salvar (a de quem criou a conta com outra senha)', async () => {
+  const chamou = [];
+  await trocarSenha('senha1234', {}, { updateUser: async () => (chamou.push('senha'), { error: null }), signOut: async (o) => (chamou.push(o.scope), { error: null }) });
+  assert.deepEqual(chamou, ['senha', 'others']);
+});
+
+test('senha nova: curta não sai; a mesma da antiga só vale na confirmação do cadastro', async () => {
+  const mesma = { updateUser: async () => ({ error: { message: 'New password should be different from the old password.' } }), signOut: async () => ({ error: null }) };
+  await assert.rejects(trocarSenha('1234567', {}, mesma), /8 caracteres/);
+  await assert.rejects(trocarSenha('senha1234', {}, mesma), /diferente da antiga/);
+  await trocarSenha('senha1234', { mesmaVale: true }, mesma);
 });

@@ -1,6 +1,6 @@
 // Edge Function buscar-concorrentes (supabase/functions/buscar-concorrentes/index.ts), sem rede: Deno e fetch falsos.
 // Confere: precisa estar logado; registrar_busca (banco) decide empresa e limite ANTES do Apify (de fora = 403, mesmo produto
-// há pouco ou 30 no dia = 429, sem a correção 13 = 503, e nesses casos o Apify não é chamado); sem o APIFY_TOKEN avisa;
+// há pouco, limite do mês ou 30 no dia = 429, sem a correção 13 = 503, e nesses casos o Apify não é chamado); sem o APIFY_TOKEN avisa;
 // chama o Apify com a palavra-chave, 1 página e o token só no cabeçalho; o token nunca aparece na resposta.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -55,7 +55,7 @@ test('função: sem login, de fora, membro (não admin), termo curto, produto bu
   assert.equal((await pedir(PEDIDO, 'Bearer de-fora')).status, 403);
   assert.equal((await pedir({ ...PEDIDO, termo: 'pi' })).status, 400);
   assert.equal((await pedir({ ...PEDIDO, produto: undefined })).status, 400);
-  for (const [m, status, msg] of [['so_admin', 403, /Só o admin/], ['produto', 429, /10 minutos/], ['dia', 429, /30 buscas/], [null, 503, /correção 13/]]) {
+  for (const [m, status, msg] of [['so_admin', 403, /Só o admin/], ['produto', 429, /10 minutos/], ['mes', 429, /limite de buscas deste mês/], ['dia', 429, /30 buscas/], [null, 503, /correção 13/]]) {
     motivo = m;
     const r = await pedir(PEDIDO);
     assert.equal(r.status, status);

@@ -48,7 +48,7 @@
     // O leão animado (253 KB) só é baixado quando o app vai mesmo abrir (há sessão ou link de login no endereço);
     // sem sessão aparece o login na hora e esta imagem não disputa a banda com ele.
     try {
-      if (Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)) || /access_token|[?&]code=|type=recovery/.test(location.href)) {
+      if (Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)) || /access_token|[?&]code=|type=recovery|[#&]link=/.test(location.href)) {
         document.querySelectorAll('#abrindo [data-srcset]').forEach((s) => (s.srcset = s.dataset.srcset));
         document.querySelectorAll('#abrindo [data-src]').forEach((i) => (i.src = i.dataset.src));
       }
@@ -67,14 +67,19 @@
         <button type="button" class="link-botao" id="login-link">Receber link por e-mail</button>
       </form>
       <form id="nova-senha-form" novalidate hidden>
-        <label class="campo"><span>Nova senha</span><input type="password" id="nova-senha" autocomplete="new-password" minlength="8" required></label>
-        <button type="submit" class="botao principal">Salvar nova senha</button>
+        <label class="campo"><span>Nova senha</span><span class="campo-senha"><input type="password" id="nova-senha" autocomplete="new-password" minlength="8" required><button type="button" class="olho" id="nova-senha-olho" aria-label="Mostrar senha" aria-pressed="false"><svg class="ic" aria-hidden="true" focusable="false"><use href="assets/icones.svg#eye"></use></svg></button></span></label>
+        <label class="campo"><span>Confirme a senha</span><input type="password" id="nova-senha-2" autocomplete="new-password" minlength="8" required></label>
+        <p class="erro" id="nova-senha-erro" role="alert" hidden>As senhas não são iguais.</p>
+        <button type="submit" class="botao principal" id="nova-senha-salvar" disabled>Salvar senha</button>
       </form>
       <form id="criar-empresa-form" novalidate hidden>
         <label class="campo"><span>Nome da empresa</span><input type="text" id="criar-empresa-nome" autocomplete="organization" required></label>
         <button type="submit" class="botao principal">Criar empresa</button>
       </form>
       <p class="login-msg" id="login-msg" role="status"></p>
+      <!-- depois de mandar um link (confirmar cadastro, esqueci a senha, link de acesso): só aparecem aí; o "Reenviar" 60 s depois -->
+      <button type="button" class="link-botao" id="login-reenviar" hidden>Reenviar</button>
+      <button type="button" class="link-botao" id="login-voltar" hidden>Voltar</button>
       <button type="button" class="botao" id="login-sair" hidden>Sair</button>
     </div>
   </main>
@@ -308,10 +313,11 @@
   <dialog id="janela-copiar" class="janela pequena" aria-labelledby="titulo-copiar"></dialog>
   <dialog id="janela-empresa" class="janela pequena" aria-labelledby="titulo-nova-empresa"></dialog>
   <dialog id="janela-convite" class="janela pequena" aria-labelledby="titulo-convite"></dialog>
+  <dialog id="janela-plataforma" class="janela pequena" aria-labelledby="titulo-plataforma-janela"></dialog>
   <script>
     // Sem sessão guardada (e sem link de login no endereço), o login aparece já, antes de o app terminar de carregar.
     try {
-      if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)) && !/access_token|[?&]code=|type=recovery/.test(location.href)) {
+      if (!Object.keys(localStorage).some((k) => /^sb-.+-auth-token$/.test(k)) && !/access_token|[?&]code=|type=recovery|[#&]link=/.test(location.href)) {
         document.getElementById('abrindo').hidden = true;
         document.getElementById('login').hidden = false;
       }

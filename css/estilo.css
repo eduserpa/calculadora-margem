@@ -246,8 +246,8 @@ a.versao { pointer-events: auto; text-decoration: none; }  /* o leão da versão
   content: ""; position: absolute; inset: -4px -7px -7px -4px; border: 2px solid var(--roxo); border-radius: calc(var(--raio-p) + 4px); pointer-events: none; }
 .lateral :focus-visible::before { border-color: var(--lima); }
 .lateral-botao, button.selo-empresa, .aba { position: relative; }
-:is(#tela-inicio, .imposto-origem, .login-cartao) .link-botao:focus-visible { outline: 2px solid var(--roxo); }  /* na Início, no "voltar ao padrão" e no login ele é link de texto, sem sombra: anel comum */
-:is(#tela-inicio, .imposto-origem, .login-cartao) .link-botao:focus-visible::before { content: none; }
+:is(#tela-inicio, .imposto-origem, .cat-origem, .login-cartao) .link-botao:focus-visible { outline: 2px solid var(--roxo); }  /* na Início, no "voltar ao padrão" e no login ele é link de texto, sem sombra: anel comum */
+:is(#tela-inicio, .imposto-origem, .cat-origem, .login-cartao) .link-botao:focus-visible::before { content: none; }
 
 /* Campos: todos iguais (40, 44 no toque; foco roxo), inclusive os pequenos das tabelas e da calculadora. Regra única (Eduardo 16/11):
    CAMPO é plano (sem sombra, borda cinza 1px, fundo cinza-claro, cantos 4); BOTÃO é em camadas. A peça .passo-numero segue o campo. */
@@ -581,8 +581,8 @@ input[type="range"]:focus-visible::-moz-range-thumb { outline: 2px solid var(--r
 .campo-imposto { display: grid; gap: 6px; }
 .campo-imposto > .erro { font-size: 12px; }
 .campo-imposto > .erro[hidden] { display: none; }
-#janela-canal .imposto-origem .link-botao { position: relative; font-size: inherit; }  /* link de texto no tamanho da dica (regra da Início) */
-:is(.imposto-origem, .login-cartao) .link-botao::after { content: ""; position: absolute; inset: -10px -4px; }  /* 44 de toque sem mudar a linha */
+#janela-canal :is(.imposto-origem, .cat-origem) .link-botao { position: relative; font-size: inherit; }  /* link de texto no tamanho da dica (regra da Início) */
+:is(.imposto-origem, .cat-origem, .login-cartao) .link-botao::after { content: ""; position: absolute; inset: -10px -4px; }  /* 44 de toque sem mudar a linha */
 .info-peso { padding: 9px 12px; border-radius: 8px; background: var(--superficie-2); color: var(--suave); font-size: 13px; }
 .info-peso strong { color: var(--texto); }
 .cmv-cabeca { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; }
@@ -884,9 +884,9 @@ ol.plano li::marker { font-weight: 700; }
   .lista-canais li > .barra-dist, .lista-canais li > small { grid-column: 1 / -1; }
 }
 /* nome do produto na tabela, "Ver histórico completo" e o "voltar ao padrão" do imposto (janela do canal): link de texto (roxo é detalhe), não botão */
-:is(#tela-inicio, .imposto-origem, .login-cartao) .link-botao { display: inline-block; min-height: 24px; padding: 0; border: 0; background: none; box-shadow: none; transform: none;
+:is(#tela-inicio, .imposto-origem, .cat-origem, .login-cartao) .link-botao { display: inline-block; min-height: 24px; padding: 0; border: 0; background: none; box-shadow: none; transform: none;
   color: var(--roxo); font: 600 var(--f) / 1.4 var(--fonte); text-decoration: underline; text-underline-offset: 2px; white-space: normal; text-align: left; justify-self: start; }
-:is(#tela-inicio, .imposto-origem, .login-cartao) .link-botao:is(:hover, :active) { background: none; box-shadow: none; transform: none; text-decoration-thickness: 2px; }
+:is(#tela-inicio, .imposto-origem, .cat-origem, .login-cartao) .link-botao:is(:hover, :active) { background: none; box-shadow: none; transform: none; text-decoration-thickness: 2px; }
 #login .link-botao { justify-self: center; font-size: 13px; }  /* "Receber link por e-mail" e "Esqueci a senha": link de texto pequeno, centrado abaixo do Entrar (#: ganha do :is acima) */
 td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 600; font-variant-numeric: tabular-nums; }
 /* 7 faixas da margem (as mesmas da barra da Análise): texto com contraste AA e a cor cheia na barra */
@@ -1225,3 +1225,64 @@ td[class^="f-"], .numero-valor[class*=" f-"] { font-weight: 600; font-variant-nu
 /* aviso de preço menor com mais lucro: o ícone é um cifrão (Lucide circle-dollar-sign), no lugar do check do sucesso */
 .aviso-tipo.conc-aviso { --av-ic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8'/%3E%3Cpath d='M12 18V6'/%3E%3C/svg%3E"); }
 
+/* ===== PLATAFORMA (Wednesday 17/11): tela só dos donos da plataforma (src/telas/plataforma.js). Reaproveita cartão, pessoas, histórico e janelas;
+   aqui só a etapa do código (QR), a lista de empresas em <details> e as pílulas de situação ===== */
+.plat-codigo { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--e2) var(--e3); }
+.plat-codigo > div { flex: 1 1 320px; min-width: 0; }
+.plat-codigo h2 { margin: 0 0 var(--e1); }
+.plat-passos { margin: var(--e2) 0; padding-left: 20px; display: grid; gap: 6px; }
+.plat-qr { margin: 0 0 var(--e2); display: grid; justify-items: start; gap: 8px; }
+.plat-qr img { width: 180px; height: 180px; padding: 8px; border: 1px solid var(--linha); border-radius: var(--raio-p); background: #fff; }  /* fundo branco: o app lê o QR também no tema escuro */
+.plat-qr code { overflow-wrap: anywhere; font-size: 13px; }
+.plat-codigo-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--e1) var(--e2); margin-top: var(--e2); }
+.plat-codigo-form .campo { margin: 0; }
+.plat-codigo-form input { width: 12ch; font-size: 20px; letter-spacing: .2em; font-variant-numeric: tabular-nums; }
+.plat-painel { display: grid; gap: var(--e3); }
+.plat-busca { max-width: 360px; margin: var(--e2) 0 var(--e1); }
+.plat-empresas { list-style: none; margin: 0; padding: 0; }
+.plat-empresas > li { border-top: 1px solid var(--linha); }
+.plat-empresas > li:first-child { border-top: 0; }
+.plat-empresa > summary { display: grid; gap: 4px; padding: 12px 0; cursor: pointer; list-style: none; }
+.plat-empresa > summary::-webkit-details-marker { display: none; }
+.plat-empresa > summary:focus-visible { outline: 2px solid var(--roxo); outline-offset: 2px; border-radius: var(--raio-p); }
+.plat-nome { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding-left: 20px; overflow-wrap: anywhere; }
+.plat-nome::before { content: ""; position: absolute; left: 2px; top: .45em; width: 8px; height: 8px; border-right: 2px solid var(--suave); border-bottom: 2px solid var(--suave); transform: rotate(-45deg); transition: transform .15s; }  /* setinha: abre/fecha; fora do fluxo, para nome longo quebrar ao lado dela */
+.plat-empresa[open] .plat-nome::before { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { .plat-nome::before { transition: none; } }
+.plat-empresa.suspensa .plat-nome strong { color: var(--suave); }
+.pilula.ok { background: var(--sucesso-fundo); color: var(--sucesso); }
+.pilula.perigo { background: var(--erro-fundo); color: var(--erro); }
+.plat-detalhe { display: grid; gap: var(--e2); padding: 0 0 var(--e2) 18px; }
+.plat-metricas { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--e1) var(--e2); margin: 0; }
+.plat-metricas dt { color: var(--suave); font-size: 13px; }
+.plat-metricas dd { margin: 2px 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.plat-acoes { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--e2); }
+.plat-limite { display: flex; flex-wrap: wrap; align-items: flex-end; gap: var(--e1); }
+.plat-limite .campo { margin: 0; }
+.plat-limite input { width: 14ch; }
+.plat-pessoas .cartao-topo h3 { margin: 0; }
+@media (max-width: 600px) { .plat-detalhe { padding-left: 0; } .plat-acoes > .botao { width: 100%; } .plat-busca { max-width: none; } }
+/* ===== LOGIN: senha nova com olhinho (Wednesday 17/11; regra do Eduardo: 1 campo só, sem "confirmar senha") ===== */
+.campo-senha { position: relative; display: block; }
+.campo-senha input { width: 100%; padding-right: 44px; }
+.olho { position: absolute; top: 0; right: 0; display: grid; place-items: center; width: 44px; height: 100%; padding: 0; border: 0; background: none; color: var(--suave); cursor: pointer; }
+.olho .ic { width: 18px; height: 18px; }
+.olho:hover { color: var(--texto); }
+.olho:focus-visible { outline: 2px solid var(--roxo); outline-offset: -2px; }
+/* Plataforma, Criar empresa: o nome sorteado com o botão de sortear outro ao lado (Eduardo 17/11) */
+.plat-nome-campo { display: flex; gap: 8px; }
+.plat-nome-campo input { flex: 1; min-width: 0; }
+.plat-nome-campo .botao { flex: none; width: var(--alt); padding: 0; }
+@media (pointer: coarse) { .plat-nome-campo .botao { width: var(--alt-toque); } }
+/* Código da empresa (Eduardo 17/11): 6 letras e números que nunca mudam; na Plataforma ao lado do nome e na tela Empresa, com copiar */
+.plat-cod, .empresa-codigo code { font: 600 13px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .08em; padding: 3px 6px; border-radius: var(--raio-p); background: var(--superficie-2); color: var(--texto); }
+.empresa-codigo { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 0; }
+.empresa-codigo .botao { width: var(--alt); padding: 0; }
+@media (pointer: coarse) { .empresa-codigo .botao { width: var(--alt-toque); } }
+/* código da empresa no menu de troca de empresa (Eduardo 17/11): pequeno, embaixo do nome */
+.selo-codigo { display: block; margin-top: 2px; font: 600 11px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .08em; color: var(--suave); }
+/* Plataforma: Reativar e Excluir lado a lado (Excluir só na empresa suspensa) */
+.plat-acoes-botoes { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 600px) { .plat-acoes-botoes { width: 100%; } .plat-acoes-botoes > .botao { flex: 1 1 auto; } }
+/* cota de buscas do mês no cartão Concorrentes (Eduardo 17/11): embaixo dos botões, a linha inteira */
+.conc-acoes .conc-cota { flex-basis: 100%; margin: 0; font-size: 13px; }
